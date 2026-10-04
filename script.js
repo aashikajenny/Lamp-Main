@@ -1,10 +1,10 @@
 /* OM Night Lamp: page choreography.
-   - Intro: scrolling carries the lamp to the wall socket, plugs it in, flips the switch, and it lights.
-   - The 3D lamp lives in a fixed canvas (lamp3d.js). Each section declares a pose; as you scroll,
-     the lamp interpolates between poses, so it travels, turns and brightens with the story.
-   - Features: a sticky showcase where the lamp itself demonstrates each feature.
-   - Endless page: the opening screen is repeated after the footer, and scrolling past it
-     lands back at the start without a seam (and scrolling up from the start wraps to the end). */
+   - Scrolling only scrolls the page. Each section that shows the lamp has its own 3D lamp
+     (lamp3d.js) in its own slot, so it scrolls with that section like any other content.
+     The lamps turn on their own.
+   - Features: the showcase plays by itself, one feature every few seconds, and its lamp
+     demonstrates each one. The step buttons, the Next button or a tap jump ahead.
+   - Buy: pick a design and the lamp there turns to show it. */
 (function () {
   "use strict";
 
@@ -16,308 +16,199 @@
       amazon: "",    // e.g. "https://www.amazon.in/dp/XXXXXXXXXX"
       flipkart: "",  // e.g. "https://www.flipkart.com/om-night-lamp/p/itmXXXXXXXX"
       meesho: ""     // e.g. "https://www.meesho.com/om-night-lamp/p/XXXXXX"
-    }
+    },
+    // Set to true once the room photos are in images/rooms/ (see README); until then each room shows a placeholder.
+    roomPhotos: false
   };
 
-  const { animate, scroll, inView, hover, press, frame } = window.Motion;
-  const TAU = Math.PI * 2;
+  const { animate, inView, hover, press } = window.Motion;
   const EASE = [0.16, 1, 0.3, 1];
+  // time per slide: long enough to read a short caption (~3 s) after the lamp settles (~1 s), no longer
+  const SLIDE_MS = 3500;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const isMobile = () => window.innerWidth < 768;
-  const Lamp = window.Lamp;
-  const Field = window.Field || { level: 0 };
+  const Lamps = window.Lamps;
+  const Art = window.LampArt;
+  const Field = window.Field || { level: 0, burst() {} };
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
-  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-  if (Lamp.failed) document.body.classList.add("no-3d");
-
-  const intro = $("#intro"), hero = $("#hero"), show = $("#features");
-  const spaces = $("#spaces"), order = $("#order"), faq = $("#faq");
-
-  /* ---------- Loop tail: a copy of the opening screen after the footer ---------- */
-  const ghost = hero.cloneNode(true);
-  ghost.removeAttribute("id");
-  $$("[id]", ghost).forEach((el) => el.removeAttribute("id"));
-  $$("a, button", ghost).forEach((el) => el.setAttribute("tabindex", "-1"));
-  const tail = $(".loop-tail");
-  tail.appendChild(ghost);
-  const spacer = document.createElement("div");
-  spacer.className = "loop-spacer";
-  tail.appendChild(spacer);
-
-  /* ---------- Smooth scroll (mouse and trackpad only; touch keeps native momentum) ---------- */
-  let lenis = null;
-  if (!reduceMotion && finePointer && window.Lenis) {
-    lenis = new Lenis({ lerp: 0.085, smoothWheel: true });
-    frame.update(({ timestamp }) => lenis.raf(timestamp), true);
-  }
-  const scrollPos = () => window.scrollY;
-  function scrollToY(y, smooth) {
-    if (lenis) lenis.scrollTo(y, smooth ? { duration: 1.5, force: true } : { immediate: true, force: true });
-    else window.scrollTo({ top: y, behavior: smooth && !reduceMotion ? "smooth" : "instant" });
-  }
-  window.scrollTo(0, 0);
-
-  /* ---------- Measurements ---------- */
-  const M = { vh: 1, introTop: 0, introLen: 1, introEnd: 0, heroTop: 0, showTop: 0, showLen: 1, cloneTop: 1, loopLen: 1, spaces: 0, order: 0, faq: 0 };
-  function measure() {
-    const y = scrollPos();
-    const top = (el) => el.getBoundingClientRect().top + y;
-    M.vh = window.innerHeight;
-    M.introTop = top(intro);
-    M.introLen = Math.max(1, intro.offsetHeight - M.vh);
-    M.introEnd = Lamp.failed ? 0 : M.introTop + M.introLen;
-    M.heroTop = top(hero);
-    M.showTop = top(show);
-    M.showLen = Math.max(1, show.offsetHeight - M.vh);
-    M.spaces = top(spaces);
-    M.order = top(order);
-    M.faq = top(faq);
-    M.cloneTop = top(ghost);
-    M.loopLen = M.cloneTop - M.heroTop;
-  }
-
-  /* ---------- Endless loop ---------- */
-  let introDone = !!Lamp.failed;
-  let started = false; // ignore the browser's own scroll restoration while the page loads
-  function jump(by) {
-    if (lenis) {
-      // carry any smooth-scroll still in flight across the seam, so the wheel never stalls
-      const rest = lenis.isScrolling === "smooth" ? lenis.targetScroll - lenis.animatedScroll : 0;
-      const to = window.scrollY + by;
-      lenis.scrollTo(to, { immediate: true, force: true });
-      if (Math.abs(rest) > 0.5 && Math.abs(rest) < M.vh) lenis.scrollTo(to + rest, { force: true });
-    } else {
-      window.scrollTo({ top: scrollPos() + by, behavior: "instant" });
-    }
-  }
-  function onScroll() {
-    if (!started) return;
-    const y = scrollPos();
-    if (!introDone && y >= M.heroTop - 1) introDone = true;
-    if (y >= M.cloneTop - 1) jump(-M.loopLen);
-    else if (introDone && y < M.heroTop - 1) jump(M.loopLen);
-    document.body.classList.toggle("is-open", y > M.heroTop - M.vh * 0.35);
-  }
-  window.addEventListener("scroll", onScroll, { passive: true });
-
-  $$('a[href^="#"]:not(.store)').forEach((a) => {
-    a.addEventListener("click", (e) => {
-      const el = $(a.getAttribute("href"));
-      if (!el) return;
-      e.preventDefault();
-      measure();
-      const extra = el === hero ? 2 : el === show ? SHOW_STOPS[0] * M.showLen : 0;
-      scrollToY(el.getBoundingClientRect().top + scrollPos() + extra, true);
-    });
-  });
+  const hero = $("#hero"), show = $("#features"), orderSec = $("#order");
 
   /* ---------- Poses ---------- */
-  let BASE = {};
-  const pose = (o) => Object.assign({}, BASE, o);
-  let P = {}, S = {};
-  // where the switchboard sits: (cx, cy) is the board's centre; the socket sits left of it
-  function dockAt(cx, cy, cap) {
-    const aspect = window.innerWidth / window.innerHeight;
-    const ds = Math.min(cap, aspect * 1.05);
-    return { dx: cx - 0.181 * ds / aspect, dy: cy, ds };
-  }
-  function poses() {
-    const m = isMobile();
-    const d = dockAt(0, m ? 0.05 : 0.03, 1.12);
-    BASE = Object.assign({ z: 0, room: 1, wall: 0 }, d);
-    const room = Object.assign({ room: 0, wall: 1, glow: 1.15 }, d);
-    P.far      = Object.assign({}, room, { x: d.dx + (m ? 0.08 : 0.04), y: d.dy - 0.06, z: m ? 5.2 : 4.4, s: d.ds, rx: 0.32, ry: -Math.PI * 0.86 });
-    P.aligned  = Object.assign({}, room, { x: d.dx, y: d.dy, z: 1.15, s: d.ds, rx: 0, ry: 0 });
-    P.plugged  = Object.assign({}, room, { x: d.dx, y: d.dy, z: 0, s: d.ds, rx: 0, ry: 0 });
-    // the room dissolves into the night around the lit lamp before it floats free
-    P.dissolve = Object.assign({}, P.plugged, { wall: 0, room: 0.45, z: 0.3 });
+  const P = {
+    hero: { rx: -0.06, ry: -0.55, glow: 0.8, spin: 0.45 },
+    features: [
+      { s: 1.25, rx: 0, ry: 0, glow: 0.85, sway: 0.12 },                        // the OM artwork, up close
+      { rx: -0.04, ry: -0.24, glow: 1.4, room: 0.16, sway: 0.1 },               // the glow rises as the room darkens
+      { rx: -0.22, ry: -Math.PI + 0.1, glow: 0.35, room: 0.9, sway: 0.32 },     // the two pins on the back
+      { rx: -0.06, ry: 0, glow: 1, room: 0.85, spin: 0.7 }                       // a slow gift turn
+    ],
+    order: { s: 1.05, rx: -0.04, ry: 0.15, glow: 1, sway: 0.2 }               // facing forward, so the art reads
+  };
+  P.glowStart = Object.assign({}, P.features[1], { glow: 0.08, room: 0.95 });
 
-    P.hero      = m ? pose({ x: 0, y: 0.2, s: 0.68, rx: -0.05, ry: -0.5, glow: 0.8 })
-                    : pose({ x: 0.22, y: -0.01, s: 1.15, rx: -0.06, ry: -0.55, glow: 0.8 });
-
-    // Features showcase: each pose demonstrates one feature, on the lamp itself
-    const sd = m ? dockAt(0, 0.17, 0.78) : dockAt(0.2, 0.02, 0.78);
-    const sp = (o) => Object.assign({ z: 0, room: 1, wall: 0 }, sd, m ? { x: 0, y: 0.17, s: 0.78 } : { x: 0.19, y: 0, s: 1.25 }, o);
-    S.om     = sp(m ? { y: 0.13, s: 0.95, rx: 0, ry: 0, glow: 0.85 } : { x: 0.17, y: -0.02, s: 1.65, rx: 0, ry: 0, glow: 0.85 });
-    S.dimA   = sp({ rx: -0.04, ry: -0.34, glow: 0.08, room: 0.95 });          // the glow rises as the room darkens
-    S.dimB   = sp({ rx: -0.04, ry: -0.24, glow: 1.4, room: 0.16 });
-    S.back   = sp({ rx: -0.24, ry: -Math.PI + 0.42, z: 0.5, glow: 0.35, room: 0.9 }); // the two pins
-    S.backB  = sp({ rx: -0.18, ry: -Math.PI - 0.22, z: 0.5, glow: 0.35, room: 0.9 });
-    S.align  = sp({ x: sd.dx, y: sd.dy, s: sd.ds, z: 1.2, rx: 0, ry: -TAU, glow: 1, room: 0.3, wall: 0.9 });
-    S.plug   = Object.assign({}, S.align, { z: 0, wall: 1, room: 0.22, glow: 1.15 }); // seated in the socket
-    S.lift   = Object.assign({}, S.plug, { z: 0.9, wall: 0, room: 0.6 });
-    S.gift1  = sp({ rx: -0.06, ry: -TAU * 2, glow: 1, room: 0.85 });               // after one slow presentation turn
-
-    P.away      = pose({ x: m ? 0 : 0.12, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU * 2 - 1.1, glow: 0.6 });
-    P.order     = m ? pose({ x: 0, y: 0.2, s: 0.66, rx: -0.05, ry: -TAU * 2 + 0.4, glow: 0.95 })
-                    : pose({ x: -0.22, y: 0, s: 1.15, rx: -0.06, ry: -TAU * 2 + 0.5, glow: 0.95 });
-    P.gone      = pose({ x: m ? 0 : -0.3, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU * 2 + 1.6, glow: 0.6 });
-    // with the repeated opening screen it comes back down from above, turning to its hero angle
-    P.above     = Object.assign({}, P.hero, { y: 0.95, rx: 0.3, ry: P.hero.ry - 1.4 });
-  }
-
-  // intro keyframes, by intro progress (0..1)
-  const PLUG_AT = 0.52, SWITCH_AT = 0.6;
-  function introKeys() {
-    return [[0, P.far, 0], [0.1, P.far, 0], [0.42, P.aligned, 1], [PLUG_AT, P.plugged, 2], [1, P.plugged, 0]];
-  }
-  // showcase keyframes, by showcase progress (0..1); one feature per fifth
-  const SHOW_STOPS = [0.07, 0.29, 0.5, 0.74, 0.97];
-  const showIndex = (q) => (q < 0.18 ? 0 : q < 0.39 ? 1 : q < 0.6 ? 2 : q < 0.82 ? 3 : 4);
-  function showKeys() {
-    return [[0, S.om, 1], [0.13, S.om, 0], [0.2, S.dimA, 1], [0.36, S.dimB, 1], [0.43, S.back, 1], [0.56, S.backB, 0],
-      [0.64, S.align, 1], [0.7, S.plug, 2], [0.8, S.plug, 0], [0.84, S.lift, 1], [0.94, S.gift1, 1], [1, S.gift1, 0]];
-  }
-  function anchors() {
-    const list = [
-      [M.introEnd, P.plugged, 1],
-      [M.introEnd + (M.heroTop - M.introEnd) * 0.45, P.dissolve, 1],
-      [M.heroTop, P.hero, 1]
-    ];
-    const keys = showKeys();
-    for (let i = 0; i < keys.length; i++) list.push([M.showTop + keys[i][0] * M.showLen, keys[i][1], keys[i][2]]);
-    return list.concat([
-      [M.spaces - M.vh * 0.1, P.away, 1],
-      [M.order - M.vh * 0.7, P.away, 1],
-      [M.order, P.order, 1],
-      [M.faq - M.vh * 0.85, P.order, 1],
-      [M.faq - M.vh * 0.25, P.gone, 1],
-      [M.cloneTop - M.vh * 0.85, P.above, 1],
-      [M.cloneTop, P.hero, 1]
-    ]);
-  }
-
-  // 0 linear (the turn follows the scroll 1:1), 1 ease in-out, 2 ease in (the push into the socket)
-  const EASES = [(t) => t, (t) => t * t * (3 - 2 * t), (t) => t * t * t];
-  const out = {};
-  function blend(list, v) {
-    let a = list[0], b = list[list.length - 1];
-    if (v <= list[0][0]) { Object.assign(out, list[0][1]); return out; }
-    if (v >= b[0]) { Object.assign(out, b[1]); return out; }
-    for (let i = 0; i < list.length - 1; i++) {
-      if (v >= list[i][0] && v < list[i + 1][0]) { a = list[i]; b = list[i + 1]; break; }
+  /* ---------- One lamp per slot: the hero's now, the rest once the page is idle ---------- */
+  const lamps = {};
+  function makeLamp(name, pose) {
+    const slot = $(`.lamp-slot[data-lamp="${name}"]`);
+    const canvas = document.createElement("canvas");
+    slot.appendChild(canvas);
+    const lamp = Lamps.create(canvas);
+    if (!lamp) {
+      // no WebGL: show the artwork itself instead
+      canvas.remove();
+      slot.classList.add("is-flat");
+      Art.ready.then(() => {
+        const img = new Image();
+        img.alt = "";
+        img.src = Art.canvas(name === "order" ? chosenDesign : "om").toDataURL();
+        slot.appendChild(img);
+      });
+      return null;
     }
-    const raw = b[0] > a[0] ? (v - a[0]) / (b[0] - a[0]) : 1;
-    const t = EASES[b[2]](raw);
-    for (const k in a[1]) out[k] = a[1][k] + (b[1][k] - a[1][k]) * t;
-    return out;
+    lamp.setPose(pose);
+    lamp.snap();
+    lamps[name] = lamp;
+    return lamp;
   }
+  const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
 
-  /* ---------- The switch and the plug ---------- */
-  let switchedOn = false, seated = false;
-  function setSwitch(on) {
-    if (on === switchedOn) return;
-    switchedOn = on;
-    animate(Lamp, { rocker: on ? 1 : 0 }, reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 700, damping: 24 });
-    if (on) {
-      // a quick catch, a flicker, then the warm settle
-      animate(Lamp, { power: [0, 0.75, 0.1, 0.9, 0.3, 1] },
-        reduceMotion ? { duration: 0.2 } : { duration: 1, delay: 0.16, times: [0, 0.07, 0.15, 0.28, 0.4, 1], ease: "easeOut" });
-    } else {
-      animate(Lamp, { power: 0 }, { duration: 0.18 });
-    }
-  }
-
-  /* ---------- Intro narration and its action button, scrubbed by scroll ---------- */
-  const lines = $$(".intro-line");
-  const introLabel = $('[data-next="intro"] .next-label');
-  const INTRO_STOPS = [0.42, PLUG_AT + 0.02, SWITCH_AT + 0.05, 0.86];
-  const introAction = (p) => (p < 0.38 ? "Bring the lamp to the wall" : p < PLUG_AT ? "Plug it in" : p < SWITCH_AT ? "Switch it on" : "Continue");
-  function paintIntro(p) {
-    for (let i = 0; i < lines.length; i++) {
-      const el = lines[i];
-      const from = +el.dataset.in;
-      const a = Math.min(from === 0 ? 1 : clamp01((p - from) / 0.035), clamp01((+el.dataset.out - p) / 0.035));
-      el.style.opacity = a.toFixed(3);
-      el.style.transform = reduceMotion ? "" : `translateY(${((1 - a) * 14).toFixed(1)}px)`;
-      el.style.filter = reduceMotion || a > 0.99 ? "" : `blur(${((1 - a) * 6).toFixed(1)}px)`;
-    }
-    const label = introAction(p);
-    if (introLabel.textContent !== label) {
-      introLabel.textContent = label;
-      if (!reduceMotion) animate(introLabel, { opacity: [0, 1], filter: ["blur(4px)", "blur(0px)"] }, { duration: 0.35 });
-    }
-  }
-  if (!Lamp.failed) scroll(paintIntro, { target: intro, offset: ["start start", "end end"] });
-
-  /* ---------- Per-frame: pose the lamp from the scroll position ---------- */
-  let showSeated = false, gifted = false, lastScrim = "";
-  function updatePose() {
-    const y = scrollPos();
-    if (y < M.introEnd) {
-      const p = clamp01((y - M.introTop) / M.introLen);
-      blend(introKeys(), p);
-      if (p >= PLUG_AT && !seated) { seated = true; Lamp.kick(); }
-      else if (p < PLUG_AT - 0.02) seated = false;
-      setSwitch(p >= SWITCH_AT);
-    } else {
-      blend(anchors(), y);
-      setSwitch(true);
-      // moments inside the showcase: the plug seats, and the gift sends out its light
-      const q = (y - M.showTop) / M.showLen;
-      if (q >= 0.7 && q < 0.8 && !showSeated) { showSeated = true; Lamp.kick(); }
-      else if (q < 0.68 || q > 0.82) showSeated = false;
-      if (q >= 0.86 && q < 1 && !gifted) {
-        gifted = true;
-        Field.burst(1);
-        setTimeout(() => Field.burst(0.6), 450);
-      } else if (q < 0.84 || q > 1.05) gifted = false;
-    }
-    Object.assign(Lamp.target, out);
-    Field.level = clamp01(1 - out.wall * 1.15);
-    // keep the showcase captions readable when the lit wall is behind them
-    const scrim = y > M.introEnd ? out.wall.toFixed(2) : "0";
-    if (scrim !== lastScrim) { show.style.setProperty("--scrim", scrim); lastScrim = scrim; }
-  }
-
-  /* ---------- Showcase: captions and step buttons follow the lamp ---------- */
+  /* ---------- Features showcase: plays while on screen; steps, Next or a tap move it on ---------- */
   const caps = $$(".cap");
-  const steps = $$(".step");
-  const showLabel = $('[data-next="show"] .next-label');
-  let showIdx = -1;
-  scroll((q) => {
-    const idx = showIndex(q);
-    if (idx === showIdx) return;
-    showIdx = idx;
-    for (let i = 0; i < caps.length; i++) {
-      caps[i].classList.toggle("is-active", i === idx);
-      caps[i].classList.toggle("is-past", i < idx);
-      steps[i].classList.toggle("is-active", i === idx);
-      if (i === idx) steps[i].setAttribute("aria-current", "step");
-      else steps[i].removeAttribute("aria-current");
-    }
-    showLabel.textContent = idx === caps.length - 1 ? "Continue" : "Next";
-  }, { target: show, offset: ["start start", "end end"] });
-  steps.forEach((b, i) => b.addEventListener("click", () => {
-    measure();
-    scrollToY(M.showTop + SHOW_STOPS[i] * M.showLen, true);
-  }));
+  const steps = $$(".show-steps .step");
+  let feature = 0, playTimer = 0, glowTimer = 0, burstTimer = 0, showInView = false;
+  show.style.setProperty("--slide-time", SLIDE_MS + "ms");
 
-  /* ---------- Tap to continue: the story sections move on with a tap, click or the button ---------- */
-  function storyStops() {
-    const list = [];
-    if (!Lamp.failed) for (let i = 0; i < INTRO_STOPS.length; i++) list.push(M.introTop + INTRO_STOPS[i] * M.introLen);
-    list.push(M.heroTop + 2); // just past the seam, so a smooth landing never trips the loop
-    for (let i = 0; i < SHOW_STOPS.length; i++) list.push(M.showTop + SHOW_STOPS[i] * M.showLen);
-    list.push(M.spaces);
-    return list;
+  function poseFeature() {
+    const lamp = lamps.features;
+    clearTimeout(glowTimer);
+    clearTimeout(burstTimer);
+    if (!lamp) return;
+    if (feature === 1 && !reduceMotion) {
+      lamp.setPose(P.glowStart);
+      glowTimer = setTimeout(() => lamp.setPose(P.features[1]), 650);
+    } else {
+      lamp.setPose(P.features[feature]);
+    }
+    if (feature === caps.length - 1 && showInView) {
+      Field.burst(1);
+      burstTimer = setTimeout(() => Field.burst(0.6), 450);
+    }
   }
-  function advance() {
-    measure();
-    const y = scrollPos();
-    const next = storyStops().find((s) => s > y + 12);
-    if (next !== undefined) scrollToY(next, true);
+  function showFeature(i) {
+    feature = (i + caps.length) % caps.length;
+    for (let k = 0; k < caps.length; k++) {
+      caps[k].classList.toggle("is-active", k === feature);
+      caps[k].classList.toggle("is-past", k < feature);
+      steps[k].classList.toggle("is-active", k === feature);
+      if (k === feature) steps[k].setAttribute("aria-current", "step");
+      else steps[k].removeAttribute("aria-current");
+    }
+    poseFeature();
   }
-  $$(".next-btn").forEach((b) => b.addEventListener("click", advance));
-  $$(".story").forEach((sec) => sec.addEventListener("click", (e) => {
+  function playShow(on) {
+    clearTimeout(playTimer);
+    show.classList.remove("is-playing");
+    if (!on || reduceMotion) return;
+    void show.offsetWidth; // restart the active step's progress bar
+    show.classList.add("is-playing");
+    playTimer = setTimeout(() => { showFeature(feature + 1); playShow(true); }, SLIDE_MS);
+  }
+  function goTo(i) {
+    showFeature(i);
+    playShow(showInView);
+  }
+  steps.forEach((b, i) => b.addEventListener("click", () => goTo(i)));
+  $('[data-next="show"]').addEventListener("click", () => goTo(feature + 1));
+  show.addEventListener("click", (e) => {
     if (e.target.closest("a, button, summary, input, label")) return;
     if (window.getSelection && String(window.getSelection())) return; // selecting text, not tapping
-    advance();
+    goTo(feature + 1);
+  });
+  inView(show, () => {
+    showInView = true;
+    playShow(true);
+    return () => { showInView = false; playShow(false); };
+  }, { amount: 0.5 });
+
+  /* ---------- Designs: pick an artwork and the buy section's lamp turns to show it ---------- */
+  const picks = $$(".design-pick");
+  const designNote = $(".design-note");
+  const DESIGN_NOTES = {
+    om: "A deep red OM on a saffron sunburst. The classic.",
+    shree: "A golden श्री on deep maroon, for prosperity and new beginnings.",
+    lotus: "A pink lotus opening at dusk, for calm and purity.",
+    shiva: "Shiva's trishul and crescent moon on a midnight-blue sky.",
+    mandala: "Layered petals in gold and plum, for a meditative corner."
+  };
+  // until someone picks a design themselves, the section shows them all in turn
+  let chosenDesign = "om", designTimer = 0, picked = false, orderInView = false;
+  function chooseDesign(id) {
+    chosenDesign = id;
+    picks.forEach((b) => {
+      const on = b.dataset.design === id;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+    designNote.textContent = DESIGN_NOTES[id];
+    if (lamps.order) lamps.order.setArt(id, true);
+  }
+  function playDesigns(on) {
+    clearTimeout(designTimer);
+    if (!on || picked || reduceMotion) return;
+    designTimer = setTimeout(() => {
+      const i = picks.findIndex((b) => b.dataset.design === chosenDesign);
+      chooseDesign(picks[(i + 1) % picks.length].dataset.design);
+      playDesigns(orderInView);
+    }, SLIDE_MS);
+  }
+  picks.forEach((b) => b.addEventListener("click", () => {
+    picked = true;
+    clearTimeout(designTimer);
+    chooseDesign(b.dataset.design);
   }));
+  inView(orderSec, () => {
+    orderInView = true;
+    playDesigns(true);
+    return () => { orderInView = false; playDesigns(false); };
+  }, { amount: 0.4 });
+
+  // thumbnails: a real artwork file if there is one, otherwise the drawn artwork, scaled down
+  let thumbsDrawn = false;
+  inView(orderSec, () => {
+    if (thumbsDrawn) return;
+    thumbsDrawn = true;
+    Art.ready.then(() => picks.forEach((b) => {
+      const id = b.dataset.design, slot = $(".design-thumb", b);
+      const c = document.createElement("canvas");
+      c.width = 80; c.height = 100;
+      c.getContext("2d").drawImage(Art.canvas(id), 0, 0, 80, 100);
+      slot.appendChild(c);
+      if (!Art.files) return;
+      const img = new Image();
+      img.alt = "";
+      img.addEventListener("load", () => slot.replaceChildren(img));
+      img.addEventListener("error", () => { if (img.src.endsWith(".webp")) img.src = `images/designs/${id}.jpg`; });
+      img.src = `images/designs/${id}.webp`;
+    }));
+  }, { margin: "60% 0px 60% 0px" });
+
+  /* ---------- Start: the hero's lamp switches on; the others follow when the page is idle ---------- */
+  const heroLamp = makeLamp("hero", P.hero);
+  if (heroLamp && !reduceMotion) {
+    heroLamp.power = 0;
+    animate(heroLamp, { power: [0, 0.75, 0.1, 0.9, 0.3, 1] }, { duration: 1, delay: 0.3, times: [0, 0.07, 0.15, 0.28, 0.4, 1], ease: "easeOut" });
+  }
+  Field.level = 1;
+  idle(() => {
+    makeLamp("features", P.features[feature]);
+    poseFeature();
+    idle(() => {
+      const lamp = makeLamp("order", P.order);
+      if (lamp) lamp.setArt(chosenDesign, false);
+    });
+  });
 
   /* ---------- Hero entrance: the headline rises into the light ---------- */
   const heroLines = $$(".hero-title .line > span", hero);
@@ -327,7 +218,7 @@
     heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
     inView(hero, () => {
       heroLines.forEach((el, i) => animate(el,
-        { transform: "translateY(0%) rotate(0deg)", opacity: 1, filter: ["blur(12px)", "blur(0px)"] },
+        { transform: "translateY(0%) rotate(0deg)", opacity: 1 },
         { duration: 1.2, delay: 0.1 + i * 0.14, ease: EASE }));
       heroRest.forEach((el, i) => animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: 0.45 + i * 0.12, ease: EASE }));
     }, { amount: 0.4 });
@@ -346,20 +237,60 @@
     });
   }
 
-  /* ---------- Spaces line: the last word cycles through the rooms ---------- */
+  /* ---------- Rooms: the line names a room and the photo shows the lamp there ---------- */
+  const spacesSec = $("#spaces");
   const spaceWords = $$(".spaces-word > span");
-  let spaceIdx = 0, spacesVisible = false;
-  inView(".spaces", () => { spacesVisible = true; return () => { spacesVisible = false; }; });
-  setInterval(() => {
-    if (!spacesVisible || document.hidden) return;
-    const prev = spaceWords[spaceIdx];
-    spaceIdx = (spaceIdx + 1) % spaceWords.length;
-    const next = spaceWords[spaceIdx];
-    prev.classList.remove("is-on");
-    prev.classList.add("is-off");
-    setTimeout(() => prev.classList.remove("is-off"), 500);
-    next.classList.add("is-on");
-  }, 2400);
+  const rooms = $$(".room");
+  const roomSteps = $$(".room-step");
+  let room = 0, roomTimer = 0;
+  spacesSec.style.setProperty("--slide-time", SLIDE_MS + "ms");
+
+  function showRoom(i) {
+    const prev = room;
+    room = (i + rooms.length) % rooms.length;
+    if (room !== prev) {
+      const out = spaceWords[prev];
+      out.classList.add("is-off");
+      setTimeout(() => { if (!out.classList.contains("is-on")) out.classList.remove("is-off"); }, 500);
+    }
+    for (let k = 0; k < rooms.length; k++) {
+      const on = k === room;
+      spaceWords[k].classList.toggle("is-on", on);
+      if (on) spaceWords[k].classList.remove("is-off");
+      rooms[k].classList.toggle("is-on", on);
+      roomSteps[k].classList.toggle("is-active", on);
+      roomSteps[k].setAttribute("aria-pressed", String(on));
+    }
+  }
+  function playRooms(on) {
+    clearTimeout(roomTimer);
+    spacesSec.classList.remove("is-playing");
+    if (!on || reduceMotion) return;
+    void spacesSec.offsetWidth; // restart the active step's progress bar
+    spacesSec.classList.add("is-playing");
+    roomTimer = setTimeout(() => { showRoom(room + 1); playRooms(true); }, SLIDE_MS);
+  }
+  let roomsInView = false;
+  roomSteps.forEach((b, i) => b.addEventListener("click", () => { showRoom(i); playRooms(roomsInView); }));
+  inView(spacesSec, () => {
+    roomsInView = true;
+    playRooms(true);
+    return () => { roomsInView = false; playRooms(false); };
+  }, { amount: 0.4 });
+
+  // photos load just before the section arrives: .webp first, then .jpg, else the placeholder stays
+  let photosRequested = !CONFIG.roomPhotos;
+  inView(spacesSec, () => {
+    if (photosRequested) return;
+    photosRequested = true;
+    rooms.forEach((fig) => {
+      const img = $("img", fig);
+      const base = "images/rooms/" + fig.dataset.room;
+      img.addEventListener("load", () => fig.classList.add("has-photo"));
+      img.addEventListener("error", () => { if (img.src.endsWith(".webp")) img.src = base + ".jpg"; });
+      img.src = base + ".webp";
+    });
+  }, { margin: "60% 0px 60% 0px" });
 
   /* ---------- Buttons: a soft magnetic pull and a press ---------- */
   if (!reduceMotion) {
@@ -373,7 +304,7 @@
         hover(b, () => () => animate(b, { x: 0, y: 0 }, spring));
       });
     }
-    press(".btn, .store, .skip, .next-btn, .step", (el) => {
+    press(".btn, .store, .next-btn, .step, .design-pick", (el) => {
       animate(el, { scale: 0.97 }, { type: "spring", stiffness: 900, damping: 30 });
       return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 500, damping: 20 });
     });
@@ -405,28 +336,4 @@
       buyNote.textContent = `Our ${name} listing is coming soon. Please check back shortly.`;
     });
   });
-
-  /* ---------- Start ---------- */
-  function relayout() { poses(); measure(); }
-  relayout();
-  paintIntro(0);
-  updatePose();
-  if (Lamp.snap) Lamp.snap();
-  frame.update(updatePose, true);
-  window.addEventListener("resize", relayout);
-  new ResizeObserver(() => measure()).observe(document.body);
-  if (document.fonts) document.fonts.ready.then(measure);
-  // every visit starts in the dark room, wherever the browser last left the page
-  // (browsers may restore the old position a few frames after load, so hold the top briefly)
-  function begin() {
-    measure();
-    let n = 0;
-    (function hold() {
-      if (scrollPos() > 1) scrollToY(0, false);
-      if (++n < 24) requestAnimationFrame(hold);
-      else { started = true; onScroll(); }
-    })();
-  }
-  if (document.readyState === "complete") begin();
-  else window.addEventListener("load", begin, { once: true });
 })();

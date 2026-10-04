@@ -14,10 +14,9 @@
 </head>
 <body>
 
-  <!-- Fixed layers: night gradient, interactive light field, 3D stage -->
+  <!-- Fixed layers: night gradient, interactive light field -->
   <div class="night" aria-hidden="true"></div>
   <canvas id="field" aria-hidden="true"></canvas>
-  <canvas id="stage" aria-hidden="true"></canvas>
 
   <header class="nav">
     <a class="brand" href="#hero" aria-label="OM Night Lamp, back to the start">
@@ -27,6 +26,7 @@
     <nav class="nav-links" aria-label="Primary">
       <a href="#features">Features</a>
       <a href="#spaces">Rooms</a>
+      <a href="#order">Designs</a>
       <a href="#faq">FAQ</a>
     </nav>
     <a class="btn btn-primary btn-sm" href="#order">Buy now</a>
@@ -34,25 +34,8 @@
 
   <main id="top">
 
-    <!-- INTRO: scrolling plugs the lamp into the wall socket and switches it on -->
-    <section class="intro story" id="intro" aria-label="Plugging in the lamp">
-      <div class="intro-pin">
-        <p class="intro-line" data-in="0" data-out="0.12">It is late, and the room is dark.</p>
-        <p class="intro-line intro-line-big" data-in="0.72" data-out="2">A small light with a peaceful presence.</p>
-
-        <div class="intro-act">
-          <button class="next-btn" type="button" data-next="intro">
-            <span class="next-label">Bring the lamp to the wall</span>
-            <i class="ph ph-arrow-down" aria-hidden="true"></i>
-          </button>
-          <p class="next-hint" aria-hidden="true">Tap, or scroll</p>
-        </div>
-        <a class="skip" href="#hero">Skip intro</a>
-      </div>
-    </section>
-
     <!-- HERO -->
-    <section class="hero" id="hero" data-section="hero">
+    <section class="hero" id="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <h1 class="hero-title">
@@ -65,12 +48,12 @@
             <a class="btn btn-ghost" href="#features">See the features</a>
           </div>
         </div>
-        <div class="hero-space" aria-hidden="true"></div>
+        <div class="hero-space lamp-slot" data-lamp="hero" aria-hidden="true"></div>
       </div>
       <p class="hero-hint" aria-hidden="true"><i class="ph ph-hand-tap"></i>Tap anywhere to send a ripple of light</p>
     </section>
 
-    <!-- FEATURES: each one shown by the 3D lamp itself (sticky; scroll or tap through) -->
+    <!-- FEATURES: each one shown by the 3D lamp itself; plays on its own, or tap through -->
     <section class="show story" id="features" aria-label="Features">
       <div class="show-pin">
         <div class="wrap show-grid">
@@ -88,14 +71,11 @@
               <p>No wiring, no setup. Two pins on the back go straight into a wall socket.</p>
             </article>
             <article class="cap">
-              <h2>Compact and elegant</h2>
-              <p>A slim body that sits close to the wall. Small enough for any socket, elegant enough for any room.</p>
-            </article>
-            <article class="cap">
               <h2>A thoughtful gift</h2>
               <p>A peaceful presence for Diwali, housewarmings, birthdays and the elders in your family.</p>
             </article>
           </div>
+          <div class="show-visual lamp-slot" data-lamp="features" aria-hidden="true"></div>
         </div>
 
         <div class="show-bar wrap">
@@ -103,40 +83,81 @@
             <button type="button" class="step is-active" aria-label="Sacred OM artwork" aria-current="step"><span>OM artwork</span></button>
             <button type="button" class="step" aria-label="A soft, warm glow"><span>Warm glow</span></button>
             <button type="button" class="step" aria-label="Plug in"><span>Plug-in</span></button>
-            <button type="button" class="step" aria-label="Compact and elegant"><span>Compact</span></button>
             <button type="button" class="step" aria-label="A thoughtful gift"><span>Gift</span></button>
           </div>
           <button class="next-btn next-btn-sm" type="button" data-next="show">
             <span class="next-label">Next</span>
-            <i class="ph ph-arrow-down" aria-hidden="true"></i>
+            <i class="ph ph-arrow-right" aria-hidden="true"></i>
           </button>
         </div>
       </div>
     </section>
 
     <!-- SPACES -->
-    <section class="spaces-sec" id="spaces" data-section="spaces">
-      <div class="wrap">
-        <h2 class="spaces">
-          <span class="spaces-lead">Made for the</span>
-          <span class="spaces-word" aria-live="off">
-            <span class="is-on">puja room.</span>
-            <span>bedside.</span>
-            <span>meditation corner.</span>
-            <span>living room.</span>
-            <span>office desk.</span>
-          </span>
-        </h2>
+    <section class="spaces-sec" id="spaces">
+      <div class="wrap spaces-grid">
+        <div class="spaces-copy">
+          <h2 class="spaces">
+            <span class="spaces-lead">Made for the</span>
+            <span class="spaces-word" aria-live="off">
+              <span class="is-on">puja room.</span>
+              <span>bedside.</span>
+              <span>meditation corner.</span>
+              <span>living room.</span>
+              <span>office desk.</span>
+            </span>
+          </h2>
+          <div class="room-steps" role="group" aria-label="Choose a room">
+            <button type="button" class="step room-step is-active" aria-pressed="true"><span>Puja room</span></button>
+            <button type="button" class="step room-step" aria-pressed="false"><span>Bedside</span></button>
+            <button type="button" class="step room-step" aria-pressed="false"><span>Meditation</span></button>
+            <button type="button" class="step room-step" aria-pressed="false"><span>Living room</span></button>
+            <button type="button" class="step room-step" aria-pressed="false"><span>Office desk</span></button>
+          </div>
+        </div>
+
+        <!-- Photos load from images/rooms/<name>.webp (or .jpg); until then each shows a lit placeholder -->
+        <div class="room-frame">
+          <figure class="room is-on" data-room="puja-room" style="--tint: 58, 26, 10">
+            <img alt="The OM Night Lamp glowing on the wall of a home puja room" decoding="async" />
+            <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Puja room</span></div>
+          </figure>
+          <figure class="room" data-room="bedside" style="--tint: 40, 22, 44">
+            <img alt="The OM Night Lamp giving a soft glow beside a bed at night" decoding="async" />
+            <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Bedside</span></div>
+          </figure>
+          <figure class="room" data-room="meditation-corner" style="--tint: 24, 30, 40">
+            <img alt="The OM Night Lamp lighting a quiet meditation corner" decoding="async" />
+            <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Meditation corner</span></div>
+          </figure>
+          <figure class="room" data-room="living-room" style="--tint: 46, 32, 20">
+            <img alt="The OM Night Lamp glowing on a living room wall in the evening" decoding="async" />
+            <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Living room</span></div>
+          </figure>
+          <figure class="room" data-room="office-desk" style="--tint: 22, 28, 34">
+            <img alt="The OM Night Lamp plugged in beside an office desk" decoding="async" />
+            <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Office desk</span></div>
+          </figure>
+        </div>
       </div>
     </section>
 
-    <!-- ORDER -->
-    <section class="order" id="order" data-section="order">
+    <!-- ORDER: pick an artwork (the 3D lamp turns to show it), then buy -->
+    <section class="order" id="order">
       <div class="wrap order-grid">
-        <div class="order-space" aria-hidden="true"></div>
+        <div class="order-space lamp-slot" data-lamp="order" aria-hidden="true"></div>
         <div class="order-copy">
-          <h2 class="section-title reveal">Bring the light home.</h2>
-          <p class="order-text reveal">A peaceful presence for your puja room, and a thoughtful gift for family.</p>
+          <p class="eyebrow reveal">Five designs, one warm glow</p>
+          <h2 class="section-title reveal">Choose your design. Bring the light home.</h2>
+          <p class="order-text reveal">Tap a design and watch the lamp turn to show it.</p>
+          <div class="design-picks reveal" role="group" aria-label="Lamp designs">
+            <button type="button" class="design-pick is-active" aria-pressed="true" data-design="om"><span class="design-thumb" aria-hidden="true"></span><span>Sacred OM</span></button>
+            <button type="button" class="design-pick" aria-pressed="false" data-design="shree"><span class="design-thumb" aria-hidden="true"></span><span>Shree</span></button>
+            <button type="button" class="design-pick" aria-pressed="false" data-design="lotus"><span class="design-thumb" aria-hidden="true"></span><span>Lotus</span></button>
+            <button type="button" class="design-pick" aria-pressed="false" data-design="shiva"><span class="design-thumb" aria-hidden="true"></span><span>Om Namah Shivaya</span></button>
+            <button type="button" class="design-pick" aria-pressed="false" data-design="mandala"><span class="design-thumb" aria-hidden="true"></span><span>Mandala</span></button>
+          </div>
+          <p class="design-note reveal" aria-live="polite">A deep red OM on a saffron sunburst. The classic.</p>
 
           <p class="buy-label reveal" id="buy-label">Buy it on</p>
           <div class="stores" role="group" aria-labelledby="buy-label">
@@ -150,7 +171,7 @@
     </section>
 
     <!-- FAQ -->
-    <section class="faq" id="faq" data-section="faq">
+    <section class="faq" id="faq">
       <div class="wrap faq-grid">
         <h2 class="section-title reveal">Questions, answered.</h2>
         <div class="faq-list">
@@ -188,16 +209,13 @@
         </nav>
         <p class="footer-copy">&copy; 2026 Aashi Enterprises</p>
       </div>
-      <p class="loop-note"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Keep scrolling to begin again</p>
     </div>
   </footer>
 
-  <!-- Loop: a copy of the opening screen, so scrolling past the end flows back to the start -->
-  <div class="loop-tail" aria-hidden="true" inert></div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/motion@14.0.0/dist/motion.js"></script>
+  <script src="perf.js"></script>
+  <script src="designs.js"></script>
   <script src="lamp3d.js"></script>
   <script src="bg.js"></script>
   <script src="script.js"></script>
