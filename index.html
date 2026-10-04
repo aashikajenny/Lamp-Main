@@ -12,92 +12,110 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="is-loading is-dark">
+<body>
 
-  <!-- Fixed layers: room dimmer and 3D stage -->
+  <!-- Fixed layers: night gradient, interactive light field, 3D stage -->
   <div class="night" aria-hidden="true"></div>
+  <canvas id="field" aria-hidden="true"></canvas>
   <canvas id="stage" aria-hidden="true"></canvas>
-  <div class="darkness" aria-hidden="true"></div>
-  <div class="cursor-ring" aria-hidden="true"></div>
-  <div class="cursor-dot" aria-hidden="true"></div>
-
-  <!-- Intro: a dark room, an unlit lamp, and the switch -->
-  <div class="intro">
-    <p class="intro-line">It is dark in here.</p>
-    <div class="wall-switch">
-      <button class="rocker" type="button" aria-pressed="false" aria-label="Switch on the lamp and enter the site">
-        <span class="rocker-face"><span class="rocker-led" aria-hidden="true"></span></span>
-      </button>
-    </div>
-    <p class="intro-hint" aria-hidden="true">Switch it on</p>
-  </div>
-
 
   <header class="nav">
-    <a class="brand" href="#top" aria-label="OM Night Lamp home">
+    <a class="brand" href="#hero" aria-label="OM Night Lamp, back to the start">
       <span class="brand-mark">ॐ</span>
       <span class="brand-name">OM Night Lamp</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
-      <a href="#turn">Design</a>
       <a href="#features">Features</a>
+      <a href="#spaces">Rooms</a>
       <a href="#faq">FAQ</a>
     </nav>
-    <div class="nav-actions">
-      <a class="btn btn-primary btn-sm" href="#order">Buy now</a>
-      <button class="lights" type="button" aria-pressed="false"><i class="ph ph-lightbulb" aria-hidden="true"></i><span class="lights-label">Lights off</span></button>
-    </div>
+    <a class="btn btn-primary btn-sm" href="#order">Buy now</a>
   </header>
 
   <main id="top">
 
+    <!-- INTRO: scrolling plugs the lamp into the wall socket and switches it on -->
+    <section class="intro story" id="intro" aria-label="Plugging in the lamp">
+      <div class="intro-pin">
+        <p class="intro-line" data-in="0" data-out="0.12">It is late, and the room is dark.</p>
+        <p class="intro-line intro-line-big" data-in="0.72" data-out="2">A small light with a peaceful presence.</p>
+
+        <div class="intro-act">
+          <button class="next-btn" type="button" data-next="intro">
+            <span class="next-label">Bring the lamp to the wall</span>
+            <i class="ph ph-arrow-down" aria-hidden="true"></i>
+          </button>
+          <p class="next-hint" aria-hidden="true">Tap, or scroll</p>
+        </div>
+        <a class="skip" href="#hero">Skip intro</a>
+      </div>
+    </section>
+
     <!-- HERO -->
-    <section class="hero" data-section="hero">
+    <section class="hero" id="hero" data-section="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <h1 class="hero-title">
             <span class="line"><span>Divine light.</span></span>
             <span class="line"><span class="accent-text">Peaceful nights.</span></span>
           </h1>
-          <p class="hero-sub reveal-up">A sacred OM night lamp with a soft warm glow for your bedroom, puja room or meditation corner.</p>
-          <div class="hero-ctas reveal-up">
-            <a class="btn btn-primary" href="#order">Buy now <i class="ph ph-arrow-right"></i></a>
-            <a class="btn btn-ghost" href="#turn">See it turn</a>
+          <p class="hero-sub">A sacred OM night lamp with a soft warm glow for your bedroom, puja room or meditation corner.</p>
+          <div class="hero-ctas">
+            <a class="btn btn-primary" href="#order">Buy now <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn-ghost" href="#features">See the features</a>
           </div>
         </div>
         <div class="hero-space" aria-hidden="true"></div>
       </div>
+      <p class="hero-hint" aria-hidden="true"><i class="ph ph-hand-tap"></i>Tap anywhere to send a ripple of light</p>
     </section>
 
-    <!-- 360 TURN (pinned, lamp rotates with scroll) -->
-    <section class="turn" id="turn" data-section="turn">
-      <div class="turn-pin">
-        <div class="wrap turn-grid">
-          <div class="turn-captions">
+    <!-- FEATURES: each one shown by the 3D lamp itself (sticky; scroll or tap through) -->
+    <section class="show story" id="features" aria-label="Features">
+      <div class="show-pin">
+        <div class="wrap show-grid">
+          <div class="show-captions">
             <article class="cap is-active">
               <h2>Sacred OM artwork</h2>
               <p>A vibrant OM, printed in rich saffron and gold, sits at the heart of the lamp.</p>
             </article>
             <article class="cap">
-              <h2>Compact and elegant</h2>
-              <p>A slim body that stays close to the wall and suits any interior.</p>
+              <h2>A soft, warm glow</h2>
+              <p>Gentle light that settles the room at night without keeping you awake.</p>
             </article>
             <article class="cap">
               <h2>Plug in. That is all.</h2>
-              <p>No wiring, no setup. It goes straight into a wall socket.</p>
+              <p>No wiring, no setup. Two pins on the back go straight into a wall socket.</p>
             </article>
             <article class="cap">
-              <h2>A soft, warm glow</h2>
-              <p>Gentle light that calms the room without keeping you awake.</p>
+              <h2>Compact and elegant</h2>
+              <p>A slim body that sits close to the wall. Small enough for any socket, elegant enough for any room.</p>
+            </article>
+            <article class="cap">
+              <h2>A thoughtful gift</h2>
+              <p>A peaceful presence for Diwali, housewarmings, birthdays and the elders in your family.</p>
             </article>
           </div>
-          <div class="turn-progress" aria-hidden="true"><i></i></div>
+        </div>
+
+        <div class="show-bar wrap">
+          <div class="show-steps" role="group" aria-label="Choose a feature">
+            <button type="button" class="step is-active" aria-label="Sacred OM artwork" aria-current="step"><span>OM artwork</span></button>
+            <button type="button" class="step" aria-label="A soft, warm glow"><span>Warm glow</span></button>
+            <button type="button" class="step" aria-label="Plug in"><span>Plug-in</span></button>
+            <button type="button" class="step" aria-label="Compact and elegant"><span>Compact</span></button>
+            <button type="button" class="step" aria-label="A thoughtful gift"><span>Gift</span></button>
+          </div>
+          <button class="next-btn next-btn-sm" type="button" data-next="show">
+            <span class="next-label">Next</span>
+            <i class="ph ph-arrow-down" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
     </section>
 
-    <!-- FEATURES -->
-    <section class="features" id="features" data-section="features">
+    <!-- SPACES -->
+    <section class="spaces-sec" id="spaces" data-section="spaces">
       <div class="wrap">
         <h2 class="spaces">
           <span class="spaces-lead">Made for the</span>
@@ -109,14 +127,6 @@
             <span>office desk.</span>
           </span>
         </h2>
-
-        <p class="manifesto">
-          A <em>sacred OM</em>, printed in vivid saffron and gold.
-          A <em>soft warm glow</em> that settles the room at night.
-          A <em>plug-in body</em> with no wiring and no setup.
-          Compact enough for any socket, elegant enough for any wall,
-          and a <em>thoughtful gift</em> for the people you love.
-        </p>
       </div>
     </section>
 
@@ -125,14 +135,14 @@
       <div class="wrap order-grid">
         <div class="order-space" aria-hidden="true"></div>
         <div class="order-copy">
-          <h2 class="section-title reveal-up">Bring the light home.</h2>
-          <p class="order-text reveal-up">A peaceful presence for your puja room, and a thoughtful gift for family.</p>
+          <h2 class="section-title reveal">Bring the light home.</h2>
+          <p class="order-text reveal">A peaceful presence for your puja room, and a thoughtful gift for family.</p>
 
-          <p class="buy-label reveal-up" id="buy-label">Buy it on</p>
-          <div class="stores reveal-up" role="group" aria-labelledby="buy-label">
-            <a class="store" data-store="amazon" href="#order"><span>Amazon</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="store" data-store="flipkart" href="#order"><span>Flipkart</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="store" data-store="meesho" href="#order"><span>Meesho</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+          <p class="buy-label reveal" id="buy-label">Buy it on</p>
+          <div class="stores" role="group" aria-labelledby="buy-label">
+            <a class="store reveal" data-store="amazon" href="#order"><span>Amazon</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+            <a class="store reveal" data-store="flipkart" href="#order"><span>Flipkart</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+            <a class="store reveal" data-store="meesho" href="#order"><span>Meesho</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
           </div>
           <p class="buy-note" role="status" aria-live="polite"></p>
         </div>
@@ -142,22 +152,22 @@
     <!-- FAQ -->
     <section class="faq" id="faq" data-section="faq">
       <div class="wrap faq-grid">
-        <h2 class="section-title reveal-up">Questions, answered.</h2>
+        <h2 class="section-title reveal">Questions, answered.</h2>
         <div class="faq-list">
-          <details class="reveal-up">
-            <summary>How do I use it?<i class="ph ph-plus"></i></summary>
+          <details class="reveal">
+            <summary>How do I use it?<i class="ph ph-plus" aria-hidden="true"></i></summary>
             <p>Plug it into a wall socket and switch the socket on. There is nothing to assemble or install.</p>
           </details>
-          <details class="reveal-up">
-            <summary>Where does it look best?<i class="ph ph-plus"></i></summary>
+          <details class="reveal">
+            <summary>Where does it look best?<i class="ph ph-plus" aria-hidden="true"></i></summary>
             <p>Anywhere you want a calm, warm light: beside the bed, in the puja room, a meditation corner, a hallway or your office.</p>
           </details>
-          <details class="reveal-up">
-            <summary>Is it a good gift?<i class="ph ph-plus"></i></summary>
+          <details class="reveal">
+            <summary>Is it a good gift?<i class="ph ph-plus" aria-hidden="true"></i></summary>
             <p>Yes. It is a thoughtful spiritual gift for Diwali, housewarmings, birthdays and elders in the family.</p>
           </details>
-          <details class="reveal-up">
-            <summary>How do I keep it clean?<i class="ph ph-plus"></i></summary>
+          <details class="reveal">
+            <summary>How do I keep it clean?<i class="ph ph-plus" aria-hidden="true"></i></summary>
             <p>Unplug it first, then wipe the front gently with a soft dry cloth.</p>
           </details>
         </div>
@@ -169,23 +179,27 @@
     <div class="wrap">
       <p class="footer-line">A small light with a <span class="accent-text">peaceful presence.</span></p>
       <div class="footer-row">
-        <a class="brand" href="#top"><span class="brand-mark">ॐ</span><span class="brand-name">OM Night Lamp</span></a>
+        <a class="brand" href="#hero"><span class="brand-mark">ॐ</span><span class="brand-name">OM Night Lamp</span></a>
         <nav class="footer-links" aria-label="Footer">
-          <a href="#turn">Design</a>
           <a href="#features">Features</a>
+          <a href="#spaces">Rooms</a>
           <a href="#order">Buy now</a>
           <a href="#faq">FAQ</a>
         </nav>
         <p class="footer-copy">&copy; 2026 Aashi Enterprises</p>
       </div>
+      <p class="loop-note"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Keep scrolling to begin again</p>
     </div>
   </footer>
 
+  <!-- Loop: a copy of the opening screen, so scrolling past the end flows back to the start -->
+  <div class="loop-tail" aria-hidden="true" inert></div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/motion@14.0.0/dist/motion.js"></script>
   <script src="lamp3d.js"></script>
+  <script src="bg.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

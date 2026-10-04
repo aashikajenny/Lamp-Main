@@ -1,9 +1,13 @@
 /* 3D OM night lamp (Three.js r128).
    Exposes window.Lamp:
-     Lamp.target  - pose the scene eases toward {x, y, s, rx, ry, glow}
-                    x/y are fractions of the viewport (-0.5..0.5), s is relative size
-     Lamp.power   - 0..1 multiplier on the glow (the on/off switch)
-     Lamp.room    - 0..1 ambient room light
+     Lamp.target  - pose the scene eases toward {x, y, z, s, rx, ry, glow, room, wall, dx, dy, ds}
+                    x/y are fractions of the viewport (-0.5..0.5), s is relative size,
+                    z is the distance out from the wall socket in lamp units (0 = plugged in),
+                    room is the studio light (0..1), wall is the room wall's opacity (0..1)
+                    dx/dy/ds place the wall socket; the lamp plugs in when x/y/s match them
+     Lamp.power   - 0..1 multiplier on the glow (the mains switch)
+     Lamp.rocker  - 0..1 position of the wall switch rocker
+     Lamp.kick()  - a small jolt, for the moment the plug seats
      Lamp.ready (Promise) / Lamp.screenPoint() */
 (function () {
   "use strict";
@@ -16,7 +20,7 @@
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   } catch (e) {
     canvas.style.display = "none";
-    window.Lamp = { target: {}, power: 1, room: 1, screenPoint: () => [window.innerWidth / 2, window.innerHeight / 2], ready: Promise.resolve(), failed: true };
+    window.Lamp = { target: {}, power: 1, rocker: 0, kick() {}, screenPoint: () => [window.innerWidth / 2, window.innerHeight / 2], ready: Promise.resolve(), failed: true };
     return;
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -198,6 +202,77 @@
   halo.position.z = -1.2;
   root.add(halo);
 
+  // the lamp's light falling on the wall around it (only while the room wall is in view)
+  const spill = new THREE.PointLight(0xffa24a, 0, 9, 1.6);
+  spill.position.set(0, 0.1, FRONT_Z + 0.45 + 0.9);
+  root.add(spill);
+
+  /* ---------- The room: a painted wall and an Indian modular switchboard ----------
+     Built in the lamp's own units, so when the lamp's pose matches the dock its pins
+     sit exactly in the socket's two lower holes. */
+  const PLUG_FACE = backZ + 0.45;        // the lamp's back face, in lamp-local z
+  const dock = new THREE.Group();
+  scene.add(dock);
+
+  function plasterTexture() {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    const img = g.createImageData(256, 256);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = 214 + Math.random() * 26;
+      img.data[i] = v; img.data[i + 1] = v * 0.93; img.data[i + 2] = v * 0.84; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(14, 10);
+    t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xa69a8e, map: plasterTexture(), roughness: 0.95, metalness: 0, transparent: true });
+  const boardMat = new THREE.MeshPhysicalMaterial({ color: 0xf6f2ea, roughness: 0.34, clearcoat: 0.4, clearcoatRoughness: 0.3, transparent: true });
+  const recessMat = new THREE.MeshStandardMaterial({ color: 0xe4ddd1, roughness: 0.5, transparent: true });
+  const holeMat = new THREE.MeshBasicMaterial({ color: 0x15110f, transparent: true });
+  const ledMat = new THREE.MeshStandardMaterial({ color: 0x5a1a10, emissive: new THREE.Color(0xff3a1a), emissiveIntensity: 0, transparent: true });
+  const roomMats = [wallMat, boardMat, recessMat, holeMat, ledMat];
+
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), wallMat);
+  wall.position.z = PLUG_FACE - 0.27;
+  dock.add(wall);
+
+  const BOARD_X = 1.25, SW_X = 2.78, MOD_Y = 0.16;
+  const board = new THREE.Mesh(roundedSlab(5.7, 3.5, 0.26, 0.16, 0.05), boardMat);
+  board.position.set(BOARD_X, -0.1, PLUG_FACE - 0.13);
+  dock.add(board);
+
+  // socket module: a shallow square recess, two pin holes and the larger earth hole above
+  const socketFace = new THREE.Mesh(roundedPlane(1.78, 1.86, 0.16), recessMat);
+  socketFace.position.set(0, MOD_Y, PLUG_FACE + 0.002);
+  dock.add(socketFace);
+  [[-0.36, -0.12, 0.085], [0.36, -0.12, 0.085], [0, 0.56, 0.13]].forEach(([x, y, r]) => {
+    const h = new THREE.Mesh(new THREE.CircleGeometry(r, 28), holeMat);
+    h.position.set(x, y, PLUG_FACE + 0.004);
+    dock.add(h);
+  });
+
+  // switch module with a rocker that tips when switched on, and its red indicator
+  const switchFace = new THREE.Mesh(roundedPlane(1.5, 1.86, 0.16), recessMat);
+  switchFace.position.set(SW_X, MOD_Y, PLUG_FACE + 0.002);
+  dock.add(switchFace);
+  const rockerPivot = new THREE.Group();
+  rockerPivot.position.set(SW_X, MOD_Y - 0.08, PLUG_FACE + 0.1);
+  dock.add(rockerPivot);
+  const rocker = new THREE.Mesh(roundedSlab(0.62, 1.08, 0.09, 0.1, 0.04), boardMat);
+  rockerPivot.add(rocker);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.055, 20, 12), ledMat);
+  led.position.set(SW_X, MOD_Y + 0.68, PLUG_FACE + 0.03);
+  dock.add(led);
+
+  // a dim cool night light, so the room reads before the lamp is on
+  const moon = new THREE.HemisphereLight(0x8a9cd8, 0x120e16, 0);
+  scene.add(moon);
+
   /* ---------- Artwork textures ---------- */
   const TEX_W = 800, TEX_H = 1000;
   function clipRounded(g, r) {
@@ -308,13 +383,15 @@
   });
 
   /* ---------- Pose state ---------- */
-  const target = { x: 0.22, y: 0, s: 1, rx: -0.06, ry: -0.5, glow: 0.8 };
-  const cur = Object.assign({}, target, { y: -0.7, ry: -2.2, glow: 0 }); // entrance from below
+  const target = { x: 0, y: 0, z: 0, s: 1, rx: 0, ry: 0, glow: 0, room: 0, wall: 1, dx: 0, dy: 0, ds: 1 };
+  const cur = Object.assign({}, target);
   const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
+  let shake = 0;
   const api = {
-    target, power: 1,
+    target, power: 0, rocker: 0,
     ready,
-    room: 1,   // 0..1 ambient light in the room (the intro starts near dark)
+    snap() { Object.assign(cur, target); },
+    kick() { if (!reduceMotion) shake = 1; },
     screenPoint() {
       camera.updateMatrixWorld();
       const v = root.position.clone().project(camera);
@@ -358,23 +435,44 @@
     pointer.sx += (pointer.x - pointer.sx) * (1 - Math.exp(-dt * 3));
     pointer.sy += (pointer.y - pointer.sy) * (1 - Math.exp(-dt * 3));
 
-    const float = reduceMotion ? 0 : Math.sin(t * 1.1) * 0.012;
-    const scale = cur.s * (visH * 0.42) / H;
-    root.position.set(cur.x * visW, (cur.y + float) * visH, 0);
+    // a lamp seated in the socket stays still; free in the air it floats and follows the pointer
+    const wallA = Math.max(0, Math.min(1, cur.wall));
+    const free = reduceMotion ? 0 : Math.min(1, Math.max(0, cur.z / 1.2) + (1 - wallA));
+    const float = Math.sin(t * 1.1) * 0.012 * free;
+    const unit = (visH * 0.42) / H;
+    const scale = cur.s * unit;
+    root.position.set(cur.x * visW, (cur.y + float) * visH, Math.max(0, cur.z) * scale);
     root.scale.setScalar(scale);
-    const tilt = reduceMotion ? 0 : 1;
     spin.rotation.set(
-      cur.rx + pointer.sy * 0.12 * tilt,
-      cur.ry + pointer.sx * 0.22 * tilt + (reduceMotion ? 0 : Math.sin(t * 0.6) * 0.04),
+      cur.rx + pointer.sy * 0.12 * free,
+      cur.ry + (pointer.sx * 0.22 + Math.sin(t * 0.6) * 0.04) * free,
       0
     );
 
-    // room light: scales the studio lights and reflections, so the intro can start in the dark
-    const room = Math.max(0.04, Math.min(1, api.room));
+    // the room wall and switchboard
+    dock.visible = wallA > 0.004;
+    if (dock.visible) {
+      dock.position.set(cur.dx * visW, cur.dy * visH, 0);
+      dock.scale.setScalar(cur.ds * unit);
+      for (let i = 0; i < roomMats.length; i++) roomMats[i].opacity = wallA;
+      wallMat.depthWrite = boardMat.depthWrite = wallA > 0.98;
+      rockerPivot.rotation.x = -0.2 + 0.4 * api.rocker;
+      ledMat.emissiveIntensity = 2.2 * api.rocker;
+    }
+
+    // the plug seating: a brief jolt of the camera
+    if (shake > 0.001) {
+      shake *= Math.exp(-dt * 9);
+      camera.position.set(Math.sin(t * 71) * 0.03 * shake, Math.cos(t * 57) * 0.03 * shake, DIST);
+    } else if (shake) { shake = 0; camera.position.set(0, 0, DIST); }
+
+    // studio light for the product; a dim cool night light while the room is in view
+    const room = Math.max(0.04, Math.min(1, cur.room));
     hemi.intensity = 0.35 * room; key.intensity = 1.1 * room;
     rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
     plastic.envMapIntensity = plasticBack.envMapIntensity = artMat.envMapIntensity = room;
     metal.envMapIntensity = 1.4 * room;
+    moon.intensity = 0.2 * wallA * (1 - room);
 
     const g = Math.max(0, cur.glow) * api.power;
     const flicker = reduceMotion ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
@@ -384,6 +482,8 @@
     // the halo fades when the lamp turns away
     const facing = Math.max(0, Math.cos(spin.rotation.y));
     halo.material.opacity *= 0.35 + 0.65 * facing;
+    halo.position.z = -1.2 + 0.68 * wallA; // in front of the wall while the room is in view
+    spill.intensity = g * 1.35 * wallA * flicker;
 
     renderer.render(scene, camera);
     requestAnimationFrame(tick);

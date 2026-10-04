@@ -1,6 +1,10 @@
 /* OM Night Lamp: page choreography.
-   The 3D lamp lives in a fixed canvas (lamp3d.js). Each section declares a pose; as you scroll,
-   the lamp interpolates between poses, so it travels, turns and brightens with the story. */
+   - Intro: scrolling carries the lamp to the wall socket, plugs it in, flips the switch, and it lights.
+   - The 3D lamp lives in a fixed canvas (lamp3d.js). Each section declares a pose; as you scroll,
+     the lamp interpolates between poses, so it travels, turns and brightens with the story.
+   - Features: a sticky showcase where the lamp itself demonstrates each feature.
+   - Endless page: the opening screen is repeated after the footer, and scrolling past it
+     lands back at the start without a seam (and scrolling up from the start wraps to the end). */
 (function () {
   "use strict";
 
@@ -15,205 +19,372 @@
     }
   };
 
+  const { animate, scroll, inView, hover, press, frame } = window.Motion;
   const TAU = Math.PI * 2;
+  const EASE = [0.16, 1, 0.3, 1];
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const isMobile = () => window.innerWidth < 768;
   const Lamp = window.Lamp;
-  let introActive = true;
-  Lamp.room = 0.4; // dimly lit: only what the cursor light uncovers can be seen
+  const Field = window.Field || { level: 0 };
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-  gsap.registerPlugin(ScrollTrigger);
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  if (Lamp.failed) document.body.classList.add("no-3d");
+
+  const intro = $("#intro"), hero = $("#hero"), show = $("#features");
+  const spaces = $("#spaces"), order = $("#order"), faq = $("#faq");
+
+  /* ---------- Loop tail: a copy of the opening screen after the footer ---------- */
+  const ghost = hero.cloneNode(true);
+  ghost.removeAttribute("id");
+  $$("[id]", ghost).forEach((el) => el.removeAttribute("id"));
+  $$("a, button", ghost).forEach((el) => el.setAttribute("tabindex", "-1"));
+  const tail = $(".loop-tail");
+  tail.appendChild(ghost);
+  const spacer = document.createElement("div");
+  spacer.className = "loop-spacer";
+  tail.appendChild(spacer);
+
+  /* ---------- Smooth scroll (mouse and trackpad only; touch keeps native momentum) ---------- */
+  let lenis = null;
+  if (!reduceMotion && finePointer && window.Lenis) {
+    lenis = new Lenis({ lerp: 0.085, smoothWheel: true });
+    frame.update(({ timestamp }) => lenis.raf(timestamp), true);
+  }
+  const scrollPos = () => window.scrollY;
+  function scrollToY(y, smooth) {
+    if (lenis) lenis.scrollTo(y, smooth ? { duration: 1.5, force: true } : { immediate: true, force: true });
+    else window.scrollTo({ top: y, behavior: smooth && !reduceMotion ? "smooth" : "instant" });
+  }
   window.scrollTo(0, 0);
 
-  /* ---------- Smooth scroll ---------- */
-  let lenis = null;
-  if (!reduceMotion && window.Lenis) {
-    lenis = new Lenis({ duration: 1.15, smoothWheel: true });
-    lenis.on("scroll", ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
-    gsap.ticker.lagSmoothing(0);
-    lenis.stop();
+  /* ---------- Measurements ---------- */
+  const M = { vh: 1, introTop: 0, introLen: 1, introEnd: 0, heroTop: 0, showTop: 0, showLen: 1, cloneTop: 1, loopLen: 1, spaces: 0, order: 0, faq: 0 };
+  function measure() {
+    const y = scrollPos();
+    const top = (el) => el.getBoundingClientRect().top + y;
+    M.vh = window.innerHeight;
+    M.introTop = top(intro);
+    M.introLen = Math.max(1, intro.offsetHeight - M.vh);
+    M.introEnd = Lamp.failed ? 0 : M.introTop + M.introLen;
+    M.heroTop = top(hero);
+    M.showTop = top(show);
+    M.showLen = Math.max(1, show.offsetHeight - M.vh);
+    M.spaces = top(spaces);
+    M.order = top(order);
+    M.faq = top(faq);
+    M.cloneTop = top(ghost);
+    M.loopLen = M.cloneTop - M.heroTop;
   }
+
+  /* ---------- Endless loop ---------- */
+  let introDone = !!Lamp.failed;
+  let started = false; // ignore the browser's own scroll restoration while the page loads
+  function jump(by) {
+    if (lenis) {
+      // carry any smooth-scroll still in flight across the seam, so the wheel never stalls
+      const rest = lenis.isScrolling === "smooth" ? lenis.targetScroll - lenis.animatedScroll : 0;
+      const to = window.scrollY + by;
+      lenis.scrollTo(to, { immediate: true, force: true });
+      if (Math.abs(rest) > 0.5 && Math.abs(rest) < M.vh) lenis.scrollTo(to + rest, { force: true });
+    } else {
+      window.scrollTo({ top: scrollPos() + by, behavior: "instant" });
+    }
+  }
+  function onScroll() {
+    if (!started) return;
+    const y = scrollPos();
+    if (!introDone && y >= M.heroTop - 1) introDone = true;
+    if (y >= M.cloneTop - 1) jump(-M.loopLen);
+    else if (introDone && y < M.heroTop - 1) jump(M.loopLen);
+    document.body.classList.toggle("is-open", y > M.heroTop - M.vh * 0.35);
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
 
   $$('a[href^="#"]:not(.store)').forEach((a) => {
     a.addEventListener("click", (e) => {
-      const id = a.getAttribute("href");
-      const el = id === "#top" ? document.body : $(id);
+      const el = $(a.getAttribute("href"));
       if (!el) return;
       e.preventDefault();
-      if (lenis) lenis.scrollTo(el, { offset: 0, duration: 1.6 });
-      else el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+      measure();
+      const extra = el === hero ? 2 : el === show ? SHOW_STOPS[0] * M.showLen : 0;
+      scrollToY(el.getBoundingClientRect().top + scrollPos() + extra, true);
     });
   });
-  /* ---------- Pinned sections ---------- */
-  const turnST = ScrollTrigger.create({
-    trigger: ".turn", start: "top top", end: () => "+=" + window.innerHeight * 2, pin: true,
-    onUpdate(self) {
-      const p = self.progress;
-      $(".turn-progress").style.setProperty("--p", p.toFixed(3));
-      const idx = p < 0.18 ? 0 : p < 0.46 ? 1 : p < 0.76 ? 2 : 3;
-      $$(".cap").forEach((c, i) => {
-        c.classList.toggle("is-active", i === idx);
-        c.classList.toggle("is-past", i < idx);
-      });
-    }
-  });
-
-  const night = $(".night");
-
-  // plain markers so section boundaries are measured after pin spacing is applied
-  const mark = (trigger, start) => ScrollTrigger.create({ trigger, start });
-  const featIn = mark(".features", "top 75%");
-  const featOut = mark(".features", "top 15%");
-  const orderIn = mark(".order", "top 70%");
-  const orderSet = mark(".order", "top top");
-  const faqIn = mark(".faq", "top 85%");
-  const faqOut = mark(".faq", "top 25%");
 
   /* ---------- Poses ---------- */
+  let BASE = {};
+  const pose = (o) => Object.assign({}, BASE, o);
+  let P = {}, S = {};
+  // where the switchboard sits: (cx, cy) is the board's centre; the socket sits left of it
+  function dockAt(cx, cy, cap) {
+    const aspect = window.innerWidth / window.innerHeight;
+    const ds = Math.min(cap, aspect * 1.05);
+    return { dx: cx - 0.181 * ds / aspect, dy: cy, ds };
+  }
   function poses() {
     const m = isMobile();
-    const P = {};
-    P.hero      = m ? { x: 0, y: 0.2, s: 0.78, rx: -0.05, ry: -0.5, glow: 0.8 }
-                    : { x: 0.22, y: -0.01, s: 1.15, rx: -0.06, ry: -0.55, glow: 0.8 };
-    P.turnFront = m ? { x: 0, y: 0.17, s: 0.82, rx: 0, ry: 0, glow: 0.75 }
-                    : { x: 0.17, y: 0, s: 1.25, rx: 0, ry: 0, glow: 0.75 };
-    P.turnSide  = Object.assign({}, P.turnFront, { ry: -1.42, rx: -0.06, glow: 0.45 });
-    P.turnBack  = Object.assign({}, P.turnFront, { ry: -Math.PI - 0.42, rx: -0.14, glow: 0.3 });
-    P.turnEnd   = Object.assign({}, P.turnFront, { ry: -TAU, rx: 0, glow: 0.9 });
-    P.away      = { x: m ? 0 : 0.12, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU - 1.1, glow: 0.6 };
-    P.order     = m ? { x: 0, y: 0.2, s: 0.66, rx: -0.05, ry: -TAU + 0.4, glow: 0.95 }
-                    : { x: -0.22, y: 0, s: 1.15, rx: -0.06, ry: -TAU + 0.5, glow: 0.95 };
-    P.gone      = { x: m ? 0 : -0.3, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU + 1.6, glow: 0.6 };
-    return P;
-  }
-  let P = poses();
+    const d = dockAt(0, m ? 0.05 : 0.03, 1.12);
+    BASE = Object.assign({ z: 0, room: 1, wall: 0 }, d);
+    const room = Object.assign({ room: 0, wall: 1, glow: 1.15 }, d);
+    P.far      = Object.assign({}, room, { x: d.dx + (m ? 0.08 : 0.04), y: d.dy - 0.06, z: m ? 5.2 : 4.4, s: d.ds, rx: 0.32, ry: -Math.PI * 0.86 });
+    P.aligned  = Object.assign({}, room, { x: d.dx, y: d.dy, z: 1.15, s: d.ds, rx: 0, ry: 0 });
+    P.plugged  = Object.assign({}, room, { x: d.dx, y: d.dy, z: 0, s: d.ds, rx: 0, ry: 0 });
+    // the room dissolves into the night around the lit lamp before it floats free
+    P.dissolve = Object.assign({}, P.plugged, { wall: 0, room: 0.45, z: 0.3 });
 
+    P.hero      = m ? pose({ x: 0, y: 0.2, s: 0.68, rx: -0.05, ry: -0.5, glow: 0.8 })
+                    : pose({ x: 0.22, y: -0.01, s: 1.15, rx: -0.06, ry: -0.55, glow: 0.8 });
+
+    // Features showcase: each pose demonstrates one feature, on the lamp itself
+    const sd = m ? dockAt(0, 0.17, 0.78) : dockAt(0.2, 0.02, 0.78);
+    const sp = (o) => Object.assign({ z: 0, room: 1, wall: 0 }, sd, m ? { x: 0, y: 0.17, s: 0.78 } : { x: 0.19, y: 0, s: 1.25 }, o);
+    S.om     = sp(m ? { y: 0.13, s: 0.95, rx: 0, ry: 0, glow: 0.85 } : { x: 0.17, y: -0.02, s: 1.65, rx: 0, ry: 0, glow: 0.85 });
+    S.dimA   = sp({ rx: -0.04, ry: -0.34, glow: 0.08, room: 0.95 });          // the glow rises as the room darkens
+    S.dimB   = sp({ rx: -0.04, ry: -0.24, glow: 1.4, room: 0.16 });
+    S.back   = sp({ rx: -0.24, ry: -Math.PI + 0.42, z: 0.5, glow: 0.35, room: 0.9 }); // the two pins
+    S.backB  = sp({ rx: -0.18, ry: -Math.PI - 0.22, z: 0.5, glow: 0.35, room: 0.9 });
+    S.align  = sp({ x: sd.dx, y: sd.dy, s: sd.ds, z: 1.2, rx: 0, ry: -TAU, glow: 1, room: 0.3, wall: 0.9 });
+    S.plug   = Object.assign({}, S.align, { z: 0, wall: 1, room: 0.22, glow: 1.15 }); // seated in the socket
+    S.lift   = Object.assign({}, S.plug, { z: 0.9, wall: 0, room: 0.6 });
+    S.gift1  = sp({ rx: -0.06, ry: -TAU * 2, glow: 1, room: 0.85 });               // after one slow presentation turn
+
+    P.away      = pose({ x: m ? 0 : 0.12, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU * 2 - 1.1, glow: 0.6 });
+    P.order     = m ? pose({ x: 0, y: 0.2, s: 0.66, rx: -0.05, ry: -TAU * 2 + 0.4, glow: 0.95 })
+                    : pose({ x: -0.22, y: 0, s: 1.15, rx: -0.06, ry: -TAU * 2 + 0.5, glow: 0.95 });
+    P.gone      = pose({ x: m ? 0 : -0.3, y: 0.95, s: 0.8, rx: 0.3, ry: -TAU * 2 + 1.6, glow: 0.6 });
+    // with the repeated opening screen it comes back down from above, turning to its hero angle
+    P.above     = Object.assign({}, P.hero, { y: 0.95, rx: 0.3, ry: P.hero.ry - 1.4 });
+  }
+
+  // intro keyframes, by intro progress (0..1)
+  const PLUG_AT = 0.52, SWITCH_AT = 0.6;
+  function introKeys() {
+    return [[0, P.far, 0], [0.1, P.far, 0], [0.42, P.aligned, 1], [PLUG_AT, P.plugged, 2], [1, P.plugged, 0]];
+  }
+  // showcase keyframes, by showcase progress (0..1); one feature per fifth
+  const SHOW_STOPS = [0.07, 0.29, 0.5, 0.74, 0.97];
+  const showIndex = (q) => (q < 0.18 ? 0 : q < 0.39 ? 1 : q < 0.6 ? 2 : q < 0.82 ? 3 : 4);
+  function showKeys() {
+    return [[0, S.om, 1], [0.13, S.om, 0], [0.2, S.dimA, 1], [0.36, S.dimB, 1], [0.43, S.back, 1], [0.56, S.backB, 0],
+      [0.64, S.align, 1], [0.7, S.plug, 2], [0.8, S.plug, 0], [0.84, S.lift, 1], [0.94, S.gift1, 1], [1, S.gift1, 0]];
+  }
   function anchors() {
-    const tLen = turnST.end - turnST.start;
-    return [
-      [0, P.hero],
-      [turnST.start, P.turnFront],
-      [turnST.start + tLen * 0.3, P.turnSide],
-      [turnST.start + tLen * 0.62, P.turnBack],
-      [turnST.start + tLen * 0.94, P.turnEnd],
-      [featIn.start, P.turnEnd],
-      [featOut.start, P.away],
-      [orderIn.start, P.away],
-      [orderSet.start, P.order],
-      [faqIn.start, P.order],
-      [faqOut.start, P.gone]
+    const list = [
+      [M.introEnd, P.plugged, 1],
+      [M.introEnd + (M.heroTop - M.introEnd) * 0.45, P.dissolve, 1],
+      [M.heroTop, P.hero, 1]
     ];
+    const keys = showKeys();
+    for (let i = 0; i < keys.length; i++) list.push([M.showTop + keys[i][0] * M.showLen, keys[i][1], keys[i][2]]);
+    return list.concat([
+      [M.spaces - M.vh * 0.1, P.away, 1],
+      [M.order - M.vh * 0.7, P.away, 1],
+      [M.order, P.order, 1],
+      [M.faq - M.vh * 0.85, P.order, 1],
+      [M.faq - M.vh * 0.25, P.gone, 1],
+      [M.cloneTop - M.vh * 0.85, P.above, 1],
+      [M.cloneTop, P.hero, 1]
+    ]);
   }
 
+  // 0 linear (the turn follows the scroll 1:1), 1 ease in-out, 2 ease in (the push into the socket)
+  const EASES = [(t) => t, (t) => t * t * (3 - 2 * t), (t) => t * t * t];
+  const out = {};
+  function blend(list, v) {
+    let a = list[0], b = list[list.length - 1];
+    if (v <= list[0][0]) { Object.assign(out, list[0][1]); return out; }
+    if (v >= b[0]) { Object.assign(out, b[1]); return out; }
+    for (let i = 0; i < list.length - 1; i++) {
+      if (v >= list[i][0] && v < list[i + 1][0]) { a = list[i]; b = list[i + 1]; break; }
+    }
+    const raw = b[0] > a[0] ? (v - a[0]) / (b[0] - a[0]) : 1;
+    const t = EASES[b[2]](raw);
+    for (const k in a[1]) out[k] = a[1][k] + (b[1][k] - a[1][k]) * t;
+    return out;
+  }
 
-  const ease = (t) => t * t * (3 - 2 * t);
+  /* ---------- The switch and the plug ---------- */
+  let switchedOn = false, seated = false;
+  function setSwitch(on) {
+    if (on === switchedOn) return;
+    switchedOn = on;
+    animate(Lamp, { rocker: on ? 1 : 0 }, reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 700, damping: 24 });
+    if (on) {
+      // a quick catch, a flicker, then the warm settle
+      animate(Lamp, { power: [0, 0.75, 0.1, 0.9, 0.3, 1] },
+        reduceMotion ? { duration: 0.2 } : { duration: 1, delay: 0.16, times: [0, 0.07, 0.15, 0.28, 0.4, 1], ease: "easeOut" });
+    } else {
+      animate(Lamp, { power: 0 }, { duration: 0.18 });
+    }
+  }
+
+  /* ---------- Intro narration and its action button, scrubbed by scroll ---------- */
+  const lines = $$(".intro-line");
+  const introLabel = $('[data-next="intro"] .next-label');
+  const INTRO_STOPS = [0.42, PLUG_AT + 0.02, SWITCH_AT + 0.05, 0.86];
+  const introAction = (p) => (p < 0.38 ? "Bring the lamp to the wall" : p < PLUG_AT ? "Plug it in" : p < SWITCH_AT ? "Switch it on" : "Continue");
+  function paintIntro(p) {
+    for (let i = 0; i < lines.length; i++) {
+      const el = lines[i];
+      const from = +el.dataset.in;
+      const a = Math.min(from === 0 ? 1 : clamp01((p - from) / 0.035), clamp01((+el.dataset.out - p) / 0.035));
+      el.style.opacity = a.toFixed(3);
+      el.style.transform = reduceMotion ? "" : `translateY(${((1 - a) * 14).toFixed(1)}px)`;
+      el.style.filter = reduceMotion || a > 0.99 ? "" : `blur(${((1 - a) * 6).toFixed(1)}px)`;
+    }
+    const label = introAction(p);
+    if (introLabel.textContent !== label) {
+      introLabel.textContent = label;
+      if (!reduceMotion) animate(introLabel, { opacity: [0, 1], filter: ["blur(4px)", "blur(0px)"] }, { duration: 0.35 });
+    }
+  }
+  if (!Lamp.failed) scroll(paintIntro, { target: intro, offset: ["start start", "end end"] });
+
+  /* ---------- Per-frame: pose the lamp from the scroll position ---------- */
+  let showSeated = false, gifted = false, lastScrim = "";
   function updatePose() {
-    if (introActive) {
-      // the lamp waits in the dark room, centred beside the switch
-      Object.assign(Lamp.target, introTarget);
-      return;
+    const y = scrollPos();
+    if (y < M.introEnd) {
+      const p = clamp01((y - M.introTop) / M.introLen);
+      blend(introKeys(), p);
+      if (p >= PLUG_AT && !seated) { seated = true; Lamp.kick(); }
+      else if (p < PLUG_AT - 0.02) seated = false;
+      setSwitch(p >= SWITCH_AT);
+    } else {
+      blend(anchors(), y);
+      setSwitch(true);
+      // moments inside the showcase: the plug seats, and the gift sends out its light
+      const q = (y - M.showTop) / M.showLen;
+      if (q >= 0.7 && q < 0.8 && !showSeated) { showSeated = true; Lamp.kick(); }
+      else if (q < 0.68 || q > 0.82) showSeated = false;
+      if (q >= 0.86 && q < 1 && !gifted) {
+        gifted = true;
+        Field.burst(1);
+        setTimeout(() => Field.burst(0.6), 450);
+      } else if (q < 0.84 || q > 1.05) gifted = false;
     }
-    const y = window.scrollY;
-    const A = anchors();
-    let pose = A[A.length - 1][1];
-    if (y <= A[0][0]) pose = A[0][1];
-    else {
-      for (let i = 0; i < A.length - 1; i++) {
-        const [y0, p0] = A[i], [y1, p1] = A[i + 1];
-        if (y >= y0 && y < y1) {
-          // inside the pinned turn the lamp follows the scroll 1:1, so it never feels stuck;
-          // elsewhere the travel between sections eases in and out
-          const raw = y1 > y0 ? (y - y0) / (y1 - y0) : 1;
-          const pinned = y0 >= turnST.start && y1 <= turnST.end;
-          const t = pinned ? raw : ease(raw);
-          pose = {};
-          for (const k in p0) pose[k] = p0[k] + (p1[k] - p0[k]) * t;
-          break;
-        }
-      }
+    Object.assign(Lamp.target, out);
+    Field.level = clamp01(1 - out.wall * 1.15);
+    // keep the showcase captions readable when the lit wall is behind them
+    const scrim = y > M.introEnd ? out.wall.toFixed(2) : "0";
+    if (scrim !== lastScrim) { show.style.setProperty("--scrim", scrim); lastScrim = scrim; }
+  }
+
+  /* ---------- Showcase: captions and step buttons follow the lamp ---------- */
+  const caps = $$(".cap");
+  const steps = $$(".step");
+  const showLabel = $('[data-next="show"] .next-label');
+  let showIdx = -1;
+  scroll((q) => {
+    const idx = showIndex(q);
+    if (idx === showIdx) return;
+    showIdx = idx;
+    for (let i = 0; i < caps.length; i++) {
+      caps[i].classList.toggle("is-active", i === idx);
+      caps[i].classList.toggle("is-past", i < idx);
+      steps[i].classList.toggle("is-active", i === idx);
+      if (i === idx) steps[i].setAttribute("aria-current", "step");
+      else steps[i].removeAttribute("aria-current");
     }
-    Object.assign(Lamp.target, pose);
+    showLabel.textContent = idx === caps.length - 1 ? "Continue" : "Next";
+  }, { target: show, offset: ["start start", "end end"] });
+  steps.forEach((b, i) => b.addEventListener("click", () => {
+    measure();
+    scrollToY(M.showTop + SHOW_STOPS[i] * M.showLen, true);
+  }));
+
+  /* ---------- Tap to continue: the story sections move on with a tap, click or the button ---------- */
+  function storyStops() {
+    const list = [];
+    if (!Lamp.failed) for (let i = 0; i < INTRO_STOPS.length; i++) list.push(M.introTop + INTRO_STOPS[i] * M.introLen);
+    list.push(M.heroTop + 2); // just past the seam, so a smooth landing never trips the loop
+    for (let i = 0; i < SHOW_STOPS.length; i++) list.push(M.showTop + SHOW_STOPS[i] * M.showLen);
+    list.push(M.spaces);
+    return list;
+  }
+  function advance() {
+    measure();
+    const y = scrollPos();
+    const next = storyStops().find((s) => s > y + 12);
+    if (next !== undefined) scrollToY(next, true);
+  }
+  $$(".next-btn").forEach((b) => b.addEventListener("click", advance));
+  $$(".story").forEach((sec) => sec.addEventListener("click", (e) => {
+    if (e.target.closest("a, button, summary, input, label")) return;
+    if (window.getSelection && String(window.getSelection())) return; // selecting text, not tapping
+    advance();
+  }));
+
+  /* ---------- Hero entrance: the headline rises into the light ---------- */
+  const heroLines = $$(".hero-title .line > span", hero);
+  const heroRest = [$(".hero-sub", hero), $(".hero-ctas", hero)];
+  if (!reduceMotion) {
+    heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
+    heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
+    inView(hero, () => {
+      heroLines.forEach((el, i) => animate(el,
+        { transform: "translateY(0%) rotate(0deg)", opacity: 1, filter: ["blur(12px)", "blur(0px)"] },
+        { duration: 1.2, delay: 0.1 + i * 0.14, ease: EASE }));
+      heroRest.forEach((el, i) => animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: 0.45 + i * 0.12, ease: EASE }));
+    }, { amount: 0.4 });
   }
 
-  window.addEventListener("resize", () => { P = poses(); });
-  ScrollTrigger.addEventListener("refresh", () => { P = poses(); });
-
-  /* ---------- Darkness: the cursor carries the only light ----------
-     Used by the intro (room starts dark) and by the Lights off button. A fixed veil covers the
-     whole page; a soft hole in its mask follows the pointer, smoothed so it drifts like a glow. */
-  const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const torch = { x: innerWidth / 2, y: innerHeight / 2, tx: innerWidth / 2, ty: innerHeight / 2, r: 0, tr: 0, seen: false };
-  const veil = $(".darkness");
-  window.addEventListener("pointermove", (e) => {
-    torch.tx = e.clientX; torch.ty = e.clientY;
-    if (!torch.seen) { torch.seen = true; torch.x = e.clientX; torch.y = e.clientY; }
-  }, { passive: true });
-  window.addEventListener("pointerdown", (e) => {
-    torch.tx = e.clientX; torch.ty = e.clientY; torch.seen = true;
-  }, { passive: true });
-  function torchRadius() { return Math.max(130, Math.min(220, Math.min(innerWidth, innerHeight) * 0.2)); }
-  gsap.ticker.add((time, dt) => {
-    const dark = document.body.classList.contains("is-dark");
-    torch.tr = dark && torch.seen ? torchRadius() : 0;
-    const k = reduceMotion ? 1 : 1 - Math.exp(-(dt / 1000) * 9);
-    torch.x += (torch.tx - torch.x) * k;
-    torch.y += (torch.ty - torch.y) * k;
-    torch.r += (torch.tr - torch.r) * (reduceMotion ? 1 : 1 - Math.exp(-(dt / 1000) * 4));
-    veil.style.setProperty("--lx", torch.x.toFixed(1) + "px");
-    veil.style.setProperty("--ly", torch.y.toFixed(1) + "px");
-    veil.style.setProperty("--lr", torch.r.toFixed(1) + "px");
-  });
-  // on touch screens there is no hover: start the light where it is needed (the intro switch)
-  function seedTorch(el) {
-    if (fine || torch.seen || !el) return;
-    const r = el.getBoundingClientRect();
-    torch.tx = torch.x = r.left + r.width / 2;
-    torch.ty = torch.y = r.top + r.height / 2;
-    torch.seen = true;
-  }
-
-  /* ---------- Lights off / on ---------- */
-  const lightsBtn = $(".lights");
-  function setLights(on) {
-    document.body.classList.toggle("is-dark", !on);
-    lightsBtn.setAttribute("aria-pressed", String(!on));
-    $(".lights-label", lightsBtn).textContent = on ? "Lights off" : "Lights on";
-    gsap.to(Lamp, { power: on ? 1 : 0, duration: on ? 0.9 : 0.4, ease: on ? "power2.out" : "power2.in" });
-    if (!on) seedTorch(lightsBtn);
-  }
-  lightsBtn.addEventListener("click", () => setLights(document.body.classList.contains("is-dark")));
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && document.body.classList.contains("is-dark") && !introActive) setLights(true);
-  });
-
-  /* ---------- Custom cursor: a warm dot with a trailing ring ---------- */
-  if (fine) {
-    document.documentElement.classList.add("has-cursor");
-    const dot = $(".cursor-dot"), ring = $(".cursor-ring");
-    const c = { x: -100, y: -100, rx: -100, ry: -100 };
-    let hidden = false;
-    window.addEventListener("pointermove", (e) => {
-      c.x = e.clientX; c.y = e.clientY;
-      if (hidden) { hidden = false; dot.style.opacity = ring.style.opacity = ""; }
-    }, { passive: true });
-    document.addEventListener("pointerover", (e) => {
-      ring.classList.toggle("is-hover", !!e.target.closest("a, button, summary, label, [role='button']"));
-    });
-    document.addEventListener("pointerdown", () => ring.classList.add("is-down"));
-    document.addEventListener("pointerup", () => ring.classList.remove("is-down"));
-    document.documentElement.addEventListener("pointerleave", () => { hidden = true; dot.style.opacity = ring.style.opacity = "0"; });
-    gsap.ticker.add((time, dt) => {
-      const k = reduceMotion ? 1 : 1 - Math.exp(-(dt / 1000) * 14);
-      c.rx += (c.x - c.rx) * k;
-      c.ry += (c.y - c.ry) * k;
-      dot.style.transform = `translate3d(${c.x}px, ${c.y}px, 0)`;
-      ring.style.transform = `translate3d(${c.rx}px, ${c.ry}px, 0)`;
+  /* ---------- Reveals: content is visible by default; scripts lift it in as it arrives ---------- */
+  if (!reduceMotion) {
+    $$(".reveal").forEach((el) => {
+      const sibs = $$(":scope > .reveal", el.parentElement);
+      const i = Math.max(0, sibs.indexOf(el));
+      el.style.opacity = "0";
+      el.style.transform = "translateY(24px)";
+      inView(el, () => {
+        animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: Math.min(i * 0.06, 0.3), ease: EASE });
+      }, { margin: "0px 0px -10% 0px" });
     });
   }
+
+  /* ---------- Spaces line: the last word cycles through the rooms ---------- */
+  const spaceWords = $$(".spaces-word > span");
+  let spaceIdx = 0, spacesVisible = false;
+  inView(".spaces", () => { spacesVisible = true; return () => { spacesVisible = false; }; });
+  setInterval(() => {
+    if (!spacesVisible || document.hidden) return;
+    const prev = spaceWords[spaceIdx];
+    spaceIdx = (spaceIdx + 1) % spaceWords.length;
+    const next = spaceWords[spaceIdx];
+    prev.classList.remove("is-on");
+    prev.classList.add("is-off");
+    setTimeout(() => prev.classList.remove("is-off"), 500);
+    next.classList.add("is-on");
+  }, 2400);
+
+  /* ---------- Buttons: a soft magnetic pull and a press ---------- */
+  if (!reduceMotion) {
+    if (finePointer) {
+      $$(".btn-primary").forEach((b) => {
+        const spring = { type: "spring", stiffness: 260, damping: 18, mass: 0.6 };
+        b.addEventListener("pointermove", (e) => {
+          const r = b.getBoundingClientRect();
+          animate(b, { x: (e.clientX - r.left - r.width / 2) * 0.22, y: (e.clientY - r.top - r.height / 2) * 0.32 }, spring);
+        });
+        hover(b, () => () => animate(b, { x: 0, y: 0 }, spring));
+      });
+    }
+    press(".btn, .store, .skip, .next-btn, .step", (el) => {
+      animate(el, { scale: 0.97 }, { type: "spring", stiffness: 900, damping: 30 });
+      return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 500, damping: 20 });
+    });
+  }
+
+  /* ---------- FAQ: answers ease open ---------- */
+  $$("details").forEach((d) => {
+    d.addEventListener("toggle", () => {
+      if (d.open && !reduceMotion) animate($("p", d), { opacity: [0, 1], transform: ["translateY(-6px)", "translateY(0px)"] }, { duration: 0.4, ease: EASE });
+    });
+  });
 
   /* ---------- Buy: marketplace listings ---------- */
   const STORE_NAMES = { amazon: "Amazon", flipkart: "Flipkart", meesho: "Meesho" };
@@ -235,160 +406,27 @@
     });
   });
 
-  /* ---------- Reveals ---------- */
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("is-in"); io.unobserve(en.target); } });
-  }, { rootMargin: "0px 0px -12% 0px" });
-  $$(".reveal-up").forEach((el) => { if (!el.closest(".hero")) io.observe(el); });
-
-  /* ---------- Spaces line: the last word cycles through the rooms ---------- */
-  const spaceWords = $$(".spaces-word > span");
-  let spaceIdx = 0, spacesVisible = false;
-  new IntersectionObserver(([en]) => { spacesVisible = en.isIntersecting; }).observe($(".spaces"));
-  setInterval(() => {
-    if (!spacesVisible || document.hidden) return;
-    const prev = spaceWords[spaceIdx];
-    spaceIdx = (spaceIdx + 1) % spaceWords.length;
-    const next = spaceWords[spaceIdx];
-    prev.classList.remove("is-on");
-    prev.classList.add("is-off");
-    setTimeout(() => prev.classList.remove("is-off"), 500);
-    next.classList.add("is-on");
-  }, 2400);
-
-  /* ---------- Manifesto: words light up as you read down ---------- */
-  const manifesto = $(".manifesto");
-  (function splitWords(node) {
-    Array.from(node.childNodes).forEach((n) => {
-      if (n.nodeType === 3) {
-        const frag = document.createDocumentFragment();
-        n.textContent.split(/(\s+)/).forEach((part) => {
-          if (!part) return;
-          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(" ")); return; }
-          const s = document.createElement("span");
-          s.className = "w";
-          s.textContent = part;
-          frag.appendChild(s);
-        });
-        node.replaceChild(frag, n);
-      } else if (n.nodeType === 1) splitWords(n);
-    });
-  })(manifesto);
-  const manWords = $$(".w", manifesto);
-  if (reduceMotion) manWords.forEach((w) => w.classList.add("lit"));
-  else {
-    ScrollTrigger.create({
-      trigger: manifesto, start: "top 78%", end: "bottom 42%",
-      onUpdate(self) {
-        const n = Math.round(self.progress * manWords.length);
-        manWords.forEach((w, i) => w.classList.toggle("lit", i < n));
-      },
-      onLeave() { manWords.forEach((w) => w.classList.add("lit")); }
-    });
-  }
-
-  /* ---------- Magnetic primary buttons ---------- */
-  if (!reduceMotion && window.matchMedia("(hover: hover)").matches) {
-    $$(".btn-primary").forEach((b) => {
-      const xTo = gsap.quickTo(b, "x", { duration: 0.6, ease: "power3.out" });
-      const yTo = gsap.quickTo(b, "y", { duration: 0.6, ease: "power3.out" });
-      b.addEventListener("pointermove", (e) => {
-        const r = b.getBoundingClientRect();
-        xTo((e.clientX - r.left - r.width / 2) * 0.22);
-        yTo((e.clientY - r.top - r.height / 2) * 0.32);
-      });
-      b.addEventListener("pointerleave", () => { xTo(0); yTo(0); });
-    });
-  }
-
-  /* ---------- Intro: a dark room, an unlit lamp and a wall switch ----------
-     Clicking the switch lights the lamp; its light then spreads as a growing circle
-     that reveals the site, while the lamp glides to its place in the hero. */
-  function introPose() {
-    const m = isMobile();
-    return m ? { x: 0, y: 0.1, s: 0.92, rx: -0.03, ry: -0.22, glow: 0 }
-             : { x: 0, y: 0.01, s: 1.2, rx: -0.03, ry: -0.24, glow: 0 };
-  }
-  let introTarget = introPose();
-  window.addEventListener("resize", () => { if (introActive) introTarget = Object.assign(introPose(), { glow: introTarget.glow }); });
-
-  function runIntro() {
-    const intro = $(".intro");
-    const rocker = $(".rocker");
-    Lamp.room = 0.4;
-    seedTorch(rocker);
-    window.scrollTo(0, 0);
-    return new Promise((resolve) => {
-      let done = false;
-      const go = () => {
-        if (done) return;
-        done = true;
-        rocker.setAttribute("aria-pressed", "true");
-        intro.classList.add("is-on");
-        document.body.classList.remove("is-dark"); // the lamp floods the room
-
-        // 1. the lamp comes on: a quick LED catch, then a warm settle; the room fills with its light
-        if (reduceMotion) { introTarget.glow = 1; Lamp.room = 1; }
-        else {
-          gsap.timeline()
-            .set(Lamp, { power: 0 })
-            .to(Lamp, { power: 0.7, duration: 0.06 })
-            .to(Lamp, { power: 0.15, duration: 0.07 })
-            .to(Lamp, { power: 1, duration: 0.5, ease: "power2.out" });
-          introTarget.glow = 1.15;
-          gsap.to(Lamp, { room: 1, duration: 1.8, ease: "power2.inOut", delay: 0.25 });
-        }
-
-        // 2. the light spreads into the page
-        const hold = reduceMotion ? 300 : 1150;
-        setTimeout(() => {
-          intro.classList.add("is-leaving");
-          let [cx, cy] = Lamp.screenPoint();
-          if (!isFinite(cx) || !isFinite(cy)) { cx = innerWidth / 2; cy = innerHeight / 2; }
-          const body = document.body;
-          body.style.setProperty("--reveal-x", cx + "px");
-          body.style.setProperty("--reveal-y", cy + "px");
-          const maxR = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)) + 40;
-          body.classList.add("is-revealing");
-          const r = { v: 0 };
-          const finish = () => {
-            body.classList.remove("is-revealing", "is-loading");
-            night.style.removeProperty("--dim");
-            body.style.removeProperty("--reveal-r");
-            resolve();
-          };
-          introActive = false;            // lamp glides into its hero pose
-          body.classList.add("is-ready"); // hero copy starts its reveal under the light
-          gsap.to(night, { "--dim": 0, duration: reduceMotion ? 0.3 : 1.4, ease: "power2.inOut" });
-          if (reduceMotion) { finish(); return; }
-          gsap.to(r, {
-            v: maxR, duration: 1.5, ease: "expo.inOut",
-            onUpdate: () => body.style.setProperty("--reveal-r", (Number(r.v) || 0).toFixed(1) + "px"),
-            onComplete: finish
-          });
-        }, hold);
-      };
-      rocker.addEventListener("click", go);
-    });
-  }
-
   /* ---------- Start ---------- */
-  gsap.ticker.add(updatePose);
-
-  Promise.race([Lamp.ready, new Promise((r) => setTimeout(r, 4000))])
-    .then(runIntro)
-    .then(() => {
-      $$(".hero .reveal-up").forEach((el) => el.classList.add("is-in"));
-      window.scrollTo(0, 0);
-      if (lenis) { lenis.scrollTo(0, { immediate: true, force: true }); lenis.start(); }
-      ScrollTrigger.refresh();
-    });
-  // the hero copy appears with the light, not after it finishes
-  const heroIn = new MutationObserver(() => {
-    if (document.body.classList.contains("is-ready")) {
-      $$(".hero .reveal-up").forEach((el) => el.classList.add("is-in"));
-      heroIn.disconnect();
-    }
-  });
-  heroIn.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  function relayout() { poses(); measure(); }
+  relayout();
+  paintIntro(0);
+  updatePose();
+  if (Lamp.snap) Lamp.snap();
+  frame.update(updatePose, true);
+  window.addEventListener("resize", relayout);
+  new ResizeObserver(() => measure()).observe(document.body);
+  if (document.fonts) document.fonts.ready.then(measure);
+  // every visit starts in the dark room, wherever the browser last left the page
+  // (browsers may restore the old position a few frames after load, so hold the top briefly)
+  function begin() {
+    measure();
+    let n = 0;
+    (function hold() {
+      if (scrollPos() > 1) scrollToY(0, false);
+      if (++n < 24) requestAnimationFrame(hold);
+      else { started = true; onScroll(); }
+    })();
+  }
+  if (document.readyState === "complete") begin();
+  else window.addEventListener("load", begin, { once: true });
 })();
