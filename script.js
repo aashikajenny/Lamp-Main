@@ -50,11 +50,11 @@
   });
   /* ---------- Pinned sections ---------- */
   const turnST = ScrollTrigger.create({
-    trigger: ".turn", start: "top top", end: () => "+=" + window.innerHeight * 3, pin: true,
+    trigger: ".turn", start: "top top", end: () => "+=" + window.innerHeight * 2, pin: true,
     onUpdate(self) {
       const p = self.progress;
       $(".turn-progress").style.setProperty("--p", p.toFixed(3));
-      const idx = p < 0.2 ? 0 : p < 0.47 ? 1 : p < 0.76 ? 2 : 3;
+      const idx = p < 0.18 ? 0 : p < 0.46 ? 1 : p < 0.76 ? 2 : 3;
       $$(".cap").forEach((c, i) => {
         c.classList.toggle("is-active", i === idx);
         c.classList.toggle("is-past", i < idx);
@@ -97,9 +97,9 @@
     return [
       [0, P.hero],
       [turnST.start, P.turnFront],
-      [turnST.start + tLen * 0.33, P.turnSide],
+      [turnST.start + tLen * 0.3, P.turnSide],
       [turnST.start + tLen * 0.62, P.turnBack],
-      [turnST.start + tLen * 0.92, P.turnEnd],
+      [turnST.start + tLen * 0.94, P.turnEnd],
       [featIn.start, P.turnEnd],
       [featOut.start, P.away],
       [orderIn.start, P.away],
@@ -125,7 +125,11 @@
       for (let i = 0; i < A.length - 1; i++) {
         const [y0, p0] = A[i], [y1, p1] = A[i + 1];
         if (y >= y0 && y < y1) {
-          const t = y1 > y0 ? ease((y - y0) / (y1 - y0)) : 1;
+          // inside the pinned turn the lamp follows the scroll 1:1, so it never feels stuck;
+          // elsewhere the travel between sections eases in and out
+          const raw = y1 > y0 ? (y - y0) / (y1 - y0) : 1;
+          const pinned = y0 >= turnST.start && y1 <= turnST.end;
+          const t = pinned ? raw : ease(raw);
           pose = {};
           for (const k in p0) pose[k] = p0[k] + (p1[k] - p0[k]) * t;
           break;

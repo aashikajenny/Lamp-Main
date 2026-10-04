@@ -387,14 +387,21 @@ body.is-dark .darkness { opacity: 1; visibility: visible; transition: opacity 0.
 body.is-loading:not(.is-dark) .darkness { transition: opacity 1.4s var(--ease) 0.15s, visibility 0s linear 1.6s; }
 
 /* ---------- Lights off button ---------- */
+/* sits at the top-right of the nav, beside Buy now */
+.nav-actions { display: flex; align-items: center; gap: 8px; }
 .lights {
-  position: fixed; right: var(--gutter); bottom: 24px; z-index: 55;
-  display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px 0 16px; border-radius: 999px;
-  background: rgba(21, 18, 29, 0.82); border: 1px solid rgba(243, 237, 228, 0.18); color: var(--ink);
-  font: 500 15px var(--font-display); cursor: pointer;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.8);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease), border-color 0.3s var(--ease), transform 0.3s var(--ease), opacity 0.6s var(--ease);
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 14px; border-radius: 999px;
+  background: transparent; border: 1px solid rgba(243, 237, 228, 0.22); color: var(--ink);
+  font: 500 15px var(--font-display); white-space: nowrap; cursor: pointer;
+  transition: background 0.3s var(--ease), color 0.3s var(--ease), border-color 0.3s var(--ease), transform 0.3s var(--ease);
+}
+/* in the dark, the nav rises above the veil with only the Lights button showing,
+   so the way back to the light is always visible */
+body.is-dark .nav { z-index: 55; background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.is-dark .nav > :not(.nav-actions), body.is-dark .nav-actions > :not(.lights) { visibility: hidden; }
+@media (max-width: 767px) {
+  .lights { width: 44px; padding: 0; justify-content: center; }
+  .lights-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 .lights .ph { font-size: 20px; color: var(--accent); }
 .lights:hover { border-color: rgba(243, 237, 228, 0.4); }
