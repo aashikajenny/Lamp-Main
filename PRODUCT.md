@@ -33,6 +33,7 @@ A night light that is also a devotional object: the sacred OM artwork is the lit
 - Confirmed features (from the seller's product description): sacred OM artwork, soft warm glow, vibrant print, plug-in design, compact and elegant body, suitable for home, office, temple or meditation space, ideal spiritual gift.
 - Physical form (from the seller's product photo): white rounded rectangular body, printed artwork on the front, stepped back with a square plug module and two metal pins.
 - Sales channels: Amazon, Flipkart and Meesho. The site's purchase action should lead to these listings. Listing URLs are not yet provided.
+- Contact (confirmed by the owner): retail orders, delivery and returns go through the marketplaces. Custom designs (a lamp made with the buyer's own design) and bulk orders: +91 87003 00836, by phone or WhatsApp (shown in the "Made by Aashi Enterprises" section, the FAQ and the footer).
 - Range: ten devotional designs are live (Meditating Shiv Ji, the default; Sacred OM; 3D Hanuman Ji; Bhakti Hanuman; Krishna Om; Neem Karoli Baba; Radhe Radhe; Shiv Ji; Trishul Om; Veer Hanuman). More will be added; the site builds its design picker from whatever artwork is in images/designs.
 - Undecided / not provided: price, wattage and electrical specs, dimensions, warranty, care instructions beyond basic cleaning.
 

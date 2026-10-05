@@ -46,7 +46,7 @@ html { -webkit-text-size-adjust: 100%; }
 }
 /* the page moves a whole section at a time: it always comes to rest on one section, never between two */
 html { scroll-snap-type: y mandatory; }
-.hero, .show, .spaces-sec, .order, .faq { scroll-snap-align: start; scroll-snap-stop: always; }
+.hero, .show, .spaces-sec, .order, .maker, .faq { scroll-snap-align: start; scroll-snap-stop: always; }
 .footer { scroll-snap-align: end; }
 
 body {
@@ -277,7 +277,6 @@ main, .footer { position: relative; z-index: 3; }
 .room-name { font: 500 15px var(--font-display); letter-spacing: 0.02em; color: rgba(243, 237, 228, 0.6); }
 
 /* ---------- Designs (in the buy section): the 3D lamp wears the chosen artwork ---------- */
-.eyebrow { font: 500 14px var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
 .design-picks { display: flex; flex-wrap: wrap; gap: 10px; max-width: 560px; }
 .design-pick {
   display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 5px 18px 5px 5px; border-radius: 999px; cursor: pointer;
@@ -315,6 +314,30 @@ main, .footer { position: relative; z-index: 3; }
 .store:hover .ph { color: var(--accent-ink); transform: translate(2px, -2px); }
 .buy-note { min-height: 1.6em; margin-top: 16px; font-size: 15px; color: #ffc98a; }
 
+
+/* ---------- Maker: who makes the lamp, and the line for bulk orders ---------- */
+.maker { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 80px; }
+.maker > .wrap { width: 100%; }
+.maker-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 64px; align-items: start; }
+.maker-text { font-size: clamp(19px, 1.6vw, 22px); line-height: 1.55; max-width: 46ch; text-wrap: pretty; }
+.bulk { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--line); }
+.bulk h3 { font: 500 24px/1.2 var(--font-display); letter-spacing: -0.01em; }
+.bulk p { color: var(--muted); font-size: 17px; max-width: 46ch; margin: 12px 0 24px; }
+/* the number is the one thing to remember here, so it is set large */
+.bulk-number {
+  display: inline-block; margin-bottom: 28px;
+  font: 500 clamp(32px, 3.4vw, 48px)/1 var(--font-display); letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; color: var(--accent); transition: color 0.25s;
+}
+.bulk-number:hover { color: var(--accent-hi); }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.bulk-actions .btn-primary:hover i { transform: none; }
+/* links inside running text */
+details p a, .footer-copy a {
+  color: var(--ink); text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+details p a:hover, .footer-copy a:hover { text-decoration-color: var(--accent); }
 /* ---------- FAQ ---------- */
 .faq { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 80px; }
 .faq > .wrap { width: 100%; }
@@ -396,6 +419,10 @@ details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 
 
   .faq { padding: 80px 0 110px; }
   .faq-grid { grid-template-columns: 1fr; gap: 32px; }
+  .maker { padding: 80px 0 110px; }
+  .maker-grid { grid-template-columns: 1fr; gap: 24px; }
+  .bulk { margin-top: 36px; padding-top: 32px; }
+  .bulk-actions .btn { flex: 1 1 auto; }
   summary { padding: 18px 0; font-size: 18px; }
   details p { padding: 0 0 20px; }
 
