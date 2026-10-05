@@ -65,6 +65,8 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
+/* the 3D canvases reach past the screen edge for their glow; clip them so phones never scroll sideways */
+html, main { overflow-x: clip; }
 
 img { max-width: 100%; display: block; }
 a { color: inherit; text-decoration: none; }
@@ -572,7 +574,10 @@ details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 
   .stage { min-height: 34vh; }
   .stage-floor { width: 120vw; }
   .pick { grid-template-columns: 1fr; }
-  .pick-arrow { display: none; }
+  /* phones: the arrows sit either side of the dots */
+  .pick-arrow { position: absolute; bottom: -4px; width: 44px; height: 44px; font-size: 18px; }
+  .pick-arrow[data-step="-1"] { left: var(--gutter); }
+  .pick-arrow[data-step="1"] { right: var(--gutter); }
   .pick-name { font-size: clamp(30px, 9vw, 40px); }
   .pick-tag { font-size: 15px; margin: 6px 0 16px; }
   .pick-go { width: 100%; }
