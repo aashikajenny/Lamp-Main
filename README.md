@@ -1,17 +1,29 @@
-# OM Night Lamp website (v3)
+# Aashi Enterprises website (v4)
 
-A single-page product site for the OM Night Lamp: a plug-in devotional night lamp, offered in ten artwork designs.
+A single-page site for Aashi Enterprises' three devotional products: the **35-in-1 Divine Mantra Box** (the best seller), the **Mini Chanting Box** (a Vedic 35-in-1 mantra device that plugs into the wall) and the **OM Night Lamp**. Every product wears the same ten artwork designs.
 
-- **Hero:** the page opens straight on the hero. The 3D lamp switches on with a soft flicker and turns slowly on its own, wearing the default design (Meditating Shiv Ji) until a visitor picks another.
-- **Scrolling just scrolls, one section at a time.** The page snaps so it always rests on a whole section, never halfway between two. Nothing else is tied to the scroll position. Each section that shows the lamp has its own 3D lamp in its own space, which scrolls with the section like any other content.
-- **Features showcase:** four features, each shown by the 3D lamp itself: a close look at the artwork, the glow rising as the room darkens, the two pins on the back, and a slow gift turn. It plays by itself (a bar on the active step shows the time left); the step buttons, the Next button or a tap anywhere jump ahead.
-- **Interactive background:** rings of light around the lamp, like the dotted mandala on its face, plus drifting light motes. The pointer brightens the rings and pushes the motes aside; a click or tap sends out a ripple, and the lamp sends a slow one of its own.
+- **Hero: the best seller.** The page opens on the 3D Mantra Box: its red power light comes on and rings of sound leave its face as it turns, showing the volume dial on its side.
+- **The product picker.** A turning stage with all three products in 3D under a beam of light. The product in front is the one the rest of the page shows. Turn it with the arrows, the tabs, a swipe, the arrow keys, or a tap on a product at the side; "Explore the ..." (or a tap on the product in front) goes to its features. The switcher in the nav changes the product from anywhere, and `?product=mantra|mini|lamp` opens the page on one.
+- **Everything below follows the product.** The features showcase, the mantras section (the two chanting devices) or the room photos (the lamp), the buy section with its design picker and store links, the FAQ and the footer line. Content for one product is marked in `index.html` with `data-for="mantra"`, `data-for="mini lamp"` and so on, and is hidden while another product is showing; the product's name fills any `data-p="name"` or `data-p="short"`.
+- **Features showcase:** four features per product, each shown by the 3D product itself (for the Mantra Box and the Mini: the artwork, the sound, the red power button being pressed and the dial turning up, and the two-pin plug on the back). It plays by itself; the step buttons, the Next button or a tap jump ahead.
+- **Mantras:** 35 points of light around the 3D chanting device that's showing (the Mantra Box or the Mini), one for each mantra; the one playing glows, with its name in Devanagari and English. Tap a mantra to show it.
+- **Scrolling just scrolls, one section at a time.** The page snaps so it always rests on a whole section.
+- **Interactive background:** rings of light around the product on screen, plus drifting motes. The pointer brightens the rings and pushes the motes aside; a click or tap sends out a ripple. The lamp sends a slow ripple of its own; the chanting devices send one every couple of seconds, like the beat of a chant.
 
-Built with Three.js (the lamp) and Motion (UI animation).
+Built with Three.js (the 3D products) and Motion (UI animation).
+
+## The products
+
+`PRODUCTS` at the top of `script.js` holds each product's name, short name, badge, tagline and default design (the one it wears until a visitor picks a design). The feature poses are in `P.features`. The 3D models are built in `models3d.js` from the seller's product photos:
+
+- **Divine Mantra Box** (9 cm tall, 5.5 cm wide, 3 cm deep): a white box with slightly rounded corners. On the front, the artwork under a glass cover in a clear frame, with equal borders above and below. On the right side, a small red button high up near the front and a plain white volume knob on a collar lower down. On the back, all centred: the two-pin plug (white sleeves, metal ends) a little above the middle, a large round speaker grille below it, and a screw in each corner.
+- **Mini Chanting Box** (traced from the product photos, pixel by pixel): 9 cm tall and about 3.5 cm deep; a front shell and a thinner back shell meeting at a seam, the front rolling back in a long curve toward the top so the highest point is at the seam. From the front: a full rounded top, sides that curve in a little at the middle, and a wide bottom with round corners. The speaker grille is nine arcs centred on the small screw, each reaching about 45 degrees either side of a bar down the middle; the outer part of each arc is a shallow groove and only the middle is cut through, where the arcs cross the round speaker opening behind them. The artwork covers the lower front, its top edge dipping under the screw and its bottom a deep U with a thin white border. On the right side, the red button in a small dark ring on the seam, and a large plain white volume knob lower down toward the front. On the back, the two-pin plug between two screw holes, the embossed border and lettering, and a small vent; a small slot on the top.
+- All three plug into the wall with a two-pin plug.
+- **OM Night Lamp:** a slim white frame round a backlit print, two pins on a square module at the back.
 
 ## Performance
 
-`perf.js` picks a quality tier: low-end hardware (4 or fewer CPU cores, or 4 GB or less memory) starts reduced, and any device steps down a tier if its frames run consistently slow for its own refresh rate (60, 90, 120 or 144 Hz). Lower tiers render the lamp at a lower resolution, thin out the background field and drop the nav's backdrop blur. The background field (rings and motes) is drawn on the GPU in a single call, with every dot's motion and glow worked out in a shader, so it costs the main thread almost nothing. Each 3D lamp draws into a small canvas the size of its slot, and only while that slot is on screen; the second and third lamps are created once the page is idle. Everything pauses in a background tab.
+`perf.js` picks a quality tier: low-end hardware (4 or fewer CPU cores, or 4 GB or less memory) starts reduced, and any device steps down a tier if its frames run consistently slow for its own refresh rate. Lower tiers render the 3D at a lower resolution, thin out the background field and drop the nav's backdrop blur. The background field is drawn on the GPU in a single call. Each 3D viewer draws into a small canvas the size of its slot, and only while that slot is on screen; the picker, features and buy viewers are created once the page is idle. Everything pauses in a background tab.
 
 ## Run
 
@@ -21,19 +33,19 @@ Serve the folder through a local web server and open `index.html`. You need an i
 
 - `perf.js`: the quality tier and frame-rate watch
 - `designs.js`: the design list (from `images/designs/designs.json`), the artwork files, and the light each one casts
-- `lamp3d.js`: the 3D lamps. The hero, the features and the buy section each have their own lamp in a `.lamp-slot`, so it scrolls with its section; they share one animation loop, and a lamp only draws while it's on screen
+- `models3d.js`: the three 3D products. Each `.model-slot` (hero, picker, features, buy) has its own viewer; the picker's viewer holds all three products on one stage. They share one animation loop, and a viewer only draws while it's on screen
 - `bg.js`: the interactive light field behind the page
-- `script.js`: where the lamp sits for each section, the features showcase, and the page animations
-- `rooms.js`: the room photos, with the chosen design laid over the lamp in each
+- `script.js`: the products, the picker, the features showcase, the mantras dial (with its own 3D device), the design picker and the page animations
+- `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
 - `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below)
 - `images/designs/`: the design artwork, as WebP, and `designs.json`
 - `images/generallayout/`: the original room photos; `images/rooms/`: their WebP copies, which the site loads
 
 ## Designs
 
-The buy section ("Choose your design. Bring the light home.") lets visitors pick the lamp's artwork, then buy: the 3D lamp turns once and comes back round wearing the chosen design, above the Amazon, Flipkart and Meesho buttons. Until someone picks, the section shows each design in turn.
+All three products share the same designs. The buy section ("Choose your design. Bring it home.") lets visitors pick the artwork for the product they're looking at, then buy: the 3D product turns once and comes back round wearing the chosen design, above the Amazon, Flipkart and Meesho buttons. Until someone picks, the section shows each design in turn.
 
-The designs are whatever artwork is in `images/designs/`. Each file is one design, and its file name becomes the button label: `Veer Hanuman.jpeg` shows as "Veer Hanuman", and `om.png` is the Sacred OM. Every 3D lamp on the page (hero, features, buy section) and every room photo shows the default design, Meditating Shiv Ji (`DEFAULT` in `designs.js`, listed first in the picker), until a visitor picks one. Their pick then appears everywhere. Before anyone picks, the buy section's own lamp shows each design in turn.
+The designs are whatever artwork is in `images/designs/`. Each file is one design, and its file name becomes the button label: `Veer Hanuman.jpeg` shows as "Veer Hanuman", and `om.png` is the Sacred OM. Until a visitor picks a design, each product wears its own default (`design` in `PRODUCTS` in `script.js`: the Sacred OM on the Mantra Box, Trishul Om on the Mini, Meditating Shiv Ji on the lamp). Their pick then appears on every 3D product and room photo on the page. Meditating Shiv Ji (`DEFAULT` in `designs.js`) is listed first in the picker.
 
 The folder holds only WebP files: one per design, plus `designs.json`, the list the "Choose your design" buttons are built from.
 
@@ -54,7 +66,7 @@ The light on the page is the light the lit print would really give off. `LampArt
 
 That light colours everything:
 
-- **The 3D lamps.** They look switched on, like the lamps in the room photos. The frame glows warm white tinted by the print, the print shows its true colours lit from behind, and light spills round the lamp's edges.
+- **The 3D products.** The lamp looks switched on, like the lamps in the room photos: the frame glows warm white tinted by the print, the print shows its true colours lit from behind, and light spills round its edges. The Mantra Box and the Mini are lit by the room, with a soft halo and rings of sound in the print's colour.
 - **The background.** The rings and motes take the light's colours, and so does the soft room glow behind the page.
 - **The buttons, highlights and accent text.** They take the light's hue (`--accent` in `style.css`), at a lightness that keeps their text readable for every design. Browsers too old for CSS relative colours keep the warm orange.
 
@@ -80,7 +92,7 @@ To replace a photo: put the new one in `images/generallayout/` under the same na
 
 ## Before going live
 
-In `script.js`, paste the Amazon, Flipkart and Meesho listing URLs into `CONFIG.stores`. While a link is empty, its button shows a "listing coming soon" note.
+In `script.js`, paste each product's Amazon, Flipkart and Meesho listing URLs into `STORES` (one set per product). While a link is empty, its button shows a "listing coming soon" note.
 
 ## WebP converter
 

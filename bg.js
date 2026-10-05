@@ -1,4 +1,4 @@
-/* Background field: rings of light around the lamp, like the dotted mandala on its face,
+/* Background field: rings of light around the product on screen, like a dotted mandala,
    and motes drifting in its glow. The pointer brightens the rings it passes over and
    parts the motes; a click or tap sends out a ripple, and the lamp itself sends a slow
    one now and then. Everything glows in the colours of the artwork on the lamp in view
@@ -243,7 +243,7 @@
     shown += (api.level - shown) * (1 - Math.exp(-dt * 3));
 
     // the rings follow whichever lamp is on screen, eased so they trail it softly
-    const p = window.Lamps && window.Lamps.focusPoint();
+    const p = window.Models && window.Models.focusPoint();
     if (p) {
       if (!centre.ready) { centre.x = p[0]; centre.y = p[1]; centre.ready = true; }
       const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.2);
@@ -257,10 +257,12 @@
       col.b[j] += (colTo.b[j] - col.b[j]) * ck;
     }
 
-    // the lamp's own slow pulse
-    if (!reduceMotion && t - lastPulse > 6.5) {
+    // the product's own pulse: a slow breath of light from the lamp, the steady beat of a chant
+    // from the two mantra devices
+    const chanting = p && p[3] && p[3] !== "lamp";
+    if (!reduceMotion && t - lastPulse > (chanting ? 2.4 : 6.5)) {
       lastPulse = t;
-      ripples.push({ x: centre.x, y: centre.y, t: 0, strong: 0.55 });
+      ripples.push({ x: centre.x, y: centre.y, t: 0, strong: chanting ? 0.42 : 0.55 });
       if (ripples.length > MAX_RIPPLES) ripples.shift();
     }
     ripData.fill(0);
