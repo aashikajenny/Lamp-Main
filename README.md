@@ -26,6 +26,16 @@ Built with Three.js (the 3D products) and Motion (UI animation).
 
 `perf.js` picks a quality tier: low-end hardware (4 or fewer CPU cores, or 4 GB or less memory) starts reduced, and any device steps down a tier if its frames run consistently slow for its own refresh rate. Lower tiers render the 3D at a lower resolution, thin out the background field and drop the nav's backdrop blur. The background field is drawn on the GPU in a single call. Each 3D viewer draws into a small canvas the size of its slot, and only while that slot is on screen; the picker, features and buy viewers are created once the page is idle. Everything pauses in a background tab.
 
+## Deploy (Cloudflare Pages)
+
+The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every push to `main` goes live on its own.
+
+- Build command: `sh build.sh`
+- Build output directory: `dist`
+- Framework preset: None
+
+`build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, `favicon.svg`, `_headers` (caching and security headers) and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site.
+
 ## Run
 
 Serve the folder through a local web server and open `index.html`. You need an internet connection for the fonts and libraries.
@@ -38,6 +48,7 @@ Serve the folder through a local web server and open `index.html`. You need an i
 - `bg.js`: the interactive light field behind the page
 - `script.js`: the products, the picker, the features showcase, the mantras dial (with its own 3D device), the design picker and the page animations
 - `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
+- `build.sh`, `_headers`: the hosting build (see Deploy)
 - `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below)
 - `images/designs/`: the design artwork, as WebP, and `designs.json`
 - `images/generallayout/`: the original room photos; `images/rooms/`: their WebP copies, which the site loads
