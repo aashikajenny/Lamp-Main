@@ -10,7 +10,9 @@
        setArt(id, flip) show a design (see designs.js); with flip, the lamp turns once
                         and the art changes while it's edge-on
        power            0..1 multiplier on the glow
-     focusPoint()     centre (CSS px) of the on-screen lamp nearest the middle of the screen, or null */
+       art              the design it shows now
+     focusPoint()     [x, y, design id] of the on-screen lamp nearest the middle of the screen
+                      (centre in CSS px), or null */
 (function () {
   "use strict";
 
@@ -50,17 +52,28 @@
     geo.computeVertexNormals();
     return geo;
   }
-  function roundedPlane(w, h, r) {
-    const geo = new THREE.ShapeGeometry(roundedRectShape(w, h, r), SEG.curve);
-    // map UVs to 0..1 across the plane
-    const pos = geo.attributes.position, uv = geo.attributes.uv;
-    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / h + 0.5);
+
+  // A front frame with a window, over a back body, like the real lamp: the print sits at the back
+  // of the window, RECESS behind the front, so it reads as inside the case
+  function framePlate(w, h, r, openW, openH, depth, bevel) {
+    const s = roundedRectShape(w - 2 * bevel, h - 2 * bevel, Math.max(r - bevel, 0.01));
+    // the bevel narrows the window by its size, so cut it that much bigger
+    s.holes.push(roundedRectShape(openW + 2 * bevel, openH + 2 * bevel, 0.012 + bevel));
+    const geo = new THREE.ExtrudeGeometry(s, {
+      depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel,
+      bevelSegments: Math.max(2, SEG.bevel / 2), curveSegments: SEG.curve
+    });
+    geo.center();
+    geo.computeVertexNormals();
     return geo;
   }
 
   const BODY_D = 0.42, BODY_B = 0.1;
   const FRONT_Z = BODY_D / 2 + BODY_B;
-  const ART_W = 1.98, ART_H = 2.48;
+  const CASE_R = 0.08;                  // the case's corners: only a slight round, nearly square
+  const RECESS = 0.1, FACE_B = 0.022;   // how far the print sits behind the front; the frame's edge bevel
+  const ART_W = 2.12, ART_H = 2.62;     // the window in the frame: a 0.14 white border all round
+  const ART_LIP = 0.04;                 // the print reaches this far under the frame on every side
   const MOD = 1.7, MOD_D = 0.42, MOD_B = 0.08;
   const MOD_Z = -FRONT_Z - 0.14 - (MOD_D / 2 + MOD_B);
   const BACK_Z = MOD_Z - (MOD_D / 2 + MOD_B);
@@ -73,8 +86,10 @@
     const collar = new THREE.CylinderGeometry(0.11, 0.11, 0.06, SEG.round);
     collar.rotateX(Math.PI / 2);
     G = {
-      body: roundedSlab(W, H, 0.3, BODY_D, BODY_B),
-      art: roundedPlane(ART_W, ART_H, 0.14),
+      // the back body: the whole case less the frame's depth
+      body: roundedSlab(W, H, CASE_R, BODY_D + 2 * BODY_B - RECESS - 2 * 0.04, 0.04),
+      frame: framePlate(W, H, CASE_R, ART_W, ART_H, RECESS - 2 * FACE_B, FACE_B),
+      art: new THREE.PlaneGeometry(ART_W + 2 * ART_LIP, ART_H + 2 * ART_LIP), // the print: square corners
       plate: roundedSlab(2.15, 2.6, 0.24, 0.08, 0.03),
       module: roundedSlab(MOD, MOD, 0.2, MOD_D, MOD_B),
       pin, collar,
@@ -104,6 +119,15 @@
       g.fillStyle = rg; g.fillRect(0, 0, 512, 256);
     });
   }, [512, 256]);
+  // the light spilling round the lamp's edges, the shape of the lamp, blurred (neutral, tinted per design)
+  const spillTex = new THREE.CanvasTexture(canvasTexture((g) => {
+    g.shadowColor = "#fff";
+    g.shadowBlur = 24; // fades to nothing well inside the texture, so the glow never ends in an edge
+    g.fillStyle = "#fff";
+    g.beginPath();
+    if (g.roundRect) g.roundRect(64, 64, 128, 128, 20); else g.rect(64, 64, 128, 128);
+    g.fill(); g.fill(); // twice, for a brighter core
+  }, [256, 256]));
   // neutral, so each design can tint it with its own colour
   const haloTex = new THREE.CanvasTexture(canvasTexture((g) => {
     const rg = g.createRadialGradient(128, 128, 0, 128, 128, 128);
@@ -114,7 +138,7 @@
     g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
   }, [256, 256]));
 
-  // A real artwork file in images/designs/<id>.webp (or .jpg), 4:5 portrait, replaces the drawn one.
+  // each design starts as a plain lit panel, and its artwork (images/designs/<id>.webp, 4:5) replaces it once loaded
   const artTextures = {};
   function artTexture(id) {
     if (artTextures[id]) return artTextures[id];
@@ -122,18 +146,17 @@
     tex.encoding = THREE.sRGBEncoding;
     tex.anisotropy = lite ? 4 : 8;
     artTextures[id] = tex;
-    if (!Art.files) return tex;
-    const img = new Image();
-    img.addEventListener("load", () => { tex.image = img; tex.needsUpdate = true; wake(); });
-    img.addEventListener("error", () => { if (img.src.endsWith(".webp")) img.src = `images/designs/${id}.jpg`; });
-    img.src = `images/designs/${id}.webp`;
+    Art.file(id).then((img) => {
+      if (!img) return;
+      tex.image = img; tex.needsUpdate = true; wake();
+    });
     return tex;
   }
 
   /* ---------- One lamp ---------- */
   const lamps = [];
   const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
-  let failed = false, fontsLoaded = false;
+  let failed = false, listed = false; // listed: the design list has loaded
 
   function coated(opts) {
     if (!lite) return new THREE.MeshPhysicalMaterial(opts);
@@ -184,12 +207,16 @@
     const plasticBack = coated({ color: 0xebe6dc, roughness: 0.5, clearcoat: 0.2 });
     const metal = new THREE.MeshStandardMaterial({ color: 0xe6e1d8, metalness: 1, roughness: 0.22, envMapIntensity: 1.4 });
     const holeMat = new THREE.MeshBasicMaterial({ color: 0x2a2622 });
+    // the print is backlit, so it shows mostly by its own light: a dim diffuse colour (so it still
+    // reads when the lamp is off), the artwork as its glow, and no tone mapping, which would wash
+    // its colours toward white. At full glow it shows the artwork's true colours.
     const artMat = new THREE.MeshStandardMaterial({
-      roughness: 0.32, metalness: 0, transparent: true,
+      color: 0x2a2a2a, roughness: 0.6, metalness: 0, transparent: true,
       emissive: new THREE.Color(0xffffff), emissiveIntensity: 0
     });
-    // thin glossy cover over the print
-    const coverMat = coated({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.08, clearcoat: 1, depthWrite: false });
+    artMat.toneMapped = false;
+    // thin glossy cover over the print: just a faint sheen
+    const coverMat = coated({ color: 0xffffff, transparent: true, opacity: 0.03, roughness: 0.12, clearcoat: 1, depthWrite: false });
 
     /* the model */
     const g = geometry();
@@ -198,9 +225,10 @@
     root.add(spin);
     scene.add(root);
     const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); spin.add(m); return m; };
-    add(g.body, plastic, 0, 0, 0);
-    add(g.art, artMat, 0, 0, FRONT_Z + 0.002);
-    add(g.art, coverMat, 0, 0, FRONT_Z + 0.006);
+    add(g.body, plastic, 0, 0, -RECESS / 2);
+    add(g.frame, plastic, 0, 0, FRONT_Z - RECESS / 2);
+    add(g.art, artMat, 0, 0, FRONT_Z - RECESS + 0.004);
+    add(g.art, coverMat, 0, 0, FRONT_Z - 0.012); // clear cover across the window, just inside the front
     add(g.plate, plasticBack, 0, 0, -FRONT_Z - 0.07);
     add(g.module, plasticBack, 0, -0.12, MOD_Z);
     [-0.36, 0.36].forEach((x) => {
@@ -219,34 +247,57 @@
     halo.scale.set(4.6, 4.6, 1); // stays inside the canvas, so it never shows a hard edge
     halo.position.z = -1.2;
     root.add(halo);
+    // light spilling round the lamp's edges, as a lit lamp does on a wall: a glow in the plane of
+    // the front face, just behind it, so the body hides its middle and only a bright rim of light
+    // shows. It belongs to the lamp, so it turns with it and always hugs the frame.
+    // its core (the middle half of the texture) is the size of the lamp
+    const spill = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H * 2), new THREE.MeshBasicMaterial({
+      map: spillTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0
+    }));
+    spill.material.toneMapped = false;
+    spill.position.z = FRONT_Z - RECESS - 0.04 + 0.45; // inside the body, behind the print (the model is shifted 0.45 forward, see above)
+    spin.add(spill);
+    const warmWhite = new THREE.Color(0xfff0d8);
 
     /* pose state */
     const target = { s: 1, rx: 0, ry: 0, glow: 0, room: 1, spin: 0, sway: 0 };
     const cur = Object.assign({}, target);
     const RATE = { s: 3.2, rx: 3, ry: 2.6, glow: 2.2, room: 2.2, spin: 1.6, sway: 1.6 };
-    let turn = 0, shownArt = null, wantArt = "om", flipFrom = null, emit = 1;
+    let turn = 0, shownArt = null, wantArt = null, flipFrom = null; // wantArt null: the default design
     let visH = 1, visW = 1;
 
     function applyArt(id) {
       shownArt = id;
       flipFrom = null;
-      const d = Art.DESIGNS[id];
-      emit = d.emit || 1;
       const tex = artTexture(id);
       const first = !artMat.map;
       artMat.map = tex;
       artMat.emissiveMap = tex;
       if (first) artMat.needsUpdate = true;
-      plastic.emissive.setHex(d.body);
-      halo.material.color.setHex(d.halo);
+      plastic.emissive.setHex(0xffd9a8);
+      halo.material.color.setHex(0xffb35c);
+      spill.material.color.setHex(0xffe2b8);
+      // then the colours read from the artwork itself: the halo and rim in its main glow,
+      // the cool fill in its second colour
+      Art.light(id).then((l) => {
+        if (shownArt !== id) return;
+        // the frame is translucent white plastic lit from inside: warm white, tinted by the print
+        plastic.emissive.copy(warmWhite).lerp(new THREE.Color(...l.glow), 0.45);
+        spill.material.color.copy(warmWhite).lerp(new THREE.Color(...l.glow), 0.6);
+        halo.material.color.setRGB(...l.glow);
+        rim.color.setRGB(...l.glow);
+        fill.color.setRGB(...l.second);
+        wake();
+      });
     }
 
     const lamp = {
       canvas, visible: false, power: 1,
+      get art() { return shownArt; },
       setArt(id, flip) {
-        if (!Art.DESIGNS[id]) return;
+        if (listed && !Art.DESIGNS[id]) return;
         wantArt = id;
-        if (!fontsLoaded) return;
+        if (!listed) return;
         if (id === shownArt) { flipFrom = null; return; }
         if (!flip || reduceMotion || !lamp.visible) { applyArt(id); wake(); return; }
         if (flipFrom === null) {
@@ -264,7 +315,7 @@
         wake();
       },
       snap() { turn = 0; Object.assign(cur, target); wake(); },
-      fontsReady() { applyArt(wantArt); },
+      listReady() { applyArt(Art.DESIGNS[wantArt] ? wantArt : Art.main); },
       resize(w, h) {
         if (!w || !h) return;
         renderer.setSize(w, h, false);
@@ -292,15 +343,20 @@
         const room = Math.max(0.04, Math.min(1, cur.room));
         hemi.intensity = 0.35 * room; key.intensity = 1.1 * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
-        plastic.envMapIntensity = plasticBack.envMapIntensity = artMat.envMapIntensity = room;
+        plastic.envMapIntensity = plasticBack.envMapIntensity = room;
+        artMat.envMapIntensity = 0.15 * room;
         metal.envMapIntensity = 1.4 * room;
 
         const glow = Math.max(0, cur.glow) * lamp.power;
         const flicker = reduceMotion ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
-        artMat.emissiveIntensity = glow * 0.95 * flicker * emit;
-        plastic.emissiveIntensity = glow * 0.16;
+        // a touch over its own colours reads as lit from behind; much more would wash it to white
+        artMat.emissiveIntensity = Math.min(1.12, glow * 1.05) * flicker;
+        plastic.emissiveIntensity = glow * 0.5; // the frame glows like the lit lamps in the room photos
         // the halo fades when the lamp turns away
-        halo.material.opacity = Math.min(1, glow * 0.95) * flicker * (0.35 + 0.65 * Math.max(0, Math.cos(ry)));
+        const facing = Math.max(0, Math.cos(ry));
+        halo.material.opacity = Math.min(1, glow * 0.95) * flicker * (0.35 + 0.65 * facing);
+        // fades as the face turns away from us
+        spill.material.opacity = Math.min(1, glow * 0.7) * flicker * facing;
 
         renderer.render(scene, camera);
       }
@@ -316,7 +372,7 @@
       lamp.resize(Math.round(box.width), Math.round(box.height));
     }).observe(canvas);
 
-    if (fontsLoaded) applyArt(wantArt);
+    if (listed) applyArt(Art.DESIGNS[wantArt] ? wantArt : Art.main);
     lamps.push(lamp);
     return lamp;
   }
@@ -354,8 +410,8 @@
   Perf.onChange((level) => lamps.forEach((l) => l.quality(level)));
 
   Art.ready.then(() => {
-    fontsLoaded = true;
-    lamps.forEach((l) => l.fontsReady());
+    listed = true;
+    lamps.forEach((l) => l.listReady());
     wake();
   });
 
@@ -369,7 +425,7 @@
         const r = lamps[i].canvas.getBoundingClientRect();
         const cy = r.top + r.height / 2;
         const d = Math.abs(cy - mid);
-        if (d < bestD) { bestD = d; best = [r.left + r.width / 2, cy]; }
+        if (d < bestD) { bestD = d; best = [r.left + r.width / 2, cy, lamps[i].art]; }
       }
       return best;
     }

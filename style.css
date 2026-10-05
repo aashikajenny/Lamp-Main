@@ -2,6 +2,11 @@
    Theme: locked dark ("night") - the product is a night lamp, the dark room is the brand.
    Shape rule: interactive controls are full pills, surfaces are 20px. */
 
+/* the lamp's light colours, read from the artwork it shows (set by bg.js); registered so they crossfade */
+@property --glow { syntax: "<color>"; inherits: true; initial-value: rgb(255 168 77); }
+@property --glow-2 { syntax: "<color>"; inherits: true; initial-value: rgb(150 110 220); }
+@property --room-glow { syntax: "<color>"; inherits: true; initial-value: rgb(255 168 77); }
+
 :root {
   --bg: #0d0b12;
   --bg-2: #15121d;
@@ -10,6 +15,9 @@
   --muted: #a99f93;
   --accent: #f29a38;
   --accent-ink: #1d1206;
+  --accent-hi: #f7a94e;
+  /* the light moves: --glow and --glow-2 (set by bg.js) crossfade here, and everything that uses them follows */
+  transition: --glow 1.4s var(--ease), --glow-2 1.4s var(--ease);
   --line: rgba(243, 237, 228, 0.1);
   --radius: 20px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -18,6 +26,15 @@
   --font-deva: "Tiro Devanagari Sanskrit", serif;
   --gutter: clamp(16px, 4vw, 56px);
   color-scheme: dark;
+}
+/* buttons and highlights take the hue of the lamp's light, at a fixed strength and lightness so
+   they always read: light enough for dark text on them, and for themselves on the dark page */
+@supports (color: hsl(from red h s l)) {
+  :root {
+    --accent: hsl(from var(--glow) h 82% 67%);
+    --accent-hi: hsl(from var(--glow) h 88% 74%);
+    --accent-ink: hsl(from var(--glow) h 60% 8%);
+  }
 }
 
 /* z-index scale: night 0, field 0, stage 1, content 3, nav 20 */
@@ -57,8 +74,8 @@ p { margin: 0; }
 .night {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(60% 50% at 70% 40%, rgba(242, 154, 56, 0.10), transparent 70%),
-    radial-gradient(80% 60% at 10% 100%, rgba(90, 60, 140, 0.12), transparent 70%);
+    radial-gradient(60% 50% at 70% 40%, color-mix(in srgb, var(--glow) 18%, transparent), transparent 70%),
+    radial-gradient(80% 60% at 10% 100%, color-mix(in srgb, var(--glow-2) 12%, transparent), transparent 70%);
 }
 /* sized to the large viewport, so the mobile URL bar never resizes it */
 #field {
@@ -77,7 +94,7 @@ main, .footer { position: relative; z-index: 3; }
   pointer-events: none;
 }
 .lamp-slot.is-flat { display: flex; align-items: center; justify-content: center; }
-.lamp-slot.is-flat img { width: min(60%, 260px); border-radius: 18px; border: 10px solid #efe8dc; box-shadow: 0 0 80px 10px rgba(255, 170, 80, 0.3); }
+.lamp-slot.is-flat img { width: min(60%, 260px); border-radius: 18px; border: 10px solid #efe8dc; box-shadow: 0 0 80px 10px color-mix(in srgb, var(--glow) 30%, transparent); }
 /* copy that sits beside a lamp stays above the edge of its glow */
 .hero-copy, .show-captions, .show-bar, .order-copy { position: relative; z-index: 1; }
 
@@ -88,10 +105,10 @@ main, .footer { position: relative; z-index: 3; }
   display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 22px 0 28px; border-radius: 999px;
   font: 500 17px var(--font-display); white-space: nowrap; cursor: pointer;
   color: var(--accent-ink); background: var(--accent); border: 0;
-  box-shadow: 0 10px 26px -12px rgba(0, 0, 0, 0.8), 0 0 0 6px rgba(242, 154, 56, 0.14);
+  box-shadow: 0 10px 26px -12px rgba(0, 0, 0, 0.8), 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
   transition: background 0.25s, box-shadow 0.4s var(--ease);
 }
-.next-btn:hover { background: #f7a94e; box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.8), 0 0 0 10px rgba(242, 154, 56, 0.16); }
+.next-btn:hover { background: var(--accent-hi); box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.8), 0 0 0 10px color-mix(in srgb, var(--accent) 16%, transparent); }
 .next-btn .ph { font-size: 18px; animation: nudge 2s var(--ease) infinite; }
 @keyframes nudge { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(3px); } }
 .next-btn-sm { height: 48px; padding: 0 18px 0 22px; font-size: 15px; }
@@ -125,7 +142,7 @@ main, .footer { position: relative; z-index: 3; }
 }
 .btn-sm { height: 44px; padding: 0 20px; font-size: 15px; }
 .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.7); }
-.btn-primary:hover { background: #f7a94e; box-shadow: 0 14px 26px -12px rgba(0, 0, 0, 0.75); }
+.btn-primary:hover { background: var(--accent-hi); box-shadow: 0 14px 26px -12px rgba(0, 0, 0, 0.75); }
 .btn-primary i { transition: transform 0.35s var(--ease); }
 .btn-primary:hover i { transform: translateX(4px); }
 .btn-ghost { border-color: rgba(243, 237, 228, 0.25); color: var(--ink); background: rgba(13, 11, 18, 0.35); }
@@ -203,20 +220,46 @@ main, .footer { position: relative; z-index: 3; }
 
 .room-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 40px; }
 
+/* the frame takes the photos' own shape (1430 x 1100), so each room shows whole */
 .room-frame {
   position: relative; justify-self: end;
-  width: min(100%, calc(78vh * 0.8)); aspect-ratio: 4 / 5;
+  width: min(100%, calc(70vh * 1.3)); aspect-ratio: 1430 / 1100;
   border-radius: var(--radius); overflow: hidden; background: var(--surface);
   box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9), 0 0 0 1px var(--line);
 }
 .room { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity 0.9s var(--ease); }
 .room.is-on { opacity: 1; }
-.room img {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+.room-scene {
+  position: absolute; inset: 0;
   opacity: 0; transform: scale(1.06); transition: opacity 0.6s var(--ease), transform 4.5s var(--ease);
 }
-.room.has-photo img { opacity: 1; }
-.room.is-on img { transform: none; } /* a slow settle while each photo is on screen */
+.room.has-photo .room-scene { opacity: 1; }
+.room.is-on .room-scene { transform: none; } /* a slow settle while each photo is on screen */
+/* the photo and everything on it, in the photo's own pixels, scaled to the frame (--s, set by rooms.js) */
+.room-stage { position: absolute; left: 0; top: 0; width: 1430px; height: 1100px; transform-origin: 0 0; transform: scale(var(--s, 0.4)); }
+.room-shot { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* the light around the lamp takes the chosen design's colour: hue only, so the photo's own
+   brightness and falloff stay */
+.room-tint {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--room-glow) 0%, color-mix(in srgb, var(--room-glow) 55%, transparent) 45%, transparent 100%);
+  mix-blend-mode: color; opacity: 0.7;
+  transition: --room-glow 0.9s var(--ease);
+}
+/* the chosen design on the lamp's printed panel; rooms.js maps it onto the panel's corners */
+.room-art {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0;
+  overflow: hidden; /* square corners, like the print */
+  transition: opacity 0.26s var(--ease);
+}
+.room-art.is-swapping { opacity: 0; }
+.room-art img { width: 100%; height: 100%; object-fit: cover; }
+.room-art img:not([src]) { visibility: hidden; }
+/* backlit: the edges of the print glow softly into the lamp's frame */
+.room-art::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 5px 1px rgba(255, 246, 228, 0.28);
+}
 
 /* placeholder until a photo is added: the room's own night tint and a glowing lamp on the wall */
 .room-fallback {
@@ -243,7 +286,7 @@ main, .footer { position: relative; z-index: 3; }
   transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease);
 }
 .design-pick:hover { color: var(--ink); border-color: rgba(243, 237, 228, 0.4); }
-.design-pick.is-active { color: var(--ink); border-color: var(--accent); background: rgba(242, 154, 56, 0.14); }
+.design-pick.is-active { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .design-thumb {
   flex: none; width: 34px; height: 42px; border-radius: 8px; overflow: hidden;
   background: var(--surface); box-shadow: 0 0 0 2px #efe8dc;
@@ -290,7 +333,7 @@ details[open] summary .ph { transform: rotate(45deg); }
 details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 17px; }
 
 /* ---------- Footer ---------- */
-.footer { padding: 120px 0 56px; border-top: 1px solid var(--line); background: linear-gradient(180deg, transparent, rgba(242, 154, 56, 0.05)); }
+.footer { padding: 120px 0 56px; border-top: 1px solid var(--line); background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 5%, transparent)); }
 .footer-line { font-family: var(--font-display); font-size: clamp(40px, 6.5vw, 96px); line-height: 1.02; letter-spacing: -0.04em; max-width: 14ch; margin-bottom: 96px; }
 .footer-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 28px; color: var(--muted); font-size: 14px; }
@@ -338,7 +381,7 @@ details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 
   .spaces { font-size: clamp(36px, 10.5vw, 52px); }
   .room-steps { margin-top: 24px; }
   .room-step { min-height: 40px; padding: 0 14px; font-size: 13px; }
-  .room-frame { justify-self: center; width: min(100%, calc(58svh * 0.8)); }
+  .room-frame { justify-self: center; width: min(100%, calc(46svh * 1.3)); }
 
   .order-text { font-size: 16px; margin: 14px 0 22px; }
   .design-note { margin-bottom: 28px; }
@@ -364,14 +407,14 @@ details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 
 @media (prefers-reduced-motion: reduce) {
   /* keep fades and colour changes, drop spatial movement and loops */
   *, *::before, *::after { animation: none !important; }
-  .spaces-word > span, .cap, .room img { transform: none !important; filter: none !important; }
+  .spaces-word > span, .cap, .room-scene { transform: none !important; filter: none !important; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .nav { background: var(--bg-2); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
 /* ---------- Browser surfaces ---------- */
-::selection { background: rgba(242, 154, 56, 0.38); color: #fff8ec; }
+::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: #fff8ec; }
 html { scrollbar-color: #3b3144 var(--bg); scrollbar-width: thin; }
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

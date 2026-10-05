@@ -1,7 +1,8 @@
 /* Background field: rings of light around the lamp, like the dotted mandala on its face,
    and motes drifting in its glow. The pointer brightens the rings it passes over and
    parts the motes; a click or tap sends out a ripple, and the lamp itself sends a slow
-   one now and then.
+   one now and then. Everything glows in the colours of the artwork on the lamp in view
+   (read from the image by LampArt.light), easing across when the design changes.
    Everything is drawn on the GPU in one call: each dot is a point whose position, glow and
    size are worked out in the vertex shader, so the main thread does almost nothing per frame.
    Exposes window.Field = { level (0..1, how visible the field is), burst(strong) }. */
@@ -34,6 +35,7 @@
     uniform vec2 centre;
     uniform vec3 pointer;
     uniform vec4 rip[${MAX_RIPPLES}];
+    uniform vec3 colA, colB; // the lamp's two light colours, from its artwork
     varying float vAlpha;
     varying float vSize;
     varying vec3 vColor;
@@ -53,7 +55,7 @@
       float size;
       float alpha;
       if (kind < 0.5) {
-        // ring dot: a = (angle, radius, size, spin speed)
+        // ring dot: a = (angle, radius, size, spin speed), b.z = colour mix (0 main glow, 1 second colour)
         float ang = a.x + time * a.w;
         p = centre + vec2(cos(ang), sin(ang)) * a.y;
         vec2 d = p - pointer.xy;
@@ -61,9 +63,9 @@
         glow = min(glow, 1.0);
         size = a.z + glow * 1.4;
         alpha = 0.085 + 0.75 * glow;
-        vColor = vec3(1.0, 0.835, 0.604);
+        vColor = mix(mix(colA, colB, b.z), vec3(1.0), 0.4);
       } else if (kind < 1.5) {
-        // mote: a = (x 0..1, y phase 0..1, size, rise px/s), b = (sway phase, twinkle phase, -, kind)
+        // mote: a = (x 0..1, y phase 0..1, size, rise px/s), b = (sway phase, twinkle phase, colour mix, kind)
         float h = res.y + 20.0;
         p = vec2(a.x * res.x + sin(time * 0.6 + b.x) * 6.0, mod(a.y * h - time * a.w, h) - 10.0);
         // pushed aside by the pointer and by passing ripples
@@ -81,14 +83,14 @@
         float twinkle = 0.55 + 0.45 * sin(time * 1.3 + b.y);
         size = a.z;
         alpha = (0.12 + 0.5 * near) * twinkle;
-        vColor = vec3(1.0, 0.812, 0.541);
+        vColor = mix(mix(colA, colB, b.z), vec3(1.0), 0.3);
       } else {
         // ripple front: a = (angle, ripple index, -, -)
         vec4 r = rip[int(a.y)];
         p = r.xy + vec2(cos(a.x), sin(a.x)) * r.z;
         size = 1.0;
         alpha = 0.3 * r.w;
-        vColor = vec3(1.0, 0.749, 0.451);
+        vColor = mix(colA, vec3(1.0), 0.2);
       }
       vAlpha = alpha * shown;
       vSize = size * 2.0 * dpr + 1.0;
@@ -123,7 +125,7 @@
   }
   gl.useProgram(prog);
   const U = {};
-  ["res", "dpr", "time", "shown", "minDim", "centre", "pointer", "rip"].forEach((n) => { U[n] = gl.getUniformLocation(prog, n); });
+  ["res", "dpr", "time", "shown", "minDim", "centre", "pointer", "rip", "colA", "colB"].forEach((n) => { U[n] = gl.getUniformLocation(prog, n); });
   const locA = gl.getAttribLocation(prog, "a"), locB = gl.getAttribLocation(prog, "b");
   const buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -141,6 +143,23 @@
   const ripData = new Float32Array(MAX_RIPPLES * 4);
   const centre = { x: 0, y: 0, ready: false };
   const pointer = { x: -9999, y: -9999, on: false };
+  // the light follows the artwork of the lamp on screen: eased from one design's colours to the next,
+  // and handed to CSS (--glow, --glow-2) for the soft room light behind the page
+  const col = { a: [1, 0.66, 0.3], b: [1, 0.66, 0.3] };
+  const colTo = { a: col.a.slice(), b: col.b.slice() };
+  let artShown = null;
+  const rootStyle = document.documentElement.style;
+  const css = (c) => `rgb(${c.map((v) => Math.round(v * 255)).join(" ")})`;
+  function followArt(id) {
+    if (!id || id === artShown || !window.LampArt) return;
+    artShown = id;
+    window.LampArt.light(id).then((l) => {
+      if (artShown !== id) return;
+      colTo.a = l.glow; colTo.b = l.second;
+      rootStyle.setProperty("--glow", css(l.glow));
+      rootStyle.setProperty("--glow-2", css(l.second));
+    });
+  }
   function addRipple(x, y, strong) {
     if (reduceMotion) return;
     ripples.push({ x, y, t: 0, strong });
@@ -172,12 +191,12 @@
       const r = base * m;
       const n = Math.max(24, Math.round((TAU * r) / ((i % 2 ? 22 : 15) * spacing)));
       const speed = reduceMotion ? 0 : (0.012 + i * 0.004) * (i % 2 ? -1 : 1);
-      for (let j = 0; j < n; j++) push((j / n) * TAU, r, i % 2 ? 1.6 : 1.2, speed, 0, 0, 0, 0);
+      for (let j = 0; j < n; j++) push((j / n) * TAU, r, i % 2 ? 1.6 : 1.2, speed, 0, 0, i % 2, 0);
     });
     const motes = Math.round((W < 768 ? 30 : 64) / ([1, 1.3, 1.8][level] || 1.8));
     for (let i = 0; i < motes; i++) {
       push(Math.random(), Math.random(), 0.7 + Math.random() * 1.7, reduceMotion ? 0 : 6 + Math.random() * 12,
-        Math.random() * TAU, Math.random() * TAU, 0, 1);
+        Math.random() * TAU, Math.random() * TAU, Math.random() < 0.4 ? 1 : 0, 1);
     }
     for (let k = 0; k < MAX_RIPPLES; k++) {
       for (let j = 0; j < FRONT_DOTS; j++) push((j / FRONT_DOTS) * TAU, k, 0, 0, 0, 0, 0, 2);
@@ -230,6 +249,12 @@
       const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.2);
       centre.x += (p[0] - centre.x) * k;
       centre.y += (p[1] - centre.y) * k;
+      followArt(p[2]);
+    }
+    const ck = reduceMotion ? 1 : 1 - Math.exp(-dt * 1.8);
+    for (let j = 0; j < 3; j++) {
+      col.a[j] += (colTo.a[j] - col.a[j]) * ck;
+      col.b[j] += (colTo.b[j] - col.b[j]) * ck;
     }
 
     // the lamp's own slow pulse
@@ -257,6 +282,8 @@
     gl.uniform2f(U.centre, centre.x, centre.y);
     gl.uniform3f(U.pointer, pointer.x, pointer.y, pointer.on ? 1 : 0);
     gl.uniform4fv(U.rip, ripData);
+    gl.uniform3fv(U.colA, col.a);
+    gl.uniform3fv(U.colB, col.b);
     gl.drawArrays(gl.POINTS, 0, count);
   }
   start();

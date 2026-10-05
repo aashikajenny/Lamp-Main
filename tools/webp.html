@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebP converter</title>
+<style>
+  :root { --bg: #0d0b12; --ink: #f3ede4; --muted: #a99f93; --accent: #f29a38; --line: rgba(243, 237, 228, 0.12); }
+  body { margin: 0; padding: 40px 24px; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 24px; }
+  button { font: 600 15px system-ui; padding: 12px 22px; border-radius: 999px; border: 0; background: var(--accent); color: #1d1206; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; margin-top: 28px; }
+  td, th { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ok { color: #8fd18a; } .bad { color: #ff8a7a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>WebP converter</h1>
+  <p>Converts the room photos in images/generallayout and the artwork in images/designs to WebP (a converted design's original goes to the Recycle Bin), using the browser's own encoder, and updates the design list the site's picker is built from.
+     Run it again whenever you add or replace a photo. Needs tools/webp-server.ps1 running.</p>
+  <button id="go" type="button">Convert all</button>
+  <table>
+    <thead><tr><th>From</th><th>To</th><th class="num">Before</th><th class="num">After</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+<script>
+  // room photos keep the names the site looks for (see README); anything else gets a tidy version of its own name
+  const ROOM_NAMES = { "pooja room": "puja-room", "puja room": "puja-room", "bedroom": "bedside", "bedside": "bedside",
+    "meditation room": "meditation-corner", "meditation corner": "meditation-corner",
+    "living room": "living-room", "office desk": "office-desk" };
+  const slug = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const base = (n) => n.replace(/\.[^.]+$/, "");
+  // the name shown on a design's button, from its file name: "Shiv JI" -> "Shiv Ji",
+  // "3d-hanuman-ji" -> "3D Hanuman Ji"
+  const SPECIAL_NAMES = { om: "Sacred OM" };
+  const title = (s) => SPECIAL_NAMES[slug(s)] || s.replace(/[-_]+/g, " ").trim().replace(/\s+/g, " ").split(" ")
+    .map((w) => (/\d/.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase())).join(" ");
+  // Room photos: at most 1430 px wide, as shown. Designs: the lamp's 4:5 print, at most 1000 x 1250;
+  // a sliver is trimmed off every edge (photos of prints often have a dark or pale rim), then the
+  // image is cropped to 4:5, keeping more of the top so heads aren't cut.
+  const JOBS = [
+    { dir: "generallayout", out: (n) => `images/rooms/${ROOM_NAMES[base(n).toLowerCase()] || slug(base(n))}.webp`,
+      quality: 0.86, maxW: 1430 },
+    { dir: "designs", out: (n) => `images/designs/${slug(base(n))}.webp`,
+      quality: 0.9, maxW: 1000, maxKB: 280, trim: 0.015, aspect: 4 / 5, focusY: 0.35, keepWebp: true, recycle: true, manifest: true }
+  ];
+
+  const rows = document.getElementById("rows"), go = document.getElementById("go");
+  const kb = (n) => (n / 1024).toFixed(0) + " KB";
+
+  async function convert(src, job) {
+    const res = await fetch(src);
+    const before = (await res.clone().blob()).size;
+    const img = await createImageBitmap(await res.blob());
+    // source rectangle: trimmed, then cropped to the job's aspect
+    let sx = img.width * (job.trim || 0), sy = img.height * (job.trim || 0);
+    let sw = img.width - 2 * sx, sh = img.height - 2 * sy;
+    if (job.aspect) {
+      if (sw / sh > job.aspect) { const w = sh * job.aspect; sx += (sw - w) / 2; sw = w; }
+      else { const h = sw / job.aspect; sy += (sh - h) * job.focusY; sh = h; }
+    }
+    const s = Math.min(1, job.maxW / sw);
+    const c = document.createElement("canvas");
+    c.width = Math.round(sw * s); c.height = Math.round(sh * s);
+    const g = c.getContext("2d");
+    g.imageSmoothingQuality = "high";
+    g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    // an already-compressed JPEG (e.g. from WhatsApp) can come out bigger at high quality,
+    // so step the quality down until the WebP is smaller than the original (and under maxKB, if set)
+    let q = job.quality, blob;
+    for (;;) {
+      blob = await new Promise((r) => c.toBlob(r, "image/webp", q));
+      if (!blob || blob.type !== "image/webp") throw new Error("this browser can't encode WebP");
+      if ((blob.size < before && !(blob.size > (job.maxKB || Infinity) * 1024)) || q <= 0.7) break;
+      q = Math.round((q - 0.04) * 100) / 100;
+    }
+    return { blob, before, q, w: c.width, h: c.height };
+  }
+
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    rows.replaceChildren();
+    const note = (text, cls, status) => {
+      const tr = rows.insertRow();
+      tr.innerHTML = `<td colspan="3"></td><td class="num ${cls}"></td>`;
+      tr.cells[0].textContent = text;
+      tr.cells[1].textContent = status;
+    };
+    for (const job of JOBS) {
+      const files = await (await fetch(`/list?dir=${job.dir}`)).json();
+      const isWebp = (f) => f.name.toLowerCase().endsWith(".webp");
+      // designs: a WebP already in the folder is a design that's been converted; the other files
+      // are new or replaced originals to convert
+      const sources = files.filter((f) => !(job.keepWebp && isWebp(f)));
+      // two sources that make the same output (e.g. "Krishna Om.jpeg" and "Krishna Om.png"):
+      // the newer one is used, and the other is flagged
+      const byOut = new Map();
+      sources.sort((a, b) => b.mtime - a.mtime).forEach((f) => {
+        const out = job.out(f.name);
+        if (byOut.has(out)) note(`images/${job.dir}/${f.name}: an older copy of ${byOut.get(out).name}, not used; delete it`, "bad", "duplicate");
+        else byOut.set(out, f);
+      });
+      const names = new Map(); // output file -> the name shown for it
+      for (const [out, f] of [...byOut].sort((a, b) => a[1].name.localeCompare(b[1].name))) {
+        const n = f.name;
+        const tr = rows.insertRow();
+        tr.innerHTML = `<td>images/${job.dir}/${n}</td><td>${out}</td><td class="num">…</td><td class="num">…</td>`;
+        try {
+          const { blob, before, q, w, h } = await convert(`/images/${job.dir}/${encodeURIComponent(n)}`, job);
+          const r = await fetch(`/save?path=${encodeURIComponent(out)}`, { method: "POST", body: blob });
+          if (!r.ok) throw new Error("save refused");
+          tr.cells[2].textContent = kb(before);
+          tr.cells[3].textContent = `${kb(blob.size)}, ${w}×${h} (q ${Math.round(q * 100)})`;
+          tr.cells[3].className = "num ok";
+          names.set(out.split("/").pop(), title(base(n)));
+          // the WebP is saved, so the original goes (to the Recycle Bin) and only the WebP remains
+          if (job.recycle) {
+            const rr = await fetch(`/recycle?path=${encodeURIComponent(`images/${job.dir}/${n}`)}`, { method: "POST" });
+            tr.cells[3].textContent += rr.ok ? ", original recycled" : ", original kept (couldn't recycle)";
+          }
+        } catch (e) {
+          tr.cells[3].textContent = e.message;
+          tr.cells[3].className = "num bad";
+        }
+      }
+      if (job.keepWebp) {
+        // every WebP in the folder is a design: the ones just made, and the ones converted before
+        files.filter(isWebp).forEach((f) => { if (!names.has(f.name)) names.set(f.name, title(base(f.name))); });
+      } else {
+        // room photos: remove WebPs that no photo makes any more (from photos removed or renamed)
+        const outs = [...byOut.keys()];
+        const outDir = outs.length ? outs[0].split("/")[1] : null;
+        if (outDir) {
+          const gone = await (await fetch(`/prune?dir=${outDir}`, { method: "POST", body: JSON.stringify(outs.map((o) => o.split("/").pop())) })).json();
+          [].concat(gone).forEach((g) => note(`images/${outDir}/${g}: no photo makes it any more`, "ok", "removed"));
+        }
+      }
+      // the design list the site builds its picker from: the OM first, then by name
+      if (job.manifest) {
+        const list = [...names].map(([file, name]) => ({ id: base(file), name }))
+          .sort((a, b) => (a.id === "om" ? -1 : b.id === "om" ? 1 : a.name.localeCompare(b.name)));
+        const r = await fetch(`/save?path=${encodeURIComponent("images/designs/designs.json")}`,
+          { method: "POST", body: JSON.stringify(list, null, 2) });
+        note(`images/designs/designs.json (${list.length} designs)`, r.ok ? "ok" : "bad", r.ok ? "saved" : "save refused");
+      }
+    }
+    go.disabled = false;
+  });
+</script>
+</body>
+</html>

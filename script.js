@@ -16,9 +16,7 @@
       amazon: "",    // e.g. "https://www.amazon.in/dp/XXXXXXXXXX"
       flipkart: "",  // e.g. "https://www.flipkart.com/om-night-lamp/p/itmXXXXXXXX"
       meesho: ""     // e.g. "https://www.meesho.com/om-night-lamp/p/XXXXXX"
-    },
-    // Set to true once the room photos are in images/rooms/ (see README); until then each room shows a placeholder.
-    roomPhotos: false
+    }
   };
 
   const { animate, inView, hover, press } = window.Motion;
@@ -39,7 +37,7 @@
   const P = {
     hero: { rx: -0.06, ry: -0.55, glow: 0.8, spin: 0.45 },
     features: [
-      { s: 1.25, rx: 0, ry: 0, glow: 0.85, sway: 0.12 },                        // the OM artwork, up close
+      { s: 1.25, rx: 0, ry: 0, glow: 0.85, sway: 0.12 },                        // the artwork, up close
       { rx: -0.04, ry: -0.24, glow: 1.4, room: 0.16, sway: 0.1 },               // the glow rises as the room darkens
       { rx: -0.22, ry: -Math.PI + 0.1, glow: 0.35, room: 0.9, sway: 0.32 },     // the two pins on the back
       { rx: -0.06, ry: 0, glow: 1, room: 0.85, spin: 0.7 }                       // a slow gift turn
@@ -60,16 +58,22 @@
       canvas.remove();
       slot.classList.add("is-flat");
       Art.ready.then(() => {
+        const id = name === "order" ? chosenDesign : Art.main;
+        return Promise.all([id, Art.file(id), Art.light(id)]);
+      }).then(([id, file, l]) => {
         const img = new Image();
         img.alt = "";
-        img.src = Art.canvas(name === "order" ? chosenDesign : "om").toDataURL();
+        img.src = file ? file.src : Art.canvas(id).toDataURL();
         slot.appendChild(img);
+        // the glow around the flat artwork still takes the artwork's colour
+        document.documentElement.style.setProperty("--glow", `rgb(${l.glow.map((v) => Math.round(v * 255)).join(" ")})`);
       });
       return null;
     }
     lamp.setPose(pose);
     lamp.snap();
     lamps[name] = lamp;
+    if (picked) lamp.setArt(siteDesign, false); // a lamp made after the visitor picked wears their pick
     return lamp;
   }
   const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
@@ -133,17 +137,16 @@
   }, { amount: 0.5 });
 
   /* ---------- Designs: pick an artwork and the buy section's lamp turns to show it ---------- */
-  const picks = $$(".design-pick");
+  // the buttons come from the design list (images/designs/designs.json), so they always match
+  // the artwork in images/designs
+  const pickBox = $(".design-picks");
   const designNote = $(".design-note");
-  const DESIGN_NOTES = {
-    om: "A deep red OM on a saffron sunburst. The classic.",
-    shree: "A golden श्री on deep maroon, for prosperity and new beginnings.",
-    lotus: "A pink lotus opening at dusk, for calm and purity.",
-    shiva: "Shiva's trishul and crescent moon on a midnight-blue sky.",
-    mandala: "Layered petals in gold and plum, for a meditative corner."
-  };
+  let picks = [];
   // until someone picks a design themselves, the section shows them all in turn
   let chosenDesign = "om", designTimer = 0, picked = false, orderInView = false;
+  // the design every lamp and room photo shows: the default until someone picks one (the
+  // buy section's slideshow only changes its own lamp)
+  let siteDesign = "om";
   function chooseDesign(id) {
     chosenDesign = id;
     picks.forEach((b) => {
@@ -151,46 +154,73 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-pressed", String(on));
     });
-    designNote.textContent = DESIGN_NOTES[id];
+    const d = Art.DESIGNS[id];
+    designNote.textContent = d ? d.note || d.name : "";
     if (lamps.order) lamps.order.setArt(id, true);
   }
   function playDesigns(on) {
     clearTimeout(designTimer);
-    if (!on || picked || reduceMotion) return;
+    if (!on || picked || reduceMotion || !picks.length) return;
     designTimer = setTimeout(() => {
       const i = picks.findIndex((b) => b.dataset.design === chosenDesign);
       chooseDesign(picks[(i + 1) % picks.length].dataset.design);
       playDesigns(orderInView);
     }, SLIDE_MS);
   }
-  picks.forEach((b) => b.addEventListener("click", () => {
-    picked = true;
-    clearTimeout(designTimer);
-    chooseDesign(b.dataset.design);
-  }));
+  Art.ready.then(() => {
+    chosenDesign = siteDesign = Art.main;
+    picks = Art.ids.map((id) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "design-pick";
+      b.dataset.design = id;
+      b.setAttribute("aria-pressed", "false");
+      const thumb = document.createElement("span");
+      thumb.className = "design-thumb";
+      thumb.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = Art.DESIGNS[id].name;
+      b.append(thumb, label);
+      b.addEventListener("click", () => {
+        picked = true;
+        clearTimeout(designTimer);
+        chooseDesign(id);
+        siteDesign = id;
+        // every 3D lamp on the page turns to show it, and the room photos follow
+        Object.keys(lamps).forEach((k) => { if (k !== "order") lamps[k].setArt(id, true); });
+        if (window.RoomPhotos) RoomPhotos.show(id);
+      });
+      return b;
+    });
+    pickBox.replaceChildren(...picks);
+    if (!reduceMotion) {
+      press(picks, (el) => {
+        animate(el, { scale: 0.97 }, { type: "spring", stiffness: 900, damping: 30 });
+        return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 500, damping: 20 });
+      });
+    }
+    chooseDesign(chosenDesign);
+    playDesigns(orderInView);
+  });
   inView(orderSec, () => {
     orderInView = true;
     playDesigns(true);
     return () => { orderInView = false; playDesigns(false); };
   }, { amount: 0.4 });
 
-  // thumbnails: a real artwork file if there is one, otherwise the drawn artwork, scaled down
+  // thumbnails: each design's artwork, scaled down, loaded just before the section arrives
   let thumbsDrawn = false;
   inView(orderSec, () => {
     if (thumbsDrawn) return;
     thumbsDrawn = true;
     Art.ready.then(() => picks.forEach((b) => {
-      const id = b.dataset.design, slot = $(".design-thumb", b);
-      const c = document.createElement("canvas");
-      c.width = 80; c.height = 100;
-      c.getContext("2d").drawImage(Art.canvas(id), 0, 0, 80, 100);
-      slot.appendChild(c);
-      if (!Art.files) return;
-      const img = new Image();
-      img.alt = "";
-      img.addEventListener("load", () => slot.replaceChildren(img));
-      img.addEventListener("error", () => { if (img.src.endsWith(".webp")) img.src = `images/designs/${id}.jpg`; });
-      img.src = `images/designs/${id}.webp`;
+      const slot = $(".design-thumb", b);
+      Art.file(b.dataset.design).then((file) => {
+        if (!file) return;
+        const img = file.cloneNode();
+        img.alt = "";
+        slot.replaceChildren(img);
+      });
     }));
   }, { margin: "60% 0px 60% 0px" });
 
@@ -278,17 +308,17 @@
     return () => { roomsInView = false; playRooms(false); };
   }, { amount: 0.4 });
 
-  // photos load just before the section arrives: .webp first, then .jpg, else the placeholder stays
-  let photosRequested = !CONFIG.roomPhotos;
+  // photos (images/rooms/<room>.webp) load just before the section arrives; a room without one keeps its placeholder.
+  // Each wears the site's design: the default until a visitor picks one in the buy section
+  let photosRequested = false;
   inView(spacesSec, () => {
     if (photosRequested) return;
     photosRequested = true;
+    if (window.RoomPhotos) Art.ready.then(() => RoomPhotos.show(siteDesign)); // after the list, so the default is known
     rooms.forEach((fig) => {
-      const img = $("img", fig);
-      const base = "images/rooms/" + fig.dataset.room;
+      const img = $(".room-shot", fig);
       img.addEventListener("load", () => fig.classList.add("has-photo"));
-      img.addEventListener("error", () => { if (img.src.endsWith(".webp")) img.src = base + ".jpg"; });
-      img.src = base + ".webp";
+      img.src = `images/rooms/${fig.dataset.room}.webp`;
     });
   }, { margin: "60% 0px 60% 0px" });
 

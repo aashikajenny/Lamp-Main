@@ -42,7 +42,7 @@
             <span class="line"><span>Divine light.</span></span>
             <span class="line"><span class="accent-text">Peaceful nights.</span></span>
           </h1>
-          <p class="hero-sub">A sacred OM night lamp with a soft warm glow for your bedroom, puja room or meditation corner.</p>
+          <p class="hero-sub">A sacred night lamp with a soft warm glow for your bedroom, puja room or meditation corner.</p>
           <div class="hero-ctas">
             <a class="btn btn-primary" href="#order">Buy now <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
             <a class="btn btn-ghost" href="#features">See the features</a>
@@ -59,8 +59,8 @@
         <div class="wrap show-grid">
           <div class="show-captions">
             <article class="cap is-active">
-              <h2>Sacred OM artwork</h2>
-              <p>A vibrant OM, printed in rich saffron and gold, sits at the heart of the lamp.</p>
+              <h2>Sacred artwork</h2>
+              <p>Your chosen design, from Shiv Ji to Hanuman Ji, glows at the heart of the lamp.</p>
             </article>
             <article class="cap">
               <h2>A soft, warm glow</h2>
@@ -80,7 +80,7 @@
 
         <div class="show-bar wrap">
           <div class="show-steps" role="group" aria-label="Choose a feature">
-            <button type="button" class="step is-active" aria-label="Sacred OM artwork" aria-current="step"><span>OM artwork</span></button>
+            <button type="button" class="step is-active" aria-label="Sacred artwork" aria-current="step"><span>Artwork</span></button>
             <button type="button" class="step" aria-label="A soft, warm glow"><span>Warm glow</span></button>
             <button type="button" class="step" aria-label="Plug in"><span>Plug-in</span></button>
             <button type="button" class="step" aria-label="A thoughtful gift"><span>Gift</span></button>
@@ -116,26 +116,47 @@
           </div>
         </div>
 
-        <!-- Photos load from images/rooms/<name>.webp (or .jpg); until then each shows a lit placeholder -->
+        <!-- Photos load from images/rooms/<name>.webp (or .jpg); until then each shows a lit placeholder.
+             rooms.js lays the chosen design over the lamp in each photo -->
         <div class="room-frame">
           <figure class="room is-on" data-room="puja-room" style="--tint: 58, 26, 10">
-            <img alt="The OM Night Lamp glowing on the wall of a home puja room" decoding="async" />
+            <div class="room-scene"><div class="room-stage">
+              <img class="room-shot" alt="The OM Night Lamp glowing on the wall of a home puja room" decoding="async" />
+              <span class="room-tint" aria-hidden="true"></span>
+              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+            </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Puja room</span></div>
           </figure>
           <figure class="room" data-room="bedside" style="--tint: 40, 22, 44">
-            <img alt="The OM Night Lamp giving a soft glow beside a bed at night" decoding="async" />
+            <div class="room-scene"><div class="room-stage">
+              <img class="room-shot" alt="The OM Night Lamp giving a soft glow beside a bed at night" decoding="async" />
+              <span class="room-tint" aria-hidden="true"></span>
+              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+            </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Bedside</span></div>
           </figure>
           <figure class="room" data-room="meditation-corner" style="--tint: 24, 30, 40">
-            <img alt="The OM Night Lamp lighting a quiet meditation corner" decoding="async" />
+            <div class="room-scene"><div class="room-stage">
+              <img class="room-shot" alt="The OM Night Lamp lighting a quiet meditation corner" decoding="async" />
+              <span class="room-tint" aria-hidden="true"></span>
+              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+            </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Meditation corner</span></div>
           </figure>
           <figure class="room" data-room="living-room" style="--tint: 46, 32, 20">
-            <img alt="The OM Night Lamp glowing on a living room wall in the evening" decoding="async" />
+            <div class="room-scene"><div class="room-stage">
+              <img class="room-shot" alt="The OM Night Lamp glowing on a living room wall in the evening" decoding="async" />
+              <span class="room-tint" aria-hidden="true"></span>
+              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+            </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Living room</span></div>
           </figure>
           <figure class="room" data-room="office-desk" style="--tint: 22, 28, 34">
-            <img alt="The OM Night Lamp plugged in beside an office desk" decoding="async" />
+            <div class="room-scene"><div class="room-stage">
+              <img class="room-shot" alt="The OM Night Lamp plugged in beside an office desk" decoding="async" />
+              <span class="room-tint" aria-hidden="true"></span>
+              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+            </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Office desk</span></div>
           </figure>
         </div>
@@ -147,17 +168,12 @@
       <div class="wrap order-grid">
         <div class="order-space lamp-slot" data-lamp="order" aria-hidden="true"></div>
         <div class="order-copy">
-          <p class="eyebrow reveal">Five designs, one warm glow</p>
           <h2 class="section-title reveal">Choose your design. Bring the light home.</h2>
           <p class="order-text reveal">Tap a design and watch the lamp turn to show it.</p>
+          <!-- one button per design in images/designs, built by script.js from images/designs/designs.json -->
           <div class="design-picks reveal" role="group" aria-label="Lamp designs">
-            <button type="button" class="design-pick is-active" aria-pressed="true" data-design="om"><span class="design-thumb" aria-hidden="true"></span><span>Sacred OM</span></button>
-            <button type="button" class="design-pick" aria-pressed="false" data-design="shree"><span class="design-thumb" aria-hidden="true"></span><span>Shree</span></button>
-            <button type="button" class="design-pick" aria-pressed="false" data-design="lotus"><span class="design-thumb" aria-hidden="true"></span><span>Lotus</span></button>
-            <button type="button" class="design-pick" aria-pressed="false" data-design="shiva"><span class="design-thumb" aria-hidden="true"></span><span>Om Namah Shivaya</span></button>
-            <button type="button" class="design-pick" aria-pressed="false" data-design="mandala"><span class="design-thumb" aria-hidden="true"></span><span>Mandala</span></button>
           </div>
-          <p class="design-note reveal" aria-live="polite">A deep red OM on a saffron sunburst. The classic.</p>
+          <p class="design-note reveal" aria-live="polite"></p>
 
           <p class="buy-label reveal" id="buy-label">Buy it on</p>
           <div class="stores" role="group" aria-labelledby="buy-label">
@@ -218,6 +234,7 @@
   <script src="designs.js"></script>
   <script src="lamp3d.js"></script>
   <script src="bg.js"></script>
+  <script src="rooms.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
