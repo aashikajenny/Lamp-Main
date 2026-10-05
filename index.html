@@ -55,12 +55,12 @@
     <section class="hero" id="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow"><i class="ph-fill ph-star" aria-hidden="true"></i>Our best seller</p>
+          <p class="best-badge"><i class="ph-fill ph-star" aria-hidden="true"></i>Our best seller</p>
           <h1 class="hero-title">
-            <span class="line"><span>35 divine mantras.</span></span>
-            <span class="line"><span class="accent-text">One sacred box.</span></span>
+            <span class="line"><span class="accent-text">35-in-1</span></span>
+            <span class="line"><span>Divine Mantra Box</span></span>
           </h1>
-          <p class="hero-sub">The 35-in-1 Divine Mantra Box fills your home with positivity, peace and sacred vibrations.</p>
+          <p class="hero-sub">Sacred chants in one small box that plugs into the wall and fills your home with positivity, peace and sacred vibrations.</p>
           <ul class="hero-points">
             <li><i class="ph ph-speaker-high" aria-hidden="true"></i>Clear, high-quality audio</li>
             <li><i class="ph ph-flower-lotus" aria-hidden="true"></i>Spiritual home ambience</li>
@@ -69,10 +69,14 @@
           </ul>
           <div class="hero-ctas">
             <button type="button" class="btn btn-primary" data-choose="mantra">Explore the Mantra Box <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
-            <a class="btn btn-ghost" href="#products">See all products</a>
+            <button type="button" class="btn btn-ghost" data-buy="mantra">Buy now</button>
           </div>
+          <a class="hero-more" href="#products">Or see all three products <i class="ph ph-arrow-down" aria-hidden="true"></i></a>
         </div>
-        <div class="hero-space model-slot" data-slot="hero" aria-hidden="true"></div>
+        <!-- the best seller on show, on a lit pedestal -->
+        <div class="hero-space model-slot" data-slot="hero" aria-hidden="true">
+          <div class="hero-pedestal"><span></span><span></span></div>
+        </div>
       </div>
       <p class="hero-hint" aria-hidden="true"><i class="ph ph-hand-tap"></i>Tap anywhere to send a ripple of light</p>
     </section>
@@ -80,28 +84,27 @@
     <!-- PRODUCTS: the picker. The product in front is the one the rest of the page shows -->
     <section class="products" id="products" aria-labelledby="products-title">
       <div class="wrap products-head">
-        <p class="eyebrow">The Aashi collection</p>
         <h2 class="section-title" id="products-title">Three ways to bring the divine home.</h2>
       </div>
 
       <div class="stage" aria-hidden="true">
         <div class="stage-beam"></div>
-        <div class="stage-floor"><span></span><span></span><span></span></div>
+        <div class="stage-floor"><span></span></div>
         <div class="stage-models model-slot" data-slot="products"></div>
       </div>
 
       <div class="wrap pick">
         <button type="button" class="pick-arrow" data-step="-1" aria-label="Previous product"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
         <div class="pick-copy">
-          <p class="pick-meta"><span class="pick-count">01 / 03</span><span class="pick-badge">Best seller</span></p>
           <h3 class="pick-name" aria-live="polite">Divine Mantra Box</h3>
           <p class="pick-tag">35 sacred mantras in one box, for a home filled with peace.</p>
+          <button type="button" class="btn btn-primary pick-go">Explore <i class="ph ph-arrow-down" aria-hidden="true"></i></button>
+          <!-- which of the three is in front: a dot each, the one in front drawn out into a gold pill -->
           <div class="pick-tabs" role="tablist" aria-label="Products">
-            <button type="button" role="tab" class="pick-tab" data-product="mantra" aria-selected="true">Mantra Box</button>
-            <button type="button" role="tab" class="pick-tab" data-product="mini" aria-selected="false">Mini Chanting Box</button>
-            <button type="button" role="tab" class="pick-tab" data-product="lamp" aria-selected="false">Night Lamp</button>
+            <button type="button" role="tab" class="pick-tab" data-product="mantra" aria-selected="true"><span class="sr-only">Divine Mantra Box</span></button>
+            <button type="button" role="tab" class="pick-tab" data-product="mini" aria-selected="false"><span class="sr-only">Mini Chanting Box</span></button>
+            <button type="button" role="tab" class="pick-tab" data-product="lamp" aria-selected="false"><span class="sr-only">OM Night Lamp</span></button>
           </div>
-          <button type="button" class="btn btn-primary pick-go"><span>Explore the <span data-p="short">Mantra Box</span></span><i class="ph ph-arrow-down" aria-hidden="true"></i></button>
         </div>
         <button type="button" class="pick-arrow" data-step="1" aria-label="Next product"><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
       </div>
@@ -126,7 +129,7 @@
             </article>
             <article class="cap" data-for="mantra" data-label="Easy to use">
               <h2>A button and a dial</h2>
-              <p>Press the red button on the side to switch it on. Turn the white dial to set the volume. That is all.</p>
+              <p>Press the red button on the side to change the mantra. Turn the white dial to set the volume. That is all.</p>
             </article>
             <article class="cap" data-for="mantra" data-label="Plug in">
               <h2>Compact. Just plug it in.</h2>
@@ -147,7 +150,7 @@
             </article>
             <article class="cap" data-for="mini" data-label="Simple">
               <h2>Slim, light and simple</h2>
-              <p>A red switch and a volume dial on the side. Slim and light, it sits neatly on the wall.</p>
+              <p>A red button on the side changes the mantra, and the dial below it sets the volume. Slim and light, it sits neatly on the wall.</p>
             </article>
 
             <article class="cap" data-for="lamp" data-label="Artwork">
@@ -365,11 +368,11 @@
         <div class="faq-list">
           <details class="reveal" data-for="mantra">
             <summary>How do I use it?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-            <p>Plug it into a wall socket and switch the socket on. Press the red button on its side to start the chanting, and turn the white dial below it to set the volume.</p>
+            <p>Plug it into a wall socket and switch the socket on. Press the red button on its side to change the mantra, and turn the white dial below it to set the volume.</p>
           </details>
           <details class="reveal" data-for="mini">
             <summary>How do I use it?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-            <p>Plug it into a wall socket (240 V AC) and switch the socket on. Press the red button on its side to start the chanting, and turn the white dial below it to set the volume.</p>
+            <p>Plug it into a wall socket (240 V AC) and switch the socket on. Press the red button on its side to change the mantra, and turn the white dial below it to set the volume.</p>
           </details>
           <details class="reveal" data-for="lamp">
             <summary>How do I use it?<i class="ph ph-plus" aria-hidden="true"></i></summary>

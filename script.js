@@ -24,24 +24,24 @@
   /* ---------- The products ---------- */
   const PRODUCTS = {
     mantra: {
-      name: "Divine Mantra Box", short: "Mantra Box", badge: "Best seller",
+      name: "Divine Mantra Box", short: "Mantra Box",
       tag: "35 sacred mantras in one box, for a home filled with peace.",
       design: "om" // the design it wears until a visitor picks one
     },
     mini: {
-      name: "Mini Chanting Box", short: "Mini Chanting Box", badge: "Plug & play",
+      name: "Mini Chanting Box", short: "Mini Chanting Box",
       tag: "A Vedic 35-in-1 mantra device. Plug in. Chant. Feel the divine.",
       design: "trishul-om"
     },
     lamp: {
-      name: "OM Night Lamp", short: "Night Lamp", badge: "Soft night glow",
+      name: "OM Night Lamp", short: "Night Lamp",
       tag: "A sacred artwork, lit from behind. Divine light, peaceful nights.",
       design: "meditating-shiv-ji"
     }
   };
   const ORDER = ["mantra", "mini", "lamp"];
 
-  const { animate, inView, hover, press, stagger } = window.Motion;
+  const { animate, inView, press, stagger } = window.Motion;
   const EASE = [0.16, 1, 0.3, 1];
   // time per slide: long enough to read a short caption (~3 s) after the product settles (~1 s)
   const SLIDE_MS = 3500;
@@ -62,14 +62,14 @@
 
   /* ---------- Poses ---------- */
   const sideOn = (ry, s) => [
-    // the side with the controls: the power button is pressed, then the dial turns up
-    { s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 0, knob: 0.12, sound: 0 },
-    { at: 700, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 0, knob: 0.12, press: 1 },
-    { at: 860, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.12, sound: 0.6 },
+    // the side with the controls: the red button is pressed and the next mantra plays, then the dial turns up
+    { s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.3, sound: 0.45 },
+    { at: 700, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.3, sound: 0.45, press: 1 },
+    { at: 860, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.3, sound: 0.7, burst: true },
     { at: 1500, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.92, sound: 1 }
   ];
   const P = {
-    hero: { rx: -0.06, ry: -0.5, glow: 1, spin: 0.42, on: 1, sound: 0.7, knob: 0.7 },
+    hero: { rx: -0.06, ry: -0.32, glow: 1, sway: 0.42, on: 1, sound: 0.7, knob: 0.7 },
     order: { s: 1.05, rx: -0.04, ry: 0.15, glow: 1, sway: 0.2, on: 1, sound: 0.35 },
     mantras: { s: 1.4, rx: -0.05, ry: -0.15, glow: 1, sway: 0.4, on: 1, sound: 0.6, knob: 0.7 },
     // each feature is a list of poses: the first at once, the rest `at` ms later.
@@ -96,8 +96,8 @@
       ]
     },
     // the picker's stage: the product in front, and the two behind it either side
-    front: { s: 1.25, rx: -0.04, glow: 1, sway: 0.18, on: 1, sound: 0.6, ringX: 0.62, ringZ: 3.4 },
-    back: { s: 0.95, rx: -0.04, glow: 0.45, sway: 0.08, on: 1, sound: 0, ringX: 0.62, ringZ: 3.4 }
+    front: { s: 1.18, rx: -0.04, glow: 1, sway: 0.18, on: 1, sound: 0, ringX: 0.7, ringZ: 3.8 },
+    back: { s: 0.8, rx: -0.04, glow: 0.4, sway: 0.08, on: 1, sound: 0, ringX: 0.7, ringZ: 3.8 }
   };
 
   /* ---------- One 3D viewer per slot: the hero's now, the rest once the page is idle ---------- */
@@ -177,7 +177,8 @@
     if (window.RoomPhotos && id === "lamp" && photosRequested) RoomPhotos.show(designFor("lamp"));
     // the sections that follow fade across to the new product
     if (changed && !reduceMotion && opts.fade !== false) {
-      animate(pages, { opacity: [0.25, 1], filter: ["blur(6px)", "blur(0px)"] }, { duration: 0.7, ease: EASE });
+      const r = pages.getBoundingClientRect();
+      if (r.top < innerHeight && r.bottom > 0) animate(pages, { opacity: [0.3, 1] }, { duration: 0.6, ease: EASE });
     }
   }
   html.dataset.product = product;
@@ -210,10 +211,15 @@
     show.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
   }
   $$("[data-choose]").forEach((b) => b.addEventListener("click", () => explore(b.dataset.choose)));
+  // "Buy now" on the best seller: show it, then go straight to its design picker and stores
+  $$("[data-buy]").forEach((b) => b.addEventListener("click", () => {
+    setProduct(b.dataset.buy);
+    orderSec.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+  }));
 
   /* ---------- The picker: a turning stage of all three ---------- */
   const tabs = $$(".pick-tab");
-  const pickName = $(".pick-name"), pickTag = $(".pick-tag"), pickBadge = $(".pick-badge"), pickCount = $(".pick-count");
+  const pickName = $(".pick-name"), pickTag = $(".pick-tag");
   const pickCopy = $(".pick-copy");
   let stageIndex = ORDER.indexOf(product);
   const orbits = ORDER.map((_, i) => 0);
@@ -232,7 +238,7 @@
       const front = i === stageIndex;
       // the two behind turn a little toward the middle; on a phone the stage is narrow, so all three stand bigger
       const pose = Object.assign({}, front ? P.front : P.back, { orbit: o, ry: front ? 0 : -Math.sin(o) * 0.7 });
-      if (narrow.matches) { pose.s *= 1.25; pose.ringX = 0.7; }
+      if (narrow.matches) { pose.s *= 0.93; pose.ringX = 0.8; }
       v.units[i].setPose(pose);
     });
     v.setFocus(stageIndex);
@@ -264,15 +270,13 @@
       t.setAttribute("aria-selected", String(on));
       t.tabIndex = on ? 0 : -1;
     });
-    pickCount.textContent = `0${stageIndex + 1} / 0${ORDER.length}`;
-    pickBadge.textContent = p.badge;
     pickCopy.dataset.product = id;
     splitName(pickName, p.name);
     pickTag.textContent = p.tag;
     if (animateIn && !reduceMotion) {
       animate($$(".ch", pickName), { opacity: [0, 1], transform: ["translateY(0.5em) rotate(6deg)", "translateY(0em) rotate(0deg)"], filter: ["blur(6px)", "blur(0px)"] },
         { duration: 0.7, delay: stagger(0.022), ease: EASE });
-      animate([pickTag, pickBadge], { opacity: [0, 1], transform: ["translateY(8px)", "translateY(0px)"] }, { duration: 0.6, delay: 0.15, ease: EASE });
+      animate(pickTag, { opacity: [0, 1], transform: ["translateY(8px)", "translateY(0px)"] }, { duration: 0.6, delay: 0.15, ease: EASE });
     }
     poseStage();
     if (stageInView) {
@@ -282,10 +286,13 @@
       productsSec.classList.add("is-turning");
     }
   }
+  let followTimer = 0;
   function stageStep(d) {
     const i = (stageIndex + d + ORDER.length) % ORDER.length;
     stageTo(i);
-    setProduct(ORDER[i], { fromStage: true });
+    // the page below follows once the turn has settled, so nothing else competes with it
+    clearTimeout(followTimer);
+    followTimer = setTimeout(() => setProduct(ORDER[stageIndex], { fromStage: true }), 700);
   }
   $$(".pick-arrow").forEach((b) => b.addEventListener("click", () => stageStep(+b.dataset.step)));
   tabs.forEach((t, i) => {
@@ -298,25 +305,30 @@
       tabs[stageIndex].focus();
     });
   });
-  $(".pick-go").addEventListener("click", () => explore(ORDER[stageIndex]));
+  $(".pick-go").addEventListener("click", () => { clearTimeout(followTimer); explore(ORDER[stageIndex]); });
   // on the stage itself: swipe or drag to turn it, tap a product at the side to bring it forward
   const stage = $(".stage");
-  let down = null;
-  stage.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  let down = null, swiped = false;
+  stage.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; swiped = false; });
   stage.addEventListener("pointerup", (e) => {
     if (!down) return;
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
     down = null;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { stageStep(dx < 0 ? 1 : -1); return; }
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-      const r = stage.getBoundingClientRect();
-      const f = (e.clientX - r.left) / r.width;
-      if (f < 0.3) stageStep(-1);
-      else if (f > 0.7) stageStep(1);
-      else explore(ORDER[stageIndex]);
-    }
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) { swiped = true; stageStep(dx < 0 ? 1 : -1); }
   });
   stage.addEventListener("pointercancel", () => { down = null; });
+  // a tap goes to the product where it lands: the one in the middle opens its features, one at the
+  // side comes forward. Judged by where the products stand once the stage settles, so a quick
+  // second tap during a turn still lands on the product the visitor sees heading there
+  stage.addEventListener("click", (e) => {
+    if (swiped) { swiped = false; return; }
+    const r = stage.getBoundingClientRect(), f = (e.clientX - r.left) / r.width;
+    const pick = Math.abs(f - 0.5) < 0.14 ? stageIndex
+      : (stageIndex + (f < 0.5 ? ORDER.length - 1 : 1)) % ORDER.length;
+    if (pick === stageIndex) { clearTimeout(followTimer); explore(ORDER[stageIndex]); return; }
+    const d = (pick - stageIndex + ORDER.length) % ORDER.length;
+    stageStep(d === 1 ? 1 : -1);
+  });
   inView(productsSec, () => {
     stageInView = true;
     return () => { stageInView = false; };
@@ -430,7 +442,11 @@
       swap();
       animate([dialDeva, dialName], { opacity: 1, transform: ["translateY(8px)", "translateY(0px)"] }, { duration: 0.5, ease: EASE });
     });
-    if (mantrasInView) Field.burst(0.45);
+    if (mantrasInView) {
+      Field.burst(0.45);
+      const v = views.mantras;
+      if (v) { v.setPose(Object.assign({}, P.mantras, { press: 1 })); setTimeout(() => v.setPose(P.mantras), 170); }
+    }
   }
   function playMantras(on) {
     clearTimeout(mantraTimer);
@@ -570,6 +586,10 @@
         idle(() => {
           const mv = makeView("mantras", [product === "lamp" ? "mantra" : product]);
           if (mv) { mv.setPose(P.mantras); mv.snap(); }
+          // compile every product's shaders in each viewer now, so changing product never stalls
+          ["features", "order", "mantras"].forEach((k, n) => {
+            if (views[k]) setTimeout(() => idle(() => views[k].prewarm(ORDER)), 400 * (n + 1));
+          });
         });
       });
     });
@@ -577,7 +597,7 @@
 
   /* ---------- Hero entrance: the headline rises into the light ---------- */
   const heroLines = $$(".hero-title .line > span", hero);
-  const heroRest = [$(".eyebrow", hero), $(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero)];
+  const heroRest = [$(".best-badge", hero), $(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero), $(".hero-more", hero)];
   if (!reduceMotion) {
     heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
     heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
@@ -661,21 +681,48 @@
     });
   }, { margin: "60% 0px 60% 0px" });
 
-  /* ---------- Buttons: a soft magnetic pull and a press ---------- */
+  /* ---------- Controls: light follows the pointer; a press sinks in and sends out an echo ---------- */
+  // the light: a soft pool of light under the pointer (style.css .lit), one listener for the page
+  const LIT = ".btn, .store, .next-btn, .pick-arrow, .switch-btn, .design-pick, .mantra-list button";
+  const PRESSABLE = LIT + ", .step";
+  const markLit = () => $$(LIT).forEach((el) => el.classList.add("lit"));
+  markLit();
+  Art.ready.then(markLit); // the design buttons are built once the list has loaded
+  if (finePointer) {
+    document.addEventListener("pointermove", (e) => {
+      const el = e.target.closest && e.target.closest(".lit");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", e.clientX - r.left + "px");
+      el.style.setProperty("--my", e.clientY - r.top + "px");
+    }, { passive: true });
+  }
+  // the echo: the control's own outline grows outward and fades, like the rings of sound
+  function echo(el) {
+    if (reduceMotion) return;
+    const r = el.getBoundingClientRect();
+    const ring = document.createElement("span");
+    ring.className = "press-echo";
+    ring.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;border-radius:${getComputedStyle(el).borderRadius}`;
+    document.body.appendChild(ring);
+    const grow = 26;
+    animate(ring, { opacity: [0.9, 0], transform: ["scale(1)", `scale(${(r.width + grow) / r.width}, ${(r.height + grow) / r.height})`] },
+      { duration: 0.6, ease: EASE }).then(() => ring.remove());
+  }
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest && e.target.closest(PRESSABLE);
+    if (el) echo(el);
+  });
+  document.addEventListener("click", (e) => {
+    // keyboard presses (Enter or Space) echo too
+    const el = e.detail === 0 && e.target.closest && e.target.closest(PRESSABLE);
+    if (el) echo(el);
+  });
+  // and every control sinks in under the finger, springing back on release
   if (!reduceMotion) {
-    if (finePointer) {
-      $$(".btn-primary").forEach((b) => {
-        const spring = { type: "spring", stiffness: 260, damping: 18, mass: 0.6 };
-        b.addEventListener("pointermove", (e) => {
-          const r = b.getBoundingClientRect();
-          animate(b, { x: (e.clientX - r.left - r.width / 2) * 0.22, y: (e.clientY - r.top - r.height / 2) * 0.32 }, spring);
-        });
-        hover(b, () => () => animate(b, { x: 0, y: 0 }, spring));
-      });
-    }
-    press(".btn, .store, .next-btn, .room-step, .pick-tab, .pick-arrow, .mantra-list button", (el) => {
-      animate(el, { scale: 0.97 }, { type: "spring", stiffness: 900, damping: 30 });
-      return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 500, damping: 20 });
+    press(PRESSABLE, (el) => {
+      animate(el, { scale: 0.96 }, { type: "spring", stiffness: 900, damping: 32 });
+      return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 520, damping: 18 });
     });
   }
 

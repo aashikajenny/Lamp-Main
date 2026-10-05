@@ -13,8 +13,8 @@
                              s: size (1 fills about half the canvas height); x, y: offset in half-canvas
                              widths/heights; orbit: angle on the picker's turning stage (ringX, ringZ: its size);
                              room: studio light (0..1); spin: a steady turn in rad/s; sway: a slow side-to-side
-                             turn; on: the red power light and the sound; knob: the volume dial (0..1);
-                             sound: rings of sound from the speaker (0..1); press: the power button pressed in
+                             turn; on: the sound playing; knob: the volume dial (0..1);
+                             sound: rings of sound from the speaker (0..1); press: the red mantra button pressed in
          snap()              jump straight to the current pose
          power               0..1 multiplier on the light
          art, kind           what it shows now
@@ -338,7 +338,7 @@
         glass: new THREE.PlaneGeometry(M.ART_W + 0.04, M.ART_H + 0.04),
         body: roundedSlab(M.W, H, M.R, M.D, M.B),
         frame,
-        btn: new THREE.BoxGeometry(0.1, 0.075, 0.1),
+        btn: cyl(0.05, 0.05, 0.1, "x"),
         collar: cyl(0.25, 0.25, 0.06, "x"),
         knob: miniKnob(),
         grille: new THREE.CircleGeometry(M.GRILLE_R, 48),
@@ -513,13 +513,16 @@
     });
     g.beginPath(); g.arc(c, c, 0.07 * M.GRILLE_R * u, 0, TAU); g.fill();
   }, [256, 256]));
-  // light caught on the glass cover: soft diagonal streaks
+  // the glint on the glass cover: one sharp diagonal band of light and a thin second line beside it,
+  // clear everywhere else so the artwork underneath stays crisp. It sweeps across now and then
   const glassTex = new THREE.CanvasTexture(canvasTexture((g) => {
-    const grad = g.createLinearGradient(0, 0, 256, 320);
-    [[0, 0], [0.18, 0.0], [0.26, 0.55], [0.34, 0.0], [0.4, 0.18], [0.44, 0], [0.7, 0], [0.78, 0.22], [0.86, 0], [1, 0]]
+    const grad = g.createLinearGradient(0, 0, 512, 380);
+    [[0, 0], [0.43, 0], [0.475, 0.22], [0.5, 0.95], [0.525, 0.22], [0.57, 0], [0.6, 0], [0.615, 0.45], [0.63, 0], [1, 0]]
       .forEach(([o, a]) => grad.addColorStop(o, `rgba(255,255,255,${a})`));
-    g.fillStyle = grad; g.fillRect(0, 0, 256, 320);
-  }, [256, 320]));
+    g.fillStyle = grad; g.fillRect(0, 0, 512, 640);
+    // clear edges: as the glint slides off the glass, the texture's edge is what repeats, so keep it empty
+    g.clearRect(0, 0, 6, 640); g.clearRect(506, 0, 6, 640);
+  }, [512, 640]));
 
   // each design starts as a plain lit panel, and its artwork (images/designs/<id>.webp, 4:5) replaces it once loaded
   const artTextures = {};
@@ -617,9 +620,13 @@
     const group = new THREE.Group();
     const add = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); group.add(o); return o; };
     if (!m.glass) {
-      m.glass = coated({ color: 0xffffff, transparent: true, opacity: 0.1, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 3, depthWrite: false });
-      m.sheen = new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.35 });
-      m.frame = coated({ color: 0xf4f8fb, transparent: true, opacity: 0.55, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 2 });
+      // the glass is nearly clear (only its reflections show), so the artwork keeps its full colour
+      m.glass = coated({ color: 0xffffff, transparent: true, opacity: 0.025, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 3, depthWrite: false });
+      const glint = glassTex.clone();
+      glint.needsUpdate = true;
+      m.sheen = new THREE.MeshBasicMaterial({ map: glint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.75 });
+      m.sheen.toneMapped = false;
+      m.frame = coated({ color: 0xffffff, transparent: true, opacity: 0.32, roughness: 0.03, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.5 });
       m.mantraGrille = new THREE.MeshBasicMaterial({ map: mantraGrilleTex, color: 0x1b1714, transparent: true, depthWrite: false });
     }
     const W2 = M.W / 2, FZ = M.FRONT_Z, BZ = M.BACK_Z;
@@ -653,7 +660,7 @@
     add(g.grille, m.mantraGrille, 0, M.GRILLE_Y, BZ - 0.003).rotation.y = Math.PI;
     const waves = soundWaves(g, m, group, 0, M.ART_Y, FZ + 0.04);
     group.children.forEach((o) => { o.position.z += 0.3; });
-    return { group, W: M.W + 0.5, knob, button, waves, spill: null };
+    return { group, W: M.W + 0.5, knob, button, waves, spill: null, glint: m.sheen.map };
   }
 
   function buildMini(m) {
@@ -841,9 +848,16 @@
           m.art.emissiveIntensity = Math.min(0.95, 0.5 + glow * 0.4) * Math.max(0.35, room + 0.25) * unit.power;
           halo.material.opacity = Math.min(0.5, glow * 0.4) * (0.4 + 0.6 * facing);
           const on = Math.max(0, Math.min(1, cur.on)) * unit.power;
-          m.led.emissiveIntensity = on * (0.85 + (reduceMotion ? 0 : 0.12 * Math.sin(t * 3.2)));
+          m.led.emissiveIntensity = 0.3 * unit.power; // a plain red button (it changes the mantra), not a light
           model.button.position.x = model.button.userData.x - cur.press * 0.045;
           model.knob.rotation.x = -(cur.knob - 0.5) * 4.2;
+          // the glint on the Mantra Box's glass: a quick sweep every few seconds, nudged by the turn
+          // of the box, as light catches real glass
+          if (model.glint) {
+            const p = reduceMotion ? 1 : ((t + phase) % 5.5) / 5.5;
+            const k = Math.min(1, p / 0.18), sweep = 1 - Math.pow(1 - k, 3);
+            model.glint.offset.x = 0.9 - 1.8 * sweep + Math.sin(ry) * 0.18;
+          }
           // rings of sound leaving the speaker, stronger as the dial turns up
           const strength = cur.sound * on * (0.35 + 0.65 * cur.knob) * (0.3 + 0.7 * facing);
           model.waves.forEach((w, i) => {
@@ -897,19 +911,20 @@
     scene.add(hemi, key, rim, fill);
 
     const v = new THREE.Vector3();
+    const rimTo = rim.color.clone(), fillTo = fill.color.clone(), warmFill = new THREE.Color(0xfff1dc);
     const viewer = {
       canvas, scene, visible: false, visW: 1, visH: 1, focus: 0, units: [],
       // the rim and fill lights take the colours of the artwork in focus
       // (the fill, from below, only takes a little of the second colour, so undersides stay white)
-      tint(l) { rim.color.setRGB(...l.glow); fill.color.setRGB(...l.second).lerp(new THREE.Color(0xfff1dc), 0.6); },
+      tint(l) { rimTo.setRGB(...l.glow); fillTo.setRGB(...l.second).lerp(warmFill, 0.6); },
       setFocus(i) {
         viewer.focus = i;
         const l = viewer.units[i] && viewer.units[i].light;
         if (l) viewer.tint(l);
       },
-      // where the focused product sits on screen, in CSS px
-      point() {
-        const u = viewer.units[viewer.focus];
+      // where a product (the focused one by default) sits on screen, in CSS px
+      point(i = viewer.focus) {
+        const u = viewer.units[i];
         const r = canvas.getBoundingClientRect();
         u.root.getWorldPosition(v).project(camera);
         return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height, u.art, u.kind];
@@ -924,11 +939,28 @@
         wake();
       },
       quality(level) { renderer.setPixelRatio(ratioFor(level)); viewer.resize(canvas.clientWidth, canvas.clientHeight); },
+      // build each product once out of sight and compile its shaders now, so changing product later
+      // never stalls on the GPU while something is moving
+      prewarm(kinds) {
+        const tmp = new THREE.Group();
+        const tex = artTexture(viewer.units[0] && viewer.units[0].art || Art.main || "om");
+        kinds.forEach((k) => {
+          const m = materials();
+          m.art.map = m.art.emissiveMap = tex;
+          tmp.add(BUILD[k](m).group);
+        });
+        tmp.position.z = -50;
+        scene.add(tmp);
+        try { renderer.compile(scene, camera); } catch (e) { /* compiling ahead is only an optimisation */ }
+        scene.remove(tmp);
+      },
       frame(dt, t) {
         const f = viewer.units[viewer.focus];
         const room = Math.max(0.04, Math.min(1, f ? f.room() : 1));
         hemi.intensity = 0.35 * room; key.intensity = 1.1 * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
+        const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
+        rim.color.lerp(rimTo, k); fill.color.lerp(fillTo, k);
         viewer.units.forEach((u) => u.frame(dt, t, room));
         renderer.render(scene, camera);
       }
