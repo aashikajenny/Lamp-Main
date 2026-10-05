@@ -6,6 +6,6 @@
 set -e
 rm -rf dist
 mkdir -p dist/images
-cp index.html style.css favicon.svg _headers perf.js designs.js models3d.js bg.js rooms.js script.js dist/
+cp index.html style.css favicon.svg _headers robots.txt sitemap.xml perf.js designs.js models3d.js bg.js rooms.js script.js dist/
 cp -r images/designs images/rooms dist/images/
 echo "Built dist/: $(find dist -type f | wc -l) files"
