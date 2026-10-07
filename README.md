@@ -34,7 +34,7 @@ The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every 
 - Build output directory: `dist`
 - Framework preset: None
 
-`build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, `favicon.svg`, `_headers` (caching and security headers) and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site.
+`build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, the icons, `_headers` (caching and security headers) and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site.
 
 ## Run
 

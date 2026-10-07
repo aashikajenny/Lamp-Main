@@ -131,7 +131,11 @@
     Art.ready.then(() => view.units.forEach((u) => u.setArt(designFor(u.kind), false)));
     return view;
   }
-  const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
+  // while the intro covers the page, build at full speed (the intro's bloom runs off the main thread);
+  // after it, only when the page is idle so scrolling never stutters
+  const introOn = () => html.classList.contains("intro-on");
+  const idle = (fn) => (introOn() ? setTimeout(fn, 0) : window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
+  const introDone = window.introDone || Promise.resolve();
 
   /* ---------- The product the page shows ---------- */
   const pages = $(".product-pages");
@@ -558,8 +562,11 @@
       heroView.setPose(Object.assign({}, P.hero, { on: 0, sound: 0, knob: 0.1 }));
       heroView.snap();
       heroView.power = 0;
-      animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.3, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
-      setTimeout(() => heroView.setPose(P.hero), 900);
+      // it switches on as the intro lifts
+      introDone.then(() => {
+        animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.5, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
+        setTimeout(() => heroView.setPose(P.hero), 1100);
+      });
     }
   }
   Field.level = 1;
@@ -586,10 +593,18 @@
         idle(() => {
           const mv = makeView("mantras", [product === "lamp" ? "mantra" : product]);
           if (mv) { mv.setPose(P.mantras); mv.snap(); }
-          // compile every product's shaders in each viewer now, so changing product never stalls
-          ["features", "order", "mantras"].forEach((k, n) => {
-            if (views[k]) setTimeout(() => idle(() => views[k].prewarm(ORDER)), 400 * (n + 1));
-          });
+          // compile every product's shaders in each viewer now, one viewer at a time, so changing
+          // product never stalls
+          const warm = ["features", "order", "mantras"].filter((k) => views[k]);
+          const warmFrom = (i) => i >= warm.length ? Promise.resolve() : new Promise((done) => {
+            setTimeout(() => idle(() => { views[warm[i]].prewarm(ORDER); done(); }), introOn() ? 0 : 400);
+          }).then(() => warmFrom(i + 1));
+          // once every 3D product is built and warmed up, and the artwork they wear has arrived,
+          // the intro can lift
+          const artwork = Art.ready.then(() => Promise.all(ORDER.map((id) => Art.file(designFor(id)))));
+          Promise.all([warmFrom(0), artwork])
+            .catch(() => {})
+            .then(() => window.dispatchEvent(new Event("site:ready")));
         });
       });
     });
@@ -601,12 +616,12 @@
   if (!reduceMotion) {
     heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
     heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
-    inView(hero, () => {
+    introDone.then(() => inView(hero, () => {
       heroLines.forEach((el, i) => animate(el,
         { transform: "translateY(0%) rotate(0deg)", opacity: 1 },
         { duration: 1.2, delay: 0.1 + i * 0.14, ease: EASE }));
       heroRest.forEach((el, i) => animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: (i ? 0.45 : 0) + i * 0.1, ease: EASE }));
-    }, { amount: 0.4 });
+    }, { amount: 0.4 }));
   }
 
   /* ---------- Reveals: content is visible by default; scripts lift it in as it arrives ---------- */
