@@ -52,70 +52,6 @@
     ]
   }
   </script>
-  <!-- Intro: the logo blooms while the 3D products load behind it. Styled here, not in style.css,
-       so it paints first. Only transforms and opacity animate, so it stays smooth on slow phones
-       even while the page is busy building the 3D scenes. -->
-  <link rel="preload" as="image" href="images/brand/petal-ribbon.webp" />
-  <link rel="preload" as="image" href="images/brand/petal-swoosh.webp" />
-  <link rel="preload" as="image" href="images/brand/petal-pink.webp" />
-  <link rel="preload" as="image" href="images/brand/petal-top.webp" />
-  <link rel="preload" as="image" href="images/brand/petal-mid.webp" />
-  <link rel="preload" as="image" href="images/brand/petal-leg.webp" />
-  <link rel="preload" as="image" href="images/brand/wordmark.webp" />
-  <script>document.documentElement.classList.add("intro-on");</script>
-  <style>
-    .intro { display: none; }
-    html.intro-on { overflow: hidden; }
-    .intro-on .intro, .intro-lifting .intro {
-      display: grid; place-items: center; position: fixed; inset: 0; z-index: 100;
-      background: radial-gradient(120% 90% at 50% 45%, #fffdf9 0%, #fbf3ec 60%, #f4e6dc 100%);
-      transition: transform 0.95s cubic-bezier(0.7, 0, 0.2, 1) 0.2s;
-    }
-    .intro-stage { position: relative; width: min(78vw, 400px); display: grid; justify-items: center; gap: 4%; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s ease; }
-    .intro-mark { position: relative; width: 100%; aspect-ratio: 650 / 475; }
-    .intro-mark img, .intro-glow, .intro-bud, .intro-shine { position: absolute; }
-    .intro-mark img { inset: 0; width: 100%; height: 100%; opacity: 0; will-change: transform, opacity; }
-    .intro-word { width: 74%; aspect-ratio: 500 / 125; opacity: 0; will-change: transform, opacity; }
-    .intro-glow { left: 60%; top: 72%; width: 120%; aspect-ratio: 1; margin: -60% 0 0 -60%; border-radius: 50%;
-      background: radial-gradient(closest-side, rgba(236, 181, 168, 0.55), rgba(236, 181, 168, 0.18) 55%, rgba(236, 181, 168, 0)); opacity: 0; transform: scale(0.2); }
-    .intro-bud { left: 60%; top: 76%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #e3b2a5; opacity: 0; transform: scale(0); }
-    .intro-shine { inset: -10% -30%; background: linear-gradient(105deg, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 60%); opacity: 0; transform: translateX(-60%); pointer-events: none; }
-    .intro-drift { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-    .intro-drift i { position: absolute; bottom: -24px; width: 14px; height: 9px; border-radius: 100% 0; background: #ecb5a8; opacity: 0; will-change: transform, opacity; }
-    .intro-drift i:nth-child(2n) { background: #e9cdb9; width: 11px; height: 7px; }
-    .intro-drift i:nth-child(3n) { background: #c98b7c; }
-
-    /* the bloom: each petal unfurls from where it joins the flower */
-    .intro.go .intro-glow { animation: i-glow 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    .intro.go .intro-bud { animation: i-bud 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    .intro.go .intro-mark img { animation: i-petal 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    .intro.go .intro-mark .p-ribbon { --r: -28deg; --s: 0.25; transform-origin: 47% 59%; animation-delay: 0.25s; }
-    .intro.go .intro-mark .p-swoosh { --r: 34deg; --s: 0.25; transform-origin: 48% 60%; animation-delay: 0.4s; }
-    .intro.go .intro-mark .p-pink { --r: -38deg; --s: 0.05; transform-origin: 60% 76%; animation-delay: 0.6s; }
-    .intro.go .intro-mark .p-top { --r: -62deg; --s: 0.05; transform-origin: 59% 76%; animation-delay: 0.82s; }
-    .intro.go .intro-mark .p-mid { --r: -44deg; --s: 0.05; transform-origin: 62% 78%; animation-delay: 0.98s; }
-    .intro.go .intro-mark .p-leg { --r: 26deg; --s: 0.1; transform-origin: 15% 78%; animation-delay: 1.1s; }
-    .intro.go .intro-word { animation: i-word 1s cubic-bezier(0.16, 1, 0.3, 1) 1.65s forwards; }
-    .intro.go .intro-shine { animation: i-shine 1.3s cubic-bezier(0.4, 0, 0.2, 1) 2.05s forwards; }
-    .intro.go .intro-drift i { animation: i-drift var(--t, 5s) linear var(--d, 0s) infinite; }
-    @keyframes i-petal { from { opacity: 0; transform: rotate(var(--r)) scale(var(--s)); } 35% { opacity: 1; } to { opacity: 1; transform: none; } }
-    @keyframes i-bud { 0% { opacity: 0; transform: scale(0); } 40% { opacity: 1; transform: scale(1.15); } 100% { opacity: 0; transform: scale(0.4); } }
-    @keyframes i-glow { 0% { opacity: 0; transform: scale(0.2); } 40% { opacity: 1; } 100% { opacity: 0.55; transform: scale(1); } }
-    @keyframes i-word { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
-    @keyframes i-shine { 0% { opacity: 1; transform: translateX(-60%); } 100% { opacity: 1; transform: translateX(60%); } }
-    @keyframes i-drift { 0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg); } 15% { opacity: 0.7; } 85% { opacity: 0.5; } 100% { opacity: 0; transform: translate3d(var(--x, 40px), -105vh, 0) rotate(320deg); } }
-
-    /* a visitor who prefers less motion: the logo, already whole */
-    .intro.is-quick .intro-mark img, .intro.is-quick .intro-word { animation: i-fade 0.4s ease forwards !important; animation-delay: 0s !important; }
-    .intro.is-quick .intro-glow, .intro.is-quick .intro-bud, .intro.is-quick .intro-shine, .intro.is-quick .intro-drift { display: none; }
-    @keyframes i-fade { from { opacity: 0; } to { opacity: 1; } }
-
-    /* leaving: the logo settles back and the cream curtain lifts onto the night */
-    .intro.is-leaving { transform: translateY(-100%); pointer-events: none; }
-    .intro.is-leaving .intro-stage { transform: scale(0.94) translateY(-3%); opacity: 0; }
-    .intro-skip { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font: 500 12px/1 system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #a87569; opacity: 0; transition: opacity 0.6s; }
-    .intro.can-skip .intro-skip { opacity: 0.75; }
-  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Manrope:wght@400;500;600&family=Tiro+Devanagari+Sanskrit&display=swap" rel="stylesheet" />
@@ -125,69 +61,13 @@
 </head>
 <body>
 
-  <div class="intro" id="intro" aria-hidden="true">
-    <div class="intro-drift"><i style="left:12%;--t:6s;--d:.2s;--x:60px"></i><i style="left:28%;--t:7.5s;--d:1.4s;--x:-40px"></i><i style="left:46%;--t:5.5s;--d:.8s;--x:30px"></i><i style="left:63%;--t:6.8s;--d:2s;--x:-60px"></i><i style="left:79%;--t:5.8s;--d:.5s;--x:-30px"></i><i style="left:90%;--t:7s;--d:1.8s;--x:-70px"></i></div>
-    <div class="intro-stage">
-      <div class="intro-mark">
-        <span class="intro-glow"></span>
-        <img class="p-ribbon" src="images/brand/petal-ribbon.webp" alt="" />
-        <img class="p-swoosh" src="images/brand/petal-swoosh.webp" alt="" />
-        <img class="p-pink" src="images/brand/petal-pink.webp" alt="" />
-        <img class="p-top" src="images/brand/petal-top.webp" alt="" />
-        <img class="p-mid" src="images/brand/petal-mid.webp" alt="" />
-        <img class="p-leg" src="images/brand/petal-leg.webp" alt="" />
-        <span class="intro-bud"></span>
-        <span class="intro-shine"></span>
-      </div>
-      <img class="intro-word" src="images/brand/wordmark.webp" alt="" />
-    </div>
-    <span class="intro-skip">Tap to enter</span>
-  </div>
-  <script>
-  /* The intro stays until the page is ready behind it (script.js fires "site:ready" once every 3D
-     product is built and its artwork has loaded), and at least until the bloom has finished.
-     It never stays longer than MAX_MS, so a slow network can't trap anyone behind it.
-     window.introDone resolves the moment it starts to lift, for the page's own entrance. */
-  (function () {
-    var html = document.documentElement, el = document.getElementById("intro");
-    var done; window.introDone = new Promise(function (r) { done = r; });
-    // the full bloom plays on every visit; only visitors who ask their device for less motion get the quick version
-    var quick = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (quick) el.classList.add("is-quick");
-    var BLOOM_MS = quick ? 500 : 2900, MAX_MS = 9000;
-    var start = performance.now(), ready = false, left = false, went = false;
-    function leave() {
-      if (left) return;
-      left = true;
-      html.classList.add("intro-lifting");
-      html.classList.remove("intro-on");
-      el.classList.add("is-leaving");
-      done();
-      setTimeout(function () { el.remove(); html.classList.remove("intro-lifting"); }, 1300);
-    }
-    function check() { if (went && ready && performance.now() - start >= BLOOM_MS) leave(); }
-    window.addEventListener("site:ready", function () { ready = true; check(); });
-    // start the bloom once its pieces have arrived (or after a moment regardless)
-    var imgs = el.querySelectorAll("img"), waiting = imgs.length;
-    function go() { if (went) return; went = true; start = performance.now(); el.classList.add("go"); setTimeout(check, BLOOM_MS + 20); }
-    Array.prototype.forEach.call(imgs, function (img) {
-      var fin = function () { if (--waiting <= 0) go(); };
-      if (img.complete) fin(); else { img.addEventListener("load", fin); img.addEventListener("error", fin); }
-    });
-    setTimeout(go, 1200);
-    setTimeout(leave, MAX_MS);
-    // once the bloom has had its moment, a tap lets an impatient visitor straight in
-    setTimeout(function () { if (!left) { el.classList.add("can-skip"); el.addEventListener("click", leave); } }, 3600);
-  })();
-  </script>
-
   <!-- Fixed layers: night gradient, interactive light field -->
   <div class="night" aria-hidden="true"></div>
   <canvas id="field" aria-hidden="true"></canvas>
 
   <header class="nav">
     <a class="brand" href="#hero" aria-label="Aashi Enterprises, back to the start">
-      <img class="brand-mark" src="images/brand/logo-mark.webp" alt="" width="44" height="32" />
+      <span class="brand-mark">ॐ</span>
       <span class="brand-name">Aashi Enterprises</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
@@ -603,7 +483,7 @@
       <p class="footer-line" data-for="mini">Feel the power. <span class="accent-text">Hear the blessings.</span></p>
       <p class="footer-line" data-for="lamp">A small light with a <span class="accent-text">peaceful presence.</span></p>
       <div class="footer-row">
-        <a class="brand" href="#hero"><img class="brand-mark" src="images/brand/logo-mark.webp" alt="" width="44" height="32" /><span class="brand-name">Aashi Enterprises</span></a>
+        <a class="brand" href="#hero"><span class="brand-mark">ॐ</span><span class="brand-name">Aashi Enterprises</span></a>
         <nav class="footer-links" aria-label="Footer">
           <a href="#products">Products</a>
           <a href="#features">Features</a>
