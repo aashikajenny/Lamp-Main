@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, OM Night Lamp</title>
-  <meta name="description" content="Devotional products for the home from Aashi Enterprises: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and the OM Night Lamp, each with a sacred artwork of your choice." />
+  <title>Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, Night Lamps</title>
+  <meta name="description" content="Devotional products for the home from Aashi Enterprises: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps, each with a sacred artwork of your choice." />
   <meta name="theme-color" content="#0d0b12" />
   <link rel="icon" href="favicon.ico" sizes="48x48" />
   <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192" />
@@ -12,8 +12,8 @@
   <!-- how the link reads when it is shared (WhatsApp, Facebook and the like) -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Aashi Enterprises" />
-  <meta property="og:title" content="Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, OM Night Lamp" />
-  <meta property="og:description" content="Devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and the OM Night Lamp, each with a sacred artwork of your choice." />
+  <meta property="og:title" content="Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, Night Lamps" />
+  <meta property="og:description" content="Devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps, each with a sacred artwork of your choice." />
   <meta property="og:url" content="https://aashienterprises.pages.dev/" />
   <meta property="og:image" content="https://aashienterprises.pages.dev/images/designs/om.webp" />
   <link rel="canonical" href="https://aashienterprises.pages.dev/" />
@@ -44,9 +44,9 @@
         "@type": "ItemList",
         "name": "Aashi Enterprises products",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "item": { "@type": "Product", "name": "Divine Mantra Box", "description": "35-in-1 mantra chanting box with 35 Vedic mantras, clear sound and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/om.webp" } },
+          { "@type": "ListItem", "position": 1, "item": { "@type": "Product", "name": "Divine Mantra Box", "description": "35-in-1 mantra chanting box with 35 Vedic mantras, clear sound and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/khatu-shyam-ji.webp" } },
           { "@type": "ListItem", "position": 2, "item": { "@type": "Product", "name": "Mini Chanting Box", "description": "Slim, light plug-in mantra chanting box with 35 Vedic mantras.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/shiv-ji.webp" } },
-          { "@type": "ListItem", "position": 3, "item": { "@type": "Product", "name": "OM Night Lamp", "description": "Plug-in night lamp with a soft, warm glow and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/krishna-om.webp" } }
+          { "@type": "ListItem", "position": 3, "item": { "@type": "Product", "name": "Night Lamps", "description": "Plug-in night lamp with a soft, warm glow and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/krishna-om.webp" } }
         ]
       }
     ]
@@ -66,7 +66,7 @@
   <canvas id="field" aria-hidden="true"></canvas>
 
   <header class="nav">
-    <a class="brand" href="#hero" aria-label="Aashi Enterprises, back to the start">
+    <a class="brand" href="#top" aria-label="Aashi Enterprises, back to the start">
       <span class="brand-mark">ॐ</span>
       <span class="brand-name">Aashi Enterprises</span>
     </a>
@@ -79,33 +79,53 @@
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-end">
-      <!-- the product the page is showing; switch it from anywhere -->
-      <div class="switcher">
-        <button type="button" class="switch-btn" aria-haspopup="true" aria-expanded="false" aria-controls="switch-menu">
-          <span class="switch-label"><span class="sr-only">Showing: </span><span data-p="short">Mantra Box</span></span>
-          <i class="ph ph-caret-down" aria-hidden="true"></i>
-        </button>
-        <div class="switch-menu" id="switch-menu" hidden>
-          <button type="button" data-product="mantra"><span>Divine Mantra Box</span><small>Best seller</small></button>
-          <button type="button" data-product="mini"><span>Mini Chanting Box</span><small>Plug &amp; play</small></button>
-          <button type="button" data-product="lamp"><span>OM Night Lamp</span><small>Soft night glow</small></button>
-        </div>
-      </div>
       <a class="btn btn-primary btn-sm nav-buy" href="#order">Buy now</a>
     </div>
   </header>
 
   <main id="top">
 
-    <!-- HERO: the best seller -->
-    <section class="hero" id="hero">
+    <!-- PRODUCTS: the picker. The product in front is the one the rest of the page shows -->
+    <section class="products" id="products" aria-labelledby="products-title">
+      <div class="wrap products-head">
+        <h1 class="section-title" id="products-title">Three ways to bring the divine home.</h1>
+        <!-- step through the three: the arrows sit together, right under the heading -->
+        <div class="pick-nav">
+          <button type="button" class="pick-arrow" data-step="-1" aria-label="Previous product"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
+          <button type="button" class="pick-arrow" data-step="1" aria-label="Next product"><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div class="stage" aria-hidden="true">
+        <div class="stage-beam"></div>
+        <div class="stage-floor"><span></span></div>
+        <div class="stage-models model-slot" data-slot="products"></div>
+      </div>
+
+      <div class="wrap pick">
+        <div class="pick-copy">
+          <h3 class="pick-name" aria-live="polite">Divine Mantra Box</h3>
+          <p class="pick-tag">35 sacred mantras in one box, for a home filled with peace.</p>
+          <button type="button" class="btn btn-primary pick-go">Explore <i class="ph ph-arrow-down" aria-hidden="true"></i></button>
+          <!-- which of the three is in front: a dot each, the one in front drawn out into a gold pill -->
+          <div class="pick-tabs" role="tablist" aria-label="Products">
+            <button type="button" role="tab" class="pick-tab" data-product="mantra" aria-selected="true"><span class="sr-only">Divine Mantra Box</span></button>
+            <button type="button" role="tab" class="pick-tab" data-product="mini" aria-selected="false"><span class="sr-only">Mini Chanting Box</span></button>
+            <button type="button" role="tab" class="pick-tab" data-product="lamp" aria-selected="false"><span class="sr-only">Night Lamps</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HERO: the best seller, shown while the Mantra Box is picked -->
+    <section class="hero" id="hero" data-for="mantra">
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <p class="best-badge"><i class="ph-fill ph-star" aria-hidden="true"></i>Our best seller</p>
-          <h1 class="hero-title">
+          <h2 class="hero-title">
             <span class="line"><span class="accent-text">35-in-1</span></span>
             <span class="line"><span>Divine Mantra Box</span></span>
-          </h1>
+          </h2>
           <p class="hero-sub">Sacred chants in one small box that plugs into the wall and fills your home with positivity, peace and sacred vibrations.</p>
           <ul class="hero-points">
             <li><i class="ph ph-speaker-high" aria-hidden="true"></i>Clear, high-quality audio</li>
@@ -117,7 +137,6 @@
             <button type="button" class="btn btn-primary" data-choose="mantra">Explore the Mantra Box <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
             <button type="button" class="btn btn-ghost" data-buy="mantra">Buy now</button>
           </div>
-          <a class="hero-more" href="#products">Or see all three products <i class="ph ph-arrow-down" aria-hidden="true"></i></a>
         </div>
         <!-- the best seller on show, on a lit pedestal -->
         <div class="hero-space model-slot" data-slot="hero" aria-hidden="true">
@@ -125,35 +144,6 @@
         </div>
       </div>
       <p class="hero-hint" aria-hidden="true"><i class="ph ph-hand-tap"></i>Tap anywhere to send a ripple of light</p>
-    </section>
-
-    <!-- PRODUCTS: the picker. The product in front is the one the rest of the page shows -->
-    <section class="products" id="products" aria-labelledby="products-title">
-      <div class="wrap products-head">
-        <h2 class="section-title" id="products-title">Three ways to bring the divine home.</h2>
-      </div>
-
-      <div class="stage" aria-hidden="true">
-        <div class="stage-beam"></div>
-        <div class="stage-floor"><span></span></div>
-        <div class="stage-models model-slot" data-slot="products"></div>
-      </div>
-
-      <div class="wrap pick">
-        <button type="button" class="pick-arrow" data-step="-1" aria-label="Previous product"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
-        <div class="pick-copy">
-          <h3 class="pick-name" aria-live="polite">Divine Mantra Box</h3>
-          <p class="pick-tag">35 sacred mantras in one box, for a home filled with peace.</p>
-          <button type="button" class="btn btn-primary pick-go">Explore <i class="ph ph-arrow-down" aria-hidden="true"></i></button>
-          <!-- which of the three is in front: a dot each, the one in front drawn out into a gold pill -->
-          <div class="pick-tabs" role="tablist" aria-label="Products">
-            <button type="button" role="tab" class="pick-tab" data-product="mantra" aria-selected="true"><span class="sr-only">Divine Mantra Box</span></button>
-            <button type="button" role="tab" class="pick-tab" data-product="mini" aria-selected="false"><span class="sr-only">Mini Chanting Box</span></button>
-            <button type="button" role="tab" class="pick-tab" data-product="lamp" aria-selected="false"><span class="sr-only">OM Night Lamp</span></button>
-          </div>
-        </div>
-        <button type="button" class="pick-arrow" data-step="1" aria-label="Next product"><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
-      </div>
     </section>
 
     <!-- Everything from here follows the product picked above -->
@@ -175,10 +165,10 @@
             </article>
             <article class="cap" data-for="mantra" data-label="Easy to use">
               <h2>A button and a dial</h2>
-              <p>Press the red button on the side to change the mantra. Turn the white dial to set the volume. That is all.</p>
+              <p>Press the red button on the side to change the mantra, and turn the white dial to set the volume.</p>
             </article>
             <article class="cap" data-for="mantra" data-label="Plug in">
-              <h2>Compact. Just plug it in.</h2>
+              <h2>Small enough for any socket</h2>
               <p>A two-pin plug on the back goes straight into a wall socket. No wiring and nothing to set up.</p>
             </article>
 
@@ -208,8 +198,8 @@
               <p>Gentle light that settles the room at night without keeping you awake.</p>
             </article>
             <article class="cap" data-for="lamp" data-label="Plug-in">
-              <h2>Plug in. That is all.</h2>
-              <p>No wiring, no setup. Two pins on the back go straight into a wall socket.</p>
+              <h2>Plugs straight into the wall</h2>
+              <p>Two pins on the back fit any wall socket, with no wiring and nothing to set up.</p>
             </article>
             <article class="cap" data-for="lamp" data-label="Gift">
               <h2>A thoughtful gift</h2>
@@ -225,54 +215,6 @@
             <span class="next-label">Next</span>
             <i class="ph ph-arrow-right" aria-hidden="true"></i>
           </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- MANTRAS (the two chanting devices): the 35 mantras, and where they belong -->
-    <section class="mantras" id="mantras" data-for="mantra mini" aria-labelledby="mantras-title">
-      <div class="wrap mantras-grid">
-        <div class="mantras-copy">
-          <h2 class="section-title reveal" id="mantras-title">35 mantras. <span class="accent-text">One divine experience.</span></h2>
-          <p class="mantras-text reveal">One device, countless blessings. The <span data-p="name">Divine Mantra Box</span> brings the sacred chants home, so your space is filled with holiness and harmony.</p>
-          <ul class="mantra-list reveal" aria-label="Some of the 35 mantras">
-            <li><button type="button" data-deva="गणेश मंत्र">Ganesh</button></li>
-            <li><button type="button" data-deva="शिव मंत्र">Shiv</button></li>
-            <li><button type="button" data-deva="विष्णु मंत्र">Vishnu</button></li>
-            <li><button type="button" data-deva="महामृत्युंजय मंत्र">Mahamrityunjaya</button></li>
-            <li><button type="button" data-deva="गायत्री मंत्र">Gayatri</button></li>
-            <li><button type="button" data-deva="दुर्गा मंत्र">Durga</button></li>
-            <li><button type="button" data-deva="लक्ष्मी मंत्र">Lakshmi</button></li>
-            <li><button type="button" data-deva="सरस्वती मंत्र">Saraswati</button></li>
-            <li><button type="button" data-deva="हनुमान मंत्र">Hanuman</button></li>
-            <li><button type="button" data-deva="कृष्ण मंत्र">Krishna</button></li>
-            <li><button type="button" data-deva="शनि मंत्र">Shani</button></li>
-            <li><button type="button" data-deva="सूर्य मंत्र">Surya</button></li>
-            <li><button type="button" data-deva="साईं मंत्र">Sai</button></li>
-            <li><button type="button" data-deva="नवग्रह मंत्र">Navgraha</button></li>
-            <li><button type="button" data-deva="संतोषी माता मंत्र">Santoshi Mata</button></li>
-            <li class="mantra-more">and many more</li>
-          </ul>
-          <p class="ideal-label reveal">Ideal for</p>
-          <ul class="ideal reveal">
-            <li><i class="ph ph-house-line" aria-hidden="true"></i>Home</li>
-            <li><i class="ph ph-flower-lotus" aria-hidden="true"></i>Puja room</li>
-            <li><i class="ph ph-briefcase" aria-hidden="true"></i>Office</li>
-            <li><i class="ph ph-person-simple-tai-chi" aria-hidden="true"></i>Meditation</li>
-            <li><i class="ph ph-sun-horizon" aria-hidden="true"></i>Yoga</li>
-          </ul>
-        </div>
-
-        <!-- 35 points of light round the device, one for each mantra; the one playing glows -->
-        <div class="dial" aria-hidden="true">
-          <div class="dial-ring"></div>
-          <div class="dial-halo"></div>
-          <div class="dial-core">
-            <!-- the chanting device itself, turning gently while the mantras play -->
-            <div class="dial-model model-slot" data-slot="mantras"></div>
-            <span class="dial-deva">गणेश मंत्र</span>
-            <span class="dial-name">Ganesh Mantra</span>
-          </div>
         </div>
       </div>
     </section>
@@ -305,41 +247,41 @@
         <div class="room-frame">
           <figure class="room is-on" data-room="puja-room" style="--tint: 58, 26, 10">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" alt="The OM Night Lamp glowing on the wall of a home puja room" decoding="async" />
+              <img class="room-shot" src="images/rooms/puja-room.webp" loading="lazy" alt="The night lamp glowing on the wall of a home puja room" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
-              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+              <div class="room-art" aria-hidden="true"></div>
             </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Puja room</span></div>
           </figure>
           <figure class="room" data-room="bedside" style="--tint: 40, 22, 44">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" alt="The OM Night Lamp giving a soft glow beside a bed at night" decoding="async" />
+              <img class="room-shot" src="images/rooms/bedside.webp" loading="lazy" alt="The night lamp giving a soft glow beside a bed at night" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
-              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+              <div class="room-art" aria-hidden="true"></div>
             </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Bedside</span></div>
           </figure>
           <figure class="room" data-room="meditation-corner" style="--tint: 24, 30, 40">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" alt="The OM Night Lamp lighting a quiet meditation corner" decoding="async" />
+              <img class="room-shot" src="images/rooms/meditation-corner.webp" loading="lazy" alt="The night lamp lighting a quiet meditation corner" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
-              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+              <div class="room-art" aria-hidden="true"></div>
             </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Meditation corner</span></div>
           </figure>
           <figure class="room" data-room="living-room" style="--tint: 46, 32, 20">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" alt="The OM Night Lamp glowing on a living room wall in the evening" decoding="async" />
+              <img class="room-shot" src="images/rooms/living-room.webp" loading="lazy" alt="The night lamp glowing on a living room wall in the evening" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
-              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+              <div class="room-art" aria-hidden="true"></div>
             </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Living room</span></div>
           </figure>
           <figure class="room" data-room="office-desk" style="--tint: 22, 28, 34">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" alt="The OM Night Lamp plugged in beside an office desk" decoding="async" />
+              <img class="room-shot" src="images/rooms/office-desk.webp" loading="lazy" alt="The night lamp plugged in beside an office desk" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
-              <div class="room-art" aria-hidden="true"><img alt="" decoding="async" /></div>
+              <div class="room-art" aria-hidden="true"></div>
             </div></div>
             <div class="room-fallback" aria-hidden="true"><span class="room-lamp"></span><span class="room-name">Office desk</span></div>
           </figure>
@@ -352,7 +294,12 @@
       <div class="wrap order-grid">
         <div class="order-space model-slot" data-slot="order" aria-hidden="true"></div>
         <div class="order-copy">
-          <h2 class="section-title reveal">Choose your design. Bring it home.</h2>
+          <!-- the chanting devices open with their mantras; the lamp goes straight to the designs -->
+          <div class="order-intro" id="mantras" data-for="mantra mini">
+            <h2 class="section-title reveal">35 mantras. <span class="accent-text">One divine experience.</span></h2>
+            <p class="order-text reveal">One device, countless blessings. The <span data-p="name">Divine Mantra Box</span> brings the sacred chants home, so your space is filled with holiness and harmony.</p>
+          </div>
+          <h2 class="section-title order-title reveal">Choose your design. Bring it home.</h2>
           <p class="order-text reveal">Tap a design and watch the <span data-p="short">Mantra Box</span> turn to show it.</p>
           <!-- one button per design in images/designs, built by script.js from images/designs/designs.json -->
           <div class="design-picks reveal" role="group" aria-label="Designs">
@@ -375,7 +322,7 @@
             <li><i class="ph ph-gift" aria-hidden="true"></i>A thoughtful gift</li>
           </ul>
 
-          <p class="buy-label reveal" id="buy-label">Buy the <span data-p="name">Divine Mantra Box</span> on</p>
+          <p class="buy-label reveal" id="buy-label">Buy <span data-p="buyName">the Divine Mantra Box</span> on</p>
           <div class="stores" role="group" aria-labelledby="buy-label">
             <a class="store reveal" data-store="amazon" href="#order"><span>Amazon</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
             <a class="store reveal" data-store="flipkart" href="#order"><span>Flipkart</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
@@ -393,7 +340,7 @@
       <div class="wrap maker-grid">
         <h2 class="section-title reveal" id="maker-title">Made by Aashi Enterprises.</h2>
         <div class="maker-body">
-          <p class="maker-text reveal">We make devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and the OM Night Lamp. Each one wears a sacred artwork, from Meditating Shiv Ji and Veer Hanuman to Radhe Radhe and the Sacred OM.</p>
+          <p class="maker-text reveal">We make devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps. Each one wears a sacred artwork, from Meditating Shiv Ji and Veer Hanuman to Radhe Radhe and the Sacred OM.</p>
           <div class="bulk reveal">
             <h3>A design of your own, or orders in bulk?</h3>
             <p>We take custom design requests and bulk orders for Diwali gifting, housewarmings, temples and corporate gifts. Call or WhatsApp us and tell us what you have in mind.</p>
@@ -483,7 +430,7 @@
       <p class="footer-line" data-for="mini">Feel the power. <span class="accent-text">Hear the blessings.</span></p>
       <p class="footer-line" data-for="lamp">A small light with a <span class="accent-text">peaceful presence.</span></p>
       <div class="footer-row">
-        <a class="brand" href="#hero"><span class="brand-mark">ॐ</span><span class="brand-name">Aashi Enterprises</span></a>
+        <a class="brand" href="#top"><span class="brand-mark">ॐ</span><span class="brand-name">Aashi Enterprises</span></a>
         <nav class="footer-links" aria-label="Footer">
           <a href="#products">Products</a>
           <a href="#features">Features</a>

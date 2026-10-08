@@ -12,8 +12,28 @@
     "name": "Bhakti Hanuman"
   },
   {
+    "id": "ganesh-ji",
+    "name": "Ganesh Ji"
+  },
+  {
+    "id": "guru-nanak-dev-ji",
+    "name": "Guru Nanak Dev Ji"
+  },
+  {
+    "id": "hanuman-ji",
+    "name": "Hanuman Ji"
+  },
+  {
+    "id": "khatu-shyam-ji",
+    "name": "Khatu Shyam Ji"
+  },
+  {
     "id": "krishna-om",
     "name": "Krishna Om"
+  },
+  {
+    "id": "mahadev",
+    "name": "Mahadev"
   },
   {
     "id": "meditating-shiv-ji",
@@ -24,8 +44,20 @@
     "name": "Neem Karoli Baba"
   },
   {
+    "id": "premanand-ji-maharaj",
+    "name": "Premanand Ji Maharaj"
+  },
+  {
+    "id": "radha-krishna",
+    "name": "Radha Krishna"
+  },
+  {
     "id": "radhe-radhe",
     "name": "Radhe Radhe"
+  },
+  {
+    "id": "ram-bhakt-hanuman",
+    "name": "Ram Bhakt Hanuman"
   },
   {
     "id": "shiv-ji",

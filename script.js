@@ -1,9 +1,9 @@
 /* Aashi Enterprises: page choreography.
    - The hero shows the best seller, the Divine Mantra Box.
    - The product picker below it is a turning stage with all three products. The product in
-     front is the one the rest of the page shows: the features, the mantras or rooms, the
+     front is the one the rest of the page shows: the features, the rooms (for the lamp), the
      design picker, the store links and the FAQ all follow it (anything marked data-for).
-     The switcher in the nav changes it from anywhere, and ?product=mini opens on that product.
+     ?product=mini opens the page on that product.
    - Scrolling only scrolls the page. Each section that shows a product has its own 3D viewer
      (models3d.js) in its own slot, so it scrolls with that section like any other content.
    - Features: the showcase plays by itself, one feature every few seconds, and the 3D product
@@ -21,20 +21,47 @@
     lamp: { amazon: "", flipkart: "", meesho: "" }
   };
 
+  /* ---------- Design sounds: what plays when someone taps a design ---------- */
+  // Put the audio files in audio/ and list them here by design id (the design's file name in
+  // images/designs, without .webp), e.g. "khatu-shyam-ji": "audio/khatu-shyam-ji.mp3".
+  // A design with no sound here stays silent. MP3 plays everywhere.
+  const SOUNDS = {
+  };
+  let player = null, playingBtn = null; // the design sound playing now, and its button
+  /* ---------- Which designs each product offers ---------- */
+  // By design id (the design's file name in images/designs, without .webp). Only these show in a
+  // product's picker. A product left out of this list offers every design.
+  // the Divine Mantra Box and the night lamp offer the same designs
+  const SHARED_DESIGNS = [
+    "khatu-shyam-ji", "premanand-ji-maharaj", "radha-krishna", "mahadev", "ram-bhakt-hanuman", "hanuman-ji",
+    "om", "3d-hanuman-ji", "bhakti-hanuman", "krishna-om", "meditating-shiv-ji", "neem-karoli-baba", "radhe-radhe", "shiv-ji", "trishul-om", "veer-hanuman"
+  ];
+  const DESIGNS_FOR = {
+    mantra: SHARED_DESIGNS,
+    mini: ["ganesh-ji", "guru-nanak-dev-ji", "radhe-radhe", "trishul-om", "om", "krishna-om"],
+    lamp: SHARED_DESIGNS
+  };
+  // the design a visitor picked for each product (each product keeps its own; none until they pick)
+  const pickedFor = {};
+
   /* ---------- The products ---------- */
   const PRODUCTS = {
     mantra: {
-      name: "Divine Mantra Box", short: "Mantra Box",
+      name: "Divine Mantra Box", short: "Mantra Box", buyName: "the Divine Mantra Box",
       tag: "35 sacred mantras in one box, for a home filled with peace.",
-      design: "om" // the design it wears until a visitor picks one
+      design: "khatu-shyam-ji" // the design it wears until a visitor picks one
     },
     mini: {
-      name: "Mini Chanting Box", short: "Mini Chanting Box",
+      name: "Mini Chanting Box", short: "Mini Chanting Box", buyName: "the Mini Chanting Box",
       tag: "A Vedic 35-in-1 mantra device. Plug in. Chant. Feel the divine.",
       design: "trishul-om"
     },
     lamp: {
-      name: "OM Night Lamp", short: "Night Lamp",
+      // "Night Lamps" until a visitor picks a design, then named after it ("Khatu Shyam Ji Night Lamp")
+      get name() { const d = Art.DESIGNS[pickedFor.lamp]; return d ? `${d.name} Night Lamp` : "Night Lamps"; },
+      // "Buy our Night Lamps on", then "Buy the Khatu Shyam Ji Night Lamp on" once a design is picked
+      get buyName() { return Art.DESIGNS[pickedFor.lamp] ? `the ${this.name}` : "our Night Lamps"; },
+      short: "Night Lamp",
       tag: "A sacred artwork, lit from behind. Divine light, peaceful nights.",
       design: "meditating-shiv-ji"
     }
@@ -71,7 +98,6 @@
   const P = {
     hero: { rx: -0.06, ry: -0.32, glow: 1, sway: 0.42, on: 1, sound: 0.7, knob: 0.7 },
     order: { s: 1.05, rx: -0.04, ry: 0.15, glow: 1, sway: 0.2, on: 1, sound: 0.35 },
-    mantras: { s: 1.4, rx: -0.05, ry: -0.15, glow: 1, sway: 0.4, on: 1, sound: 0.6, knob: 0.7 },
     // each feature is a list of poses: the first at once, the rest `at` ms later.
     // burst: the background sends out a ripple too
     features: {
@@ -102,9 +128,16 @@
 
   /* ---------- One 3D viewer per slot: the hero's now, the rest once the page is idle ---------- */
   const views = {};
-  // the design each product wears: the visitor's pick, or until then that product's own default
-  let picked = null;
-  const designFor = (id) => picked || (Art.DESIGNS[PRODUCTS[id].design] ? PRODUCTS[id].design : Art.main);
+  // the designs a product offers (DESIGNS_FOR), in the design list's order
+  const offers = (kind, id) => !!Art.DESIGNS[id] && (!DESIGNS_FOR[kind] || DESIGNS_FOR[kind].includes(id));
+  const designsOf = (kind) => Art.ids.filter((id) => offers(kind, id));
+  // the design a product wears: the visitor's pick for it, or until then its own default (or,
+  // if that isn't on offer, the first design it offers)
+  const designFor = (kind) => {
+    if (offers(kind, pickedFor[kind])) return pickedFor[kind];
+    if (offers(kind, PRODUCTS[kind].design)) return PRODUCTS[kind].design;
+    return designsOf(kind)[0] || Art.main;
+  };
 
   function makeView(name, kinds, opts = {}) {
     const slot = $(`.model-slot[data-slot="${name}"]`);
@@ -135,13 +168,11 @@
 
   /* ---------- The product the page shows ---------- */
   const pages = $(".product-pages");
-  const switchBtn = $(".switch-btn"), switchMenu = $("#switch-menu");
   const waLink = $("[data-whatsapp]");
 
   function fillText() {
     const p = PRODUCTS[product];
     $$("[data-p]").forEach((el) => { el.textContent = p[el.dataset.p]; });
-    $$(".switch-menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.product === product)));
     const msg = `Namaste, I'd like to ask about a custom design or a bulk order for the ${p.name}.`;
     waLink.href = "https://wa.me/918287994052?text=" + encodeURIComponent(msg);
     setStores();
@@ -161,17 +192,13 @@
       history.replaceState(null, "", url);
     } catch (e) { /* a page opened from disk can't change its address */ }
 
+    stopSound(); // a design's sound belongs to the product it was played on
     // the 3D products below turn once and come round as the new one
     ["features", "order"].forEach((k) => {
       if (!views[k]) return;
       views[k].setKind(id, true);
-      views[k].setArt(k === "order" ? chosenDesign(id) : designFor(id), true);
+      views[k].setArt(designFor(id), true);
     });
-    // the mantras section shows the chanting device picked (it is hidden for the lamp)
-    if (views.mantras && id !== "lamp") {
-      views.mantras.setKind(id, true);
-      views.mantras.setArt(designFor(id), true);
-    }
     buildShow();
     designsFor(id);
     if (window.RoomPhotos && id === "lamp" && photosRequested) RoomPhotos.show(designFor("lamp"));
@@ -182,28 +209,6 @@
     }
   }
   html.dataset.product = product;
-
-  // nav switcher
-  function closeMenu() {
-    switchMenu.hidden = true;
-    switchBtn.setAttribute("aria-expanded", "false");
-  }
-  switchBtn.addEventListener("click", () => {
-    const open = switchMenu.hidden;
-    switchMenu.hidden = !open;
-    switchBtn.setAttribute("aria-expanded", String(open));
-    if (open) {
-      $(`button[data-product="${product}"]`, switchMenu).focus();
-      if (!reduceMotion) animate(switchMenu, { opacity: [0, 1], transform: ["translateY(-6px) scale(0.98)", "translateY(0px) scale(1)"] }, { duration: 0.3, ease: EASE });
-    }
-  });
-  $$("button", switchMenu).forEach((b) => b.addEventListener("click", () => {
-    closeMenu();
-    setProduct(b.dataset.product);
-    switchBtn.focus();
-  }));
-  document.addEventListener("click", (e) => { if (!e.target.closest(".switcher")) closeMenu(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !switchMenu.hidden) { closeMenu(); switchBtn.focus(); } });
 
   // "Explore" buttons: show that product, then go to its features
   function explore(id) {
@@ -417,49 +422,35 @@
     return () => { showInView = false; playShow(false); };
   }, { amount: 0.5 });
 
-  /* ---------- Mantras: 35 points of light round the device, one for each mantra ---------- */
-  const dialRing = $(".dial-ring");
-  const DOTS = 35;
-  const dots = Array.from({ length: DOTS }, (_, i) => {
-    const d = document.createElement("span");
-    d.className = "dial-dot";
-    d.style.setProperty("--a", (i / DOTS) * 360 + "deg");
-    dialRing.appendChild(d);
-    return d;
-  });
-  const mantraBtns = $$(".mantra-list button");
-  const dialDeva = $(".dial-deva"), dialName = $(".dial-name"), mantrasSec = $("#mantras");
-  let mantra = 0, mantraTimer = 0, mantrasInView = false;
-  function showMantra(i) {
-    mantra = (i + mantraBtns.length) % mantraBtns.length;
-    const b = mantraBtns[mantra];
-    mantraBtns.forEach((m, k) => m.classList.toggle("is-on", k === mantra));
-    dots.forEach((d, k) => d.classList.toggle("is-on", k === mantra));
-    dialRing.style.setProperty("--turn", (-(mantra / DOTS) * 360) + "deg");
-    const swap = () => { dialDeva.textContent = b.dataset.deva; dialName.textContent = b.textContent + " Mantra"; };
-    if (reduceMotion) { swap(); return; }
-    animate([dialDeva, dialName], { opacity: 0, transform: "translateY(-6px)" }, { duration: 0.25 }).then(() => {
-      swap();
-      animate([dialDeva, dialName], { opacity: 1, transform: ["translateY(8px)", "translateY(0px)"] }, { duration: 0.5, ease: EASE });
-    });
-    if (mantrasInView) {
-      Field.burst(0.45);
-      const v = views.mantras;
-      if (v) { v.setPose(Object.assign({}, P.mantras, { press: 1 })); setTimeout(() => v.setPose(P.mantras), 170); }
+  /* ---------- Design sounds (SOUNDS above): a tap plays the design's sound ---------- */
+  function stopSound() {
+    if (!player) return;
+    player.pause();
+    player = null;
+    if (playingBtn) playingBtn.classList.remove("is-playing");
+    playingBtn = null;
+    if (views.order && product !== "lamp") views.order.setPose(P.order);
+  }
+  function playSound(id, btn) {
+    const again = playingBtn === btn;
+    stopSound();
+    if (again || !SOUNDS[id]) return; // a second tap on the design that's playing stops it
+    const a = new Audio(SOUNDS[id]);
+    player = a;
+    playingBtn = btn;
+    btn.classList.add("is-playing");
+    const done = () => { if (player === a) stopSound(); };
+    a.addEventListener("ended", done);
+    a.addEventListener("error", done);
+    a.play().catch(done);
+    // the chanting device plays it: its red button presses in and sound rings go out
+    const v = views.order;
+    if (v && product !== "lamp") {
+      v.setPose(Object.assign({}, P.order, { sound: 1, press: 1 }));
+      setTimeout(() => { if (player === a) v.setPose(Object.assign({}, P.order, { sound: 1 })); }, 170);
     }
   }
-  function playMantras(on) {
-    clearTimeout(mantraTimer);
-    if (!on || reduceMotion) return;
-    mantraTimer = setTimeout(() => { showMantra(mantra + 1); playMantras(true); }, 2600);
-  }
-  mantraBtns.forEach((b, i) => b.addEventListener("click", () => { showMantra(i); playMantras(mantrasInView); }));
-  showMantra(0);
-  inView(mantrasSec, () => {
-    mantrasInView = true;
-    playMantras(true);
-    return () => { mantrasInView = false; playMantras(false); };
-  }, { amount: 0.4 });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopSound(); });
 
   /* ---------- Designs: pick an artwork and the product in the buy section turns to show it ---------- */
   // the buttons come from the design list (images/designs/designs.json)
@@ -468,7 +459,6 @@
   let picks = [];
   // until someone picks a design themselves, the section shows them all in turn
   let shownDesign = null, designTimer = 0, orderInView = false;
-  const chosenDesign = (id) => picked || shownDesign || designFor(id);
   function chooseDesign(id) {
     shownDesign = id;
     picks.forEach((b) => {
@@ -480,17 +470,25 @@
     designNote.textContent = d ? d.note || d.name : "";
     if (views.order) views.order.setArt(id, true);
   }
+  // the picker shows only the designs the product on show offers
+  const shownPicks = () => picks.filter((b) => !b.hidden);
   function designsFor(id) {
     if (!picks.length) return;
+    picks.forEach((b) => { b.hidden = !offers(id, b.dataset.design); });
+    // in the order the product's list gives them
+    (DESIGNS_FOR[id] || []).forEach((d) => { const b = picks.find((p) => p.dataset.design === d); if (b) pickBox.append(b); });
     shownDesign = null;
     chooseDesign(designFor(id));
   }
   function playDesigns(on) {
     clearTimeout(designTimer);
-    if (!on || picked || reduceMotion || !picks.length) return;
+    if (!on || pickedFor[product] || reduceMotion || !picks.length) return;
     designTimer = setTimeout(() => {
-      const i = picks.findIndex((b) => b.dataset.design === shownDesign);
-      chooseDesign(picks[(i + 1) % picks.length].dataset.design);
+      const list = shownPicks();
+      if (list.length > 1) {
+        const i = list.findIndex((b) => b.dataset.design === shownDesign);
+        chooseDesign(list[(i + 1) % list.length].dataset.design);
+      }
       playDesigns(orderInView);
     }, SLIDE_MS);
   }
@@ -507,13 +505,29 @@
       const label = document.createElement("span");
       label.textContent = Art.DESIGNS[id].name;
       b.append(thumb, label);
+      if (SOUNDS[id]) {
+        // a design with a sound says so
+        const icon = document.createElement("i");
+        icon.className = "ph ph-speaker-high design-sound";
+        icon.setAttribute("aria-hidden", "true");
+        b.append(icon);
+        b.setAttribute("aria-label", `${Art.DESIGNS[id].name}, plays its sound`);
+      }
       b.addEventListener("click", () => {
-        picked = id;
+        // the pick belongs to the product on show; the other products keep their own designs
+        pickedFor[product] = id;
+        // the night lamp is named after the design picked, everywhere its name shows
+        fillText();
+        if (ORDER[stageIndex] === "lamp") splitName(pickName, PRODUCTS.lamp.name);
         clearTimeout(designTimer);
         chooseDesign(id);
-        // every 3D product on the page turns to show it, and the room photos follow
-        Object.keys(views).forEach((k) => { if (k !== "order") views[k].units.forEach((u) => u.setArt(id, true)); });
-        if (window.RoomPhotos) RoomPhotos.show(id);
+        // every 3D model of this product on the page turns to show it (the buy section's own
+        // model is turned by chooseDesign), and for the lamp the room photos follow
+        Object.keys(views).forEach((k) => {
+          if (k !== "order") views[k].units.forEach((u) => { if (u.kind === product) u.setArt(id, true); });
+        });
+        if (product === "lamp" && window.RoomPhotos) RoomPhotos.show(id);
+        playSound(id, b);
       });
       return b;
     });
@@ -549,34 +563,33 @@
     }));
   }, { margin: "60% 0px 60% 0px" });
 
-  /* ---------- Start: the best seller switches on; the others follow when the page is idle ---------- */
-  const heroView = makeView("hero", ["mantra"]);
-  if (heroView) {
-    heroView.setPose(P.hero);
-    heroView.snap();
+  /* ---------- Start: the product stage opens the page; the others follow when the page is idle ---------- */
+  const stageView = makeView("products", ORDER, { fog: true });
+  if (stageView) {
+    poseStage();
+    stageView.units.forEach((u) => u.snap());
+    // the three products rise onto the stage as the page opens
     if (!reduceMotion) {
-      heroView.setPose(Object.assign({}, P.hero, { on: 0, sound: 0, knob: 0.1 }));
-      heroView.snap();
-      heroView.power = 0;
-      animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.3, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
-      setTimeout(() => heroView.setPose(P.hero), 900);
+      stageView.units.forEach((u, i) => {
+        u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
+        u.snap();
+      });
+      inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
     }
   }
+  // the best seller sits right under the stage, so on the Mantra Box page it's made at once (no empty
+  // box while the page settles); for the other products it waits until the page is idle
+  let heroMade = false;
+  function makeHero() {
+    if (heroMade) return;
+    heroMade = true;
+    const h = makeView("hero", ["mantra"]);
+    if (h) { h.setPose(P.hero); h.snap(); }
+  }
+  if (product === "mantra") makeHero();
   Field.level = 1;
   idle(() => {
-    const stageView = makeView("products", ORDER, { fog: true });
-    if (stageView) {
-      poseStage();
-      stageView.units.forEach((u) => u.snap());
-      // the stage rises into view the first time it arrives
-      if (!reduceMotion) {
-        stageView.units.forEach((u, i) => {
-          u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
-          u.snap();
-        });
-        inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
-      }
-    }
+    makeHero();
     idle(() => {
       const f = makeView("features", [product]);
       if (f) { poseFeature(); f.snap(); }
@@ -584,10 +597,8 @@
         const o = makeView("order", [product]);
         if (o) { o.setPose(P.order); o.snap(); if (shownDesign) o.setArt(shownDesign, false); }
         idle(() => {
-          const mv = makeView("mantras", [product === "lamp" ? "mantra" : product]);
-          if (mv) { mv.setPose(P.mantras); mv.snap(); }
           // compile every product's shaders in each viewer now, so changing product never stalls
-          ["features", "order", "mantras"].forEach((k, n) => {
+          ["features", "order"].forEach((k, n) => {
             if (views[k]) setTimeout(() => idle(() => views[k].prewarm(ORDER)), 400 * (n + 1));
           });
         });
@@ -597,7 +608,7 @@
 
   /* ---------- Hero entrance: the headline rises into the light ---------- */
   const heroLines = $$(".hero-title .line > span", hero);
-  const heroRest = [$(".best-badge", hero), $(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero), $(".hero-more", hero)];
+  const heroRest = [$(".best-badge", hero), $(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero)];
   if (!reduceMotion) {
     heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
     heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
@@ -668,22 +679,24 @@
     return () => { roomsInView = false; playRooms(false); };
   }, { amount: 0.4 });
 
-  // photos (images/rooms/<room>.webp) load just before the section arrives
+  // the photos (images/rooms/<room>.webp) are lazy-loaded by the browser, just before the section
+  // arrives; a room keeps its placeholder until its photo is in
+  rooms.forEach((fig) => {
+    const img = $(".room-shot", fig);
+    const shown = () => fig.classList.add("has-photo");
+    if (img.complete && img.naturalWidth) shown(); else img.addEventListener("load", shown);
+  });
+  // the chosen design goes onto the lamp in each photo once the section is near
   let photosRequested = false;
   inView(spacesSec, () => {
     if (photosRequested) return;
     photosRequested = true;
     if (window.RoomPhotos) Art.ready.then(() => RoomPhotos.show(designFor("lamp")));
-    rooms.forEach((fig) => {
-      const img = $(".room-shot", fig);
-      img.addEventListener("load", () => fig.classList.add("has-photo"));
-      img.src = `images/rooms/${fig.dataset.room}.webp`;
-    });
   }, { margin: "60% 0px 60% 0px" });
 
   /* ---------- Controls: light follows the pointer; a press sinks in and sends out an echo ---------- */
   // the light: a soft pool of light under the pointer (style.css .lit), one listener for the page
-  const LIT = ".btn, .store, .next-btn, .pick-arrow, .switch-btn, .design-pick, .mantra-list button";
+  const LIT = ".btn, .store, .next-btn, .pick-arrow, .design-pick";
   const PRESSABLE = LIT + ", .step";
   const markLit = () => $$(LIT).forEach((el) => el.classList.add("lit"));
   markLit();
@@ -745,12 +758,12 @@
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener";
-        a.setAttribute("aria-label", `Buy the ${PRODUCTS[product].name} on ${name} (opens in a new tab)`);
+        a.setAttribute("aria-label", `Buy ${PRODUCTS[product].buyName} on ${name} (opens in a new tab)`);
         a.dataset.soon = "";
       } else {
         a.href = "#order";
         a.removeAttribute("target");
-        a.setAttribute("aria-label", `Buy the ${PRODUCTS[product].name} on ${name} (listing coming soon)`);
+        a.setAttribute("aria-label", `Buy ${PRODUCTS[product].buyName} on ${name} (listing coming soon)`);
         a.dataset.soon = "1";
       }
     });
@@ -758,7 +771,7 @@
   $$(".store").forEach((a) => a.addEventListener("click", (e) => {
     if (!a.dataset.soon) return;
     e.preventDefault();
-    buyNote.textContent = `Our ${STORE_NAMES[a.dataset.store]} listing for the ${PRODUCTS[product].name} is coming soon. Please check back shortly.`;
+    buyNote.textContent = `Our ${STORE_NAMES[a.dataset.store]} listing for ${PRODUCTS[product].buyName} is coming soon. Please check back shortly.`;
   }));
 
   /* ---------- First paint ---------- */

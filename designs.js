@@ -24,7 +24,15 @@
     "veer-hanuman": "Veer Hanuman with his gada, striding past snowy peaks.",
     "shiv-ji": "Shiv Ji with his trishul, in calm blue light.",
     "meditating-shiv-ji": "Shiv Ji in meditation among flowers, at sunrise.",
-    "neem-karoli-baba": "Neem Karoli Baba in blessing, with सीता राम सीता राम above."
+    "neem-karoli-baba": "Neem Karoli Baba in blessing, with सीता राम सीता राम above.",
+    "khatu-shyam-ji": "Khatu Shyam Ji in his peacock-feather crown, garlanded in marigolds.",
+    "premanand-ji-maharaj": "Premanand Ji Maharaj, smiling in blessing, in yellow and green.",
+    "radha-krishna": "Radha and Krishna side by side, in deep reds and gold.",
+    "mahadev": "Mahadev with his trishul and serpents, glowing in blue light.",
+    "ram-bhakt-hanuman": "Hanuman Ji with his gada, as Shri Ram and Sita Ji bless him from behind.",
+    "hanuman-ji": "Hanuman Ji seated in meditation, in a forest of green light.",
+    "ganesh-ji": "Ganesh Ji seated in blessing, with a pink lotus, on a warm golden glow.",
+    "guru-nanak-dev-ji": "Guru Nanak Dev Ji in blessing, beside the Golden Temple at Amritsar."
   };
   const DEFAULT_LIGHT = [1, 0.66, 0.3]; // warm amber, until (or unless) the artwork can be read
   // the design every lamp shows until a visitor picks one (falls back to the first design)

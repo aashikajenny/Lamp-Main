@@ -75,13 +75,16 @@
       if (shown !== id) return;
       const src = file ? file.src : Art.canvas(id).toDataURL("image/jpeg", 0.9);
       const glow = `rgb(${light.glow.map((v) => Math.round(v * 255)).join(" ")})`;
-      const first = !arts.length || !arts[0].querySelector("img").getAttribute("src");
+      const first = !arts.length || !arts[0].querySelector("img"); // nothing on the lamps yet
       // a quick dip while the print changes, so it never snaps
       arts.forEach((a) => a.classList.add("is-swapping"));
       clearTimeout(swap);
       swap = setTimeout(() => {
         arts.forEach((a) => {
-          a.querySelector("img").src = src;
+          // the print is made the first time a design goes on, so the page ships no empty image
+          let img = a.querySelector("img");
+          if (!img) { img = new Image(); img.alt = ""; img.decoding = "async"; a.append(img); }
+          img.src = src;
           a.classList.remove("is-swapping");
         });
         if (frame) frame.style.setProperty("--room-glow", glow);
