@@ -8,4 +8,8 @@ rm -rf dist
 mkdir -p dist/images
 cp index.html style.css favicon.ico icon-192.png icon-512.png apple-touch-icon.png _headers robots.txt sitemap.xml perf.js designs.js models3d.js bg.js rooms.js script.js dist/
 cp -r images/designs images/rooms dist/images/
+mkdir -p dist/images/brand
+cp images/brand/petal-*.webp images/brand/wordmark.webp images/brand/logo-mark.webp dist/images/brand/
+# the mantra recordings and design sounds (MANTRA_CLIPS and SOUNDS in script.js), once there are any
+if [ -d audio ]; then cp -r audio dist/; fi
 echo "Built dist/: $(find dist -type f | wc -l) files"

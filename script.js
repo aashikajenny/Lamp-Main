@@ -3,7 +3,7 @@
    - The product picker below it is a turning stage with all three products. The product in
      front is the one the rest of the page shows: the features, the rooms (for the lamp), the
      design picker, the store links and the FAQ all follow it (anything marked data-for).
-     ?product=mini opens the page on that product.
+     The switcher in the nav changes it from anywhere, and ?product=mini opens on that product.
    - Scrolling only scrolls the page. Each section that shows a product has its own 3D viewer
      (models3d.js) in its own slot, so it scrolls with that section like any other content.
    - Features: the showcase plays by itself, one feature every few seconds, and the 3D product
@@ -28,6 +28,16 @@
   const SOUNDS = {
   };
   let player = null, playingBtn = null; // the design sound playing now, and its button
+
+  /* ---------- Mantra recordings: the "Hear the mantras" section ---------- */
+  // Short recordings of the device playing its mantras (15 to 30 seconds each is plenty), listed in
+  // the order they should show. Put the files in audio/mantras/ (MP3 plays everywhere) and add a
+  // line for each, e.g.
+  //   { name: "Gayatri Mantra", deva: "गायत्री मंत्र", src: "audio/mantras/gayatri.mp3" },
+  // The section (and its link in the nav) stays hidden until at least one recording is listed here,
+  // so the page never shows a play button that plays nothing. Nothing ever plays until it is tapped.
+  const MANTRA_CLIPS = [
+  ];
   /* ---------- Which designs each product offers ---------- */
   // By design id (the design's file name in images/designs, without .webp). Only these show in a
   // product's picker. A product left out of this list offers every design.
@@ -48,7 +58,7 @@
   const PRODUCTS = {
     mantra: {
       name: "Divine Mantra Box", short: "Mantra Box", buyName: "the Divine Mantra Box",
-      tag: "35 sacred mantras in one box, for a home filled with peace.",
+      tag: "Our best seller: 35 divine mantras in one small box, for a home filled with peace.",
       design: "khatu-shyam-ji" // the design it wears until a visitor picks one
     },
     mini: {
@@ -168,11 +178,13 @@
 
   /* ---------- The product the page shows ---------- */
   const pages = $(".product-pages");
+  const switchBtn = $(".switch-btn"), switchMenu = $("#switch-menu");
   const waLink = $("[data-whatsapp]");
 
   function fillText() {
     const p = PRODUCTS[product];
     $$("[data-p]").forEach((el) => { el.textContent = p[el.dataset.p]; });
+    $$(".switch-menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.product === product)));
     const msg = `Namaste, I'd like to ask about a custom design or a bulk order for the ${p.name}.`;
     waLink.href = "https://wa.me/918287994052?text=" + encodeURIComponent(msg);
     setStores();
@@ -193,6 +205,7 @@
     } catch (e) { /* a page opened from disk can't change its address */ }
 
     stopSound(); // a design's sound belongs to the product it was played on
+    stopClip(); // and a recording to the device it was played for
     // the 3D products below turn once and come round as the new one
     ["features", "order"].forEach((k) => {
       if (!views[k]) return;
@@ -209,6 +222,28 @@
     }
   }
   html.dataset.product = product;
+
+  // nav switcher
+  function closeMenu() {
+    switchMenu.hidden = true;
+    switchBtn.setAttribute("aria-expanded", "false");
+  }
+  switchBtn.addEventListener("click", () => {
+    const open = switchMenu.hidden;
+    switchMenu.hidden = !open;
+    switchBtn.setAttribute("aria-expanded", String(open));
+    if (open) {
+      $(`button[data-product="${product}"]`, switchMenu).focus();
+      if (!reduceMotion) animate(switchMenu, { opacity: [0, 1], transform: ["translateY(-6px) scale(0.98)", "translateY(0px) scale(1)"] }, { duration: 0.3, ease: EASE });
+    }
+  });
+  $$("button", switchMenu).forEach((b) => b.addEventListener("click", () => {
+    closeMenu();
+    setProduct(b.dataset.product);
+    switchBtn.focus();
+  }));
+  document.addEventListener("click", (e) => { if (!e.target.closest(".switcher")) closeMenu(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !switchMenu.hidden) { closeMenu(); switchBtn.focus(); } });
 
   // "Explore" buttons: show that product, then go to its features
   function explore(id) {
@@ -434,6 +469,7 @@
   function playSound(id, btn) {
     const again = playingBtn === btn;
     stopSound();
+    if (SOUNDS[id]) stopClip(); // one sound at a time
     if (again || !SOUNDS[id]) return; // a second tap on the design that's playing stops it
     const a = new Audio(SOUNDS[id]);
     player = a;
@@ -450,7 +486,84 @@
       setTimeout(() => { if (player === a) v.setPose(Object.assign({}, P.order, { sound: 1 })); }, 170);
     }
   }
-  document.addEventListener("visibilitychange", () => { if (document.hidden) stopSound(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { stopSound(); stopClip(); } });
+
+  /* ---------- Hear the mantras (MANTRA_CLIPS above): tap a mantra to hear the device play it ---------- */
+  const listenSec = $("#listen"), clipBox = $(".clips");
+  let clip = null; // the recording playing (or paused) now: { audio, row, btn, name }
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  function clipState(c, playing) {
+    c.row.classList.toggle("is-playing", playing);
+    c.btn.setAttribute("aria-pressed", String(playing));
+    c.btn.setAttribute("aria-label", `${playing ? "Pause" : "Play"} the ${c.name}`);
+    $(".clip-icon", c.row).className = `clip-icon ph-fill ${playing ? "ph-pause" : "ph-play"}`;
+  }
+  function stopClip() {
+    if (!clip) return;
+    const c = clip;
+    clip = null;
+    c.audio.pause();
+    c.audio.currentTime = 0;
+    c.row.classList.remove("is-paused");
+    c.row.style.setProperty("--p", 0);
+    if (c.audio.duration) $(".clip-time", c.row).textContent = mmss(c.audio.duration);
+    clipState(c, false);
+  }
+  const clipAudio = [];
+  if (MANTRA_CLIPS.length) {
+    listenSec.hidden = false;
+    $$(".nav-listen").forEach((a) => { a.hidden = false; });
+    MANTRA_CLIPS.forEach((m) => {
+      const row = document.createElement("li");
+      row.className = "clip";
+      row.innerHTML = `<button type="button" class="clip-btn" aria-pressed="false">
+          <span class="clip-play"><i class="clip-icon ph-fill ph-play" aria-hidden="true"></i></span>
+          <span class="clip-names"><span class="clip-name"></span><span class="clip-deva" lang="hi"></span></span>
+          <span class="clip-time"></span>
+        </button><span class="clip-bar" aria-hidden="true"></span>`;
+      $(".clip-name", row).textContent = m.name;
+      $(".clip-deva", row).textContent = m.deva || "";
+      const btn = $(".clip-btn", row), time = $(".clip-time", row);
+      const audio = new Audio();
+      audio.preload = "none"; // nothing downloads until the section is near
+      audio.src = m.src;
+      clipAudio.push(audio);
+      const c = { audio, row, btn, name: m.name };
+      clipState(c, false);
+      audio.addEventListener("loadedmetadata", () => { time.textContent = mmss(audio.duration); });
+      audio.addEventListener("timeupdate", () => {
+        if (!audio.duration) return;
+        row.style.setProperty("--p", (audio.currentTime / audio.duration).toFixed(4));
+        time.textContent = `${mmss(audio.currentTime)} / ${mmss(audio.duration)}`;
+      });
+      audio.addEventListener("ended", () => { if (clip === c) stopClip(); });
+      audio.addEventListener("error", () => {
+        if (clip === c) stopClip();
+        row.classList.add("is-missing"); // a file that isn't there: say so instead of failing silently
+        time.textContent = "Unavailable";
+        btn.disabled = true;
+      });
+      btn.addEventListener("click", () => {
+        if (clip === c) {
+          // a second tap pauses; a third carries on from where it stopped
+          if (audio.paused) { audio.play().catch(() => {}); row.classList.remove("is-paused"); clipState(c, true); }
+          else { audio.pause(); row.classList.add("is-paused"); clipState(c, false); }
+          return;
+        }
+        stopClip();
+        stopSound();
+        clip = c;
+        clipState(c, true);
+        audio.play().catch(() => { if (clip === c) stopClip(); });
+        Field.burst(0.6);
+      });
+      clipBox.append(row);
+    });
+    // the lengths load (just the start of each file) once the section is near
+    inView(listenSec, () => {
+      clipAudio.forEach((a) => { if (a.preload === "none") { a.preload = "metadata"; a.load(); } });
+    }, { margin: "40% 0px 40% 0px" });
+  }
 
   /* ---------- Designs: pick an artwork and the product in the buy section turns to show it ---------- */
   // the buttons come from the design list (images/designs/designs.json)
@@ -469,6 +582,16 @@
     const d = Art.DESIGNS[id];
     designNote.textContent = d ? d.note || d.name : "";
     if (views.order) views.order.setArt(id, true);
+    // on a phone the designs are one row swiped sideways: bring the one chosen into view
+    // (sideways only, so the page itself never moves)
+    const b = picks.find((p) => p.dataset.design === id);
+    if (b && pickBox.scrollWidth > pickBox.clientWidth + 1) {
+      const left = b.offsetLeft - pickBox.offsetLeft, right = left + b.offsetWidth;
+      const pad = 16, view = pickBox.scrollLeft;
+      if (left < view + pad || right > view + pickBox.clientWidth - pad * 3) {
+        pickBox.scrollTo({ left: Math.max(0, left - pad), behavior: reduceMotion ? "auto" : "smooth" });
+      }
+    }
   }
   // the picker shows only the designs the product on show offers
   const shownPicks = () => picks.filter((b) => !b.hidden);
@@ -563,52 +686,70 @@
     }));
   }, { margin: "60% 0px 60% 0px" });
 
-  /* ---------- Start: the product stage opens the page; the others follow when the page is idle ---------- */
-  const stageView = makeView("products", ORDER, { fog: true });
-  if (stageView) {
-    poseStage();
-    stageView.units.forEach((u) => u.snap());
-    // the three products rise onto the stage as the page opens
+  /* ---------- Start: the best seller switches on; the others follow when the page is idle ---------- */
+  const heroView = makeView("hero", ["mantra"]);
+  // the still in the hero stands in until the 3D box is drawn wearing its artwork, then fades out
+  const heroSpace = $(".hero-space");
+  const heroLive = () => heroSpace.classList.add("is-live");
+  if (!heroView) heroLive();
+  else {
+    // (the 3D box only draws once its shaders have compiled in the background, so wait for that too)
+    Promise.all([heroView.drawn, Art.ready.then(() => Art.file(designFor("mantra")))])
+      .then(() => requestAnimationFrame(() => requestAnimationFrame(heroLive)), heroLive);
+    setTimeout(heroLive, 8000); // whatever happens, never leave the still in front for long
+  }
+  if (heroView) {
+    heroView.setPose(P.hero);
+    heroView.snap();
     if (!reduceMotion) {
-      stageView.units.forEach((u, i) => {
-        u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
-        u.snap();
-      });
-      inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
+      heroView.setPose(Object.assign({}, P.hero, { on: 0, sound: 0, knob: 0.1 }));
+      heroView.snap();
+      heroView.power = 0;
+      animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.3, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
+      setTimeout(() => heroView.setPose(P.hero), 900);
     }
   }
-  // the best seller sits right under the stage, so on the Mantra Box page it's made at once (no empty
-  // box while the page settles); for the other products it waits until the page is idle
-  let heroMade = false;
-  function makeHero() {
-    if (heroMade) return;
-    heroMade = true;
-    const h = makeView("hero", ["mantra"]);
-    if (h) { h.setPose(P.hero); h.snap(); }
-  }
-  if (product === "mantra") makeHero();
   Field.level = 1;
-  idle(() => {
-    makeHero();
-    idle(() => {
+  // the rest of the 3D is made while the visitor reads the hero, one step per idle moment, so no
+  // single step holds the page up for long; each viewer compiles its shaders as soon as it is made,
+  // long before its section scrolls into view
+  const setup = [
+    () => Models.prepare("mini"),
+    () => Models.prepare("lamp"),
+    () => {
+      const stageView = makeView("products", ORDER, { fog: true });
+      if (!stageView) return;
+      poseStage();
+      stageView.units.forEach((u) => u.snap());
+      // the stage rises into view the first time it arrives
+      if (!reduceMotion) {
+        stageView.units.forEach((u, i) => {
+          u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
+          u.snap();
+        });
+        inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
+      }
+    },
+    () => {
       const f = makeView("features", [product]);
       if (f) { poseFeature(); f.snap(); }
-      idle(() => {
-        const o = makeView("order", [product]);
-        if (o) { o.setPose(P.order); o.snap(); if (shownDesign) o.setArt(shownDesign, false); }
-        idle(() => {
-          // compile every product's shaders in each viewer now, so changing product never stalls
-          ["features", "order"].forEach((k, n) => {
-            if (views[k]) setTimeout(() => idle(() => views[k].prewarm(ORDER)), 400 * (n + 1));
-          });
-        });
-      });
-    });
-  });
+    },
+    () => {
+      const o = makeView("order", [product]);
+      if (o) { o.setPose(P.order); o.snap(); if (shownDesign) o.setArt(shownDesign, false); }
+    },
+    // compile every product's shaders in these two as well, so changing product never stalls
+    () => { if (views.features) views.features.prewarm(ORDER); },
+    () => { if (views.order) views.order.prewarm(ORDER); }
+  ];
+  (function next() {
+    const step = setup.shift();
+    if (step) idle(() => { step(); setTimeout(next, 120); }); // a breath between steps for the animations
+  })();
 
   /* ---------- Hero entrance: the headline rises into the light ---------- */
   const heroLines = $$(".hero-title .line > span", hero);
-  const heroRest = [$(".best-badge", hero), $(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero)];
+  const heroRest = [$(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero), $(".hero-more", hero)];
   if (!reduceMotion) {
     heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
     heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
@@ -696,7 +837,7 @@
 
   /* ---------- Controls: light follows the pointer; a press sinks in and sends out an echo ---------- */
   // the light: a soft pool of light under the pointer (style.css .lit), one listener for the page
-  const LIT = ".btn, .store, .next-btn, .pick-arrow, .design-pick";
+  const LIT = ".btn, .store, .next-btn, .pick-arrow, .switch-btn, .design-pick";
   const PRESSABLE = LIT + ", .step";
   const markLit = () => $$(LIT).forEach((el) => el.classList.add("lit"));
   markLit();
@@ -738,6 +879,57 @@
       return () => animate(el, { scale: 1 }, { type: "spring", stiffness: 520, damping: 18 });
     });
   }
+
+  /* ---------- Scrolling: one section per turn of the wheel ---------- */
+  // The page snaps to sections (style.css), so it never comes to rest in the space between two.
+  // Touch, the keyboard and the scrollbar get that from the browser; the mouse wheel and the
+  // trackpad get this, so that even a small turn of the wheel moves on to the next section instead
+  // of springing back. A section clearly taller than the screen is stepped through, most of a
+  // screen at a time, before the next one (one only a little taller, by some of its padding, is
+  // not: a step of a few pixels would feel like the wheel did nothing). One gesture moves one
+  // step: the wheel events that follow it (a trackpad keeps sending them as it coasts to a stop)
+  // are swallowed until they pause.
+  const SECTIONS = ".hero, .products, .show, .listen, .spaces-sec, .order, .maker, .faq";
+  function scrollStops() {
+    const vh = window.innerHeight, maxY = document.documentElement.scrollHeight - vh;
+    const stops = [];
+    $$(SECTIONS).forEach((s) => {
+      const h = s.offsetHeight;
+      if (!h) return; // hidden: another product's section, or recordings not listed yet
+      const top = s.getBoundingClientRect().top + window.scrollY;
+      stops.push(top);
+      if (h - vh > vh * 0.12) {
+        for (let y = top + vh * 0.85; y < top + h - vh; y += vh * 0.85) stops.push(y);
+        stops.push(top + h - vh);
+      }
+    });
+    stops.push(maxY); // the footer
+    return stops.map((y) => Math.round(Math.min(Math.max(y, 0), maxY))).sort((a, b) => a - b);
+  }
+  // A mouse wheel sends one event per click of the wheel, each a deliberate push: once the last step
+  // has finished, the next click moves on, however soon it comes. A trackpad sends a stream of small
+  // events and keeps sending them as it coasts to a stop: those are the same gesture and are
+  // swallowed, but a fresh swipe (after a short pause, or a clear new push while still coasting)
+  // always counts, so a visitor who keeps scrolling never finds the page stuck.
+  let stepEnds = 0, lastWheel = 0, lastSize = 0;
+  const isWheelClick = (e) => e.deltaMode !== 0 || (Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+  window.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return; // zooming, or sideways
+    const now = performance.now(), size = Math.abs(e.deltaY);
+    const gap = now - lastWheel;
+    const fresh = isWheelClick(e) || gap > 140 || size > lastSize * 1.6 + 6;
+    lastWheel = now;
+    lastSize = size;
+    e.preventDefault();
+    if (now < stepEnds || !fresh) return; // still moving, or the tail of the same swipe
+    const y = window.scrollY, stops = scrollStops();
+    const to = e.deltaY > 0 ? stops.find((s) => s > y + 2) : stops.reverse().find((s) => s < y - 2);
+    if (to === undefined) return;
+    window.scrollTo({ top: to, behavior: reduceMotion ? "auto" : "smooth" });
+    stepEnds = now + (reduceMotion ? 0 : 700);
+  }, { passive: false });
+  // the step is over as soon as the page settles, where the browser says so
+  window.addEventListener("scrollend", () => { stepEnds = 0; });
 
   /* ---------- FAQ: answers ease open ---------- */
   $$("details").forEach((d) => {

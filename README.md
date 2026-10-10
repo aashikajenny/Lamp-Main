@@ -2,13 +2,14 @@
 
 A single-page site for Aashi Enterprises' three devotional products: the **35-in-1 Divine Mantra Box** (the best seller), the **Mini Chanting Box** (a Vedic 35-in-1 mantra device that plugs into the wall) and the **OM Night Lamp**. Every product wears the same ten artwork designs.
 
-- **Hero: the best seller.** A gold "Our best seller" badge, then the product's name as the heading, "35-in-1 Divine Mantra Box", its four key features, Explore and Buy now. The 3D Mantra Box stands on a lit pedestal facing you, swaying gently to show its side; a glint of light sweeps across its glass cover every few seconds.
-- **Controls:** a soft pool of light follows the pointer across buttons, tabs and chips, and a press sinks the control in and sends an echo of its outline outward, like the rings of sound. Nav links draw a fine gold line in on hover; design thumbnails lift and glow.
+- **Hero: the best seller.** The claim is the heading itself, "Our best seller.", with the product's full name, "35-in-1 Divine Mantra Box", beneath it in rose; then its four key features, Explore and Buy now. The picker's line for the Mantra Box, the nav switcher and the "Made by" text say it too, so the claim runs through the page without a sticker on the product. (A real number, such as homes served or a marketplace rating, would make it stronger; add one only once the owner confirms it.) The 3D Mantra Box stands on a lit pedestal facing you, swaying gently to show its side; a glint of light sweeps across its glass cover every few seconds.
+- **Controls:** a soft pool of light follows the pointer across buttons, tabs and chips, and a press sinks the control in and sends an echo of its outline outward, like the rings of sound. Nav links draw a fine rose line in on hover; design prints lift when you point at them.
 - **The product picker.** A turning stage with all three products in 3D under a beam of light. The product in front is the one the rest of the page shows. Turn it with the arrows, the dots, a swipe, the arrow keys, or a tap on a product at the side; "Explore" (or a tap on the product in front) goes to its features. The switcher in the nav changes the product from anywhere, and `?product=mantra|mini|lamp` opens the page on one.
-- **Everything below follows the product.** The features showcase, the mantras section (the two chanting devices) or the room photos (the lamp), the buy section with its design picker and store links, the FAQ and the footer line. Content for one product is marked in `index.html` with `data-for="mantra"`, `data-for="mini lamp"` and so on, and is hidden while another product is showing; the product's name fills any `data-p="name"` or `data-p="short"`.
+- **Everything below follows the product.** The features showcase, the room photos (the lamp), the buy section with its design picker and store links, the FAQ and the footer line. Content for one product is marked in `index.html` with `data-for="mantra"`, `data-for="mini lamp"` and so on, and is hidden while another product is showing; the product's name fills any `data-p="name"` or `data-p="short"`.
 - **Features showcase:** four features per product, each shown by the 3D product itself (for the Mantra Box and the Mini: the artwork, the sound, the red mantra button being pressed and the dial turning up, and the two-pin plug on the back). It plays by itself; the step buttons, the Next button or a tap jump ahead.
-- **Mantras:** 35 points of light around the 3D chanting device that's showing (the Mantra Box or the Mini), one for each mantra; the one playing glows, with its name in Devanagari and English. Tap a mantra to show it.
-- **Scrolling just scrolls, one section at a time.** The page snaps so it always rests on a whole section.
+- **Hear the mantras** (the two chanting devices): short recordings of the device playing its mantras, set like a track list: tap a mantra to listen, tap again to pause; one plays at a time, with a rose line along the row showing how far it has played. **It stays hidden (with its "Listen" link in the nav) until recordings are added**, so the page never shows a play button that plays nothing, and nothing ever plays until it is tapped. To switch it on: put the files (MP3, 15 to 30 seconds each) in `audio/mantras/` and list them in `MANTRA_CLIPS` at the top of `script.js`, with the English and Devanagari name of each. `build.sh` publishes the `audio/` folder. (The old mantras section, a ring of names that looked like play buttons but played nothing, was taken out in October 2026; the first feature names the best-known mantras, and the FAQ lists them.)
+- **Scrolling moves a section at a time.** Each section fills the screen, and the page always comes to rest at the start of one, never in the space between two (CSS scroll snapping, in `style.css`). Even a small turn of the mouse wheel or a short trackpad swipe moves on to the next section (`script.js`, "Scrolling"); on a phone a swipe does the same, and a quick flick stops at the next section instead of flying past. Every section is laid out to fit one screen, so each snap lands on a whole section: on phones the best seller's buttons sit side by side, the designs are one row of prints swiped sideways, the stores and the contact buttons sit in a row and the FAQ rows are compact; on wide screens the FAQ runs in two columns; on shorter laptop screens the picker and the designs step in a little. (Checked at 1440x900, 1366x768, 1280x800, 768x1024, 375x812, 360x740 and 375x667.) If a section is ever taller than the screen, for instance with an FAQ answer open, it still scrolls through its whole length before moving on, so nothing is out of reach.
+- **No empty box while the 3D loads.** The hero shows a still of the Mantra Box in its default design at once (`.hero-poster` in `index.html`); it fades out under the 3D box once that is drawn wearing its artwork.
 - **Interactive background:** rings of light around the product on screen, plus drifting motes. The pointer brightens the rings and pushes the motes aside; a click or tap sends out a ripple. The lamp sends a slow ripple of its own; the chanting devices send one every couple of seconds, like the beat of a chant.
 
 Built with Three.js (the 3D products) and Motion (UI animation).
@@ -24,7 +25,16 @@ Built with Three.js (the 3D products) and Motion (UI animation).
 
 ## Performance
 
-`perf.js` picks a quality tier: low-end hardware (4 or fewer CPU cores, or 4 GB or less memory) starts reduced, and any device steps down a tier if its frames run consistently slow for its own refresh rate. Lower tiers render the 3D at a lower resolution, thin out the background field and drop the nav's backdrop blur. The background field is drawn on the GPU in a single call. Each 3D viewer draws into a small canvas the size of its slot, and only while that slot is on screen; the picker, features and buy viewers are created once the page is idle. Everything pauses in a background tab.
+`perf.js` picks a quality tier: low-end hardware (4 or fewer CPU cores, or 4 GB or less memory) starts reduced, and any device steps down a tier if its frames run slow for its own refresh rate for a few seconds in a row (one-off pauses, such as the page setting itself up or a tab coming back, don't count, so a capable device keeps the full look). Lower tiers render the 3D at a lower resolution, thin out the background field and drop the nav's backdrop blur. The background field is drawn on the GPU in a single call. Each 3D viewer draws into a small canvas the size of its slot, and only while that slot is on screen.
+
+Nothing heavy happens while something is moving:
+- The picker, features and buy viewers are made while the visitor reads the hero, one small step per idle moment (the Mini's and the lamp's shapes first, then each viewer).
+- Each viewer compiles its shaders as soon as it is made (and again whenever a product or design brings new ones), never on the frame its section first scrolls into view; it only draws once the graphics card has finished them.
+- The background field's shader compiles in the background too, and the design images are decoded before they become textures.
+- The Mini's curved shell is only cut into small triangles where it actually bends (about half as many points as cutting it evenly, for the same look).
+- Resizing the window (or turning a phone) reallocates the canvases once the size settles, not on every step of the drag.
+
+Everything pauses in a background tab.
 
 ## Deploy (Cloudflare Pages)
 
@@ -46,7 +56,7 @@ Serve the folder through a local web server and open `index.html`. You need an i
 - `designs.js`: the design list (from `images/designs/designs.json`), the artwork files, and the light each one casts
 - `models3d.js`: the three 3D products. Each `.model-slot` (hero, picker, features, buy) has its own viewer; the picker's viewer holds all three products on one stage. They share one animation loop, and a viewer only draws while it's on screen
 - `bg.js`: the interactive light field behind the page
-- `script.js`: the products, the picker, the features showcase, the mantras dial (with its own 3D device), the design picker and the page animations
+- `script.js`: the products, the picker, the features showcase, the design picker and the page animations
 - `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
 - `build.sh`, `_headers`: the hosting build (see Deploy)
 - `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below)
@@ -72,15 +82,22 @@ The folder holds only WebP files: one per design, plus `designs.json`, the list 
 
 The short line shown under the buttons for each design is in `NOTES` in `designs.js`, under the WebP's name (`veer-hanuman`). A new design without a line there just shows its name, so add one when you add a design.
 
+## Look: from the logo
+
+Colour, type and shapes come from the logo (`images/brand/logo-original.webp`): its cream ground, its blush, nude, dusty-rose and mauve petals, and its thin, widely spaced lettering, set in **Jost** (large headings light, small labels and the nav in spaced capitals, like ENTERPRISES on the logo; buttons in plain words, so they stay easy to read). Buttons, tabs and frames are cut like the logo's leaves: two opposite corners round, two nearly pointed (`--leaf` in `style.css`). Behind the best seller, the logo's six petals (`images/brand/petal-*.webp`) unfurl one by one as the page opens (ribbon and swoosh first, the leg last, about two seconds in all), each coming to rest exactly in its place in the logo; then the logo breathes slowly as one piece, so it always keeps its true shape. (The petal images were cut from the logo with clean, soft edges, with none of the logo's white background left round them, so they sit cleanly on the dark page too.) This is the logo's bloom from the old full-screen intro, moved into the hero so it never holds the page back: the headline and the product can be read from the first moment.
+
+The page is the logo's own cream, with cocoa-brown text and dusty-rose buttons. (A dark "dusk" version was tried alongside it in October 2026; the light one was chosen and the dusk one removed.)
+
 ## Lighting follows the artwork
 
 The light on the page is the light the lit print would really give off. `LampArt.light(id)` in `designs.js` reads the artwork. The main glow is its average colour, weighted toward its bright parts (they let the most light through) and made a little richer: a pink print glows pink, a blue one blue, a print of many colours a warm mix. A second colour, the artwork's most vivid colour of a clearly different hue (like the blue cosmos behind the golden OM), tints every other ring, some of the motes and the lower corner of the room.
 
 That light colours everything:
 
-- **The 3D products.** The lamp looks switched on, like the lamps in the room photos: the frame glows warm white tinted by the print, the print shows its true colours lit from behind, and light spills round its edges. The Mantra Box and the Mini are lit by the room, with a soft halo and rings of sound in the print's colour.
-- **The background.** The rings and motes take the light's colours, and so does the soft room glow behind the page.
-- **The buttons, highlights and accent text.** They take the light's hue (`--accent` in `style.css`), at a lightness that keeps their text readable for every design. Browsers too old for CSS relative colours keep the warm orange.
+- **The 3D products.** The lamp looks switched on, like the lamps in the room photos: the frame glows warm white tinted by the print, the print shows its true colours lit from behind, light spills round its edges and a halo of the print's colour falls on the wall behind it. The Mantra Box and the Mini are lit by the room; they glow softly in the print's colour, and every chant sends out a ring of sound and a breath of that light together, in step.
+- **On the cream page.** Light added on top would vanish into the cream, so it is laid on as coloured light instead (`GLOW_BLEND` in `models3d.js`), the way a lit print tints a pale wall, and the rings of sound are a shade deeper so they still show.
+- **The background.** The rings and motes take the light's colours, and so do the pool of light each product stands on, the beam over the picker and the soft glow behind the page (`--halo` in `style.css`: the artwork's light, with a little of the logo's blush so it stays in the brand's family). On the cream page the drifting motes are kept faint, so they never look like dust.
+- **The buttons, highlights and accent text** do not: they are the logo's dusty rose (`--accent` in `style.css`), so the brand colour holds on every design.
 
 When the design changes, everything eases across to the new light.
 

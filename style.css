@@ -1,40 +1,72 @@
-/* Aashi Enterprises: the Divine Mantra Box, the Mini Chanting Box and the OM Night Lamp
-   Theme: locked dark ("night") - devotional products glowing in a dark room are the brand.
-   Shape rule: interactive controls are full pills, surfaces are 20px. */
+/* Aashi Enterprises: the Divine Mantra Box, the Mini Chanting Box and the Night Lamps
+   Everything comes from the logo: its cream ground, its blush, nude, dusty-rose and mauve petals,
+   and its thin, widely spaced geometric lettering (Jost).
+   Shape rule: controls are petals (two opposite corners round, two nearly pointed, like the logo's
+   leaves: --leaf); frames are larger petals (--leaf-lg). */
 
 /* the lamp's light colours, read from the artwork it shows (set by bg.js); registered so they crossfade */
-@property --glow { syntax: "<color>"; inherits: true; initial-value: rgb(255 168 77); }
-@property --glow-2 { syntax: "<color>"; inherits: true; initial-value: rgb(150 110 220); }
+@property --glow { syntax: "<color>"; inherits: true; initial-value: rgb(233 178 167); }
+@property --glow-2 { syntax: "<color>"; inherits: true; initial-value: rgb(232 201 184); }
 @property --room-glow { syntax: "<color>"; inherits: true; initial-value: rgb(255 168 77); }
 
 :root {
-  --bg: #0d0b12;
-  --bg-2: #15121d;
-  --surface: #1a1622;
-  --ink: #f3ede4;
-  --muted: #a99f93;
-  --accent: #f29a38;
-  --accent-ink: #1d1206;
-  --accent-hi: #f7a94e;
+  /* the logo's petals */
+  --blush: #e9b2a7;
+  --nude: #e8c9b8;
+  --rose: #c28779;
+  --mauve: #9e6960;
+  --cocoa: #4a2f2c;
   /* the light moves: --glow and --glow-2 (set by bg.js) crossfade here, and everything that uses them follows */
   transition: --glow 1.4s var(--ease), --glow-2 1.4s var(--ease);
-  --line: rgba(243, 237, 228, 0.1);
-  --radius: 20px;
+  --leaf: 999px 8px;
+  --leaf-lg: 56px 12px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --font-display: "Outfit", system-ui, sans-serif;
-  --font-body: "Manrope", system-ui, sans-serif;
+  --font-display: "Jost", system-ui, sans-serif;
+  --font-body: "Jost", system-ui, sans-serif;
   --font-deva: "Tiro Devanagari Sanskrit", serif;
   --gutter: clamp(16px, 4vw, 56px);
-  color-scheme: dark;
-}
-/* buttons and highlights take the hue of the lamp's light, at a fixed strength and lightness so
-   they always read: light enough for dark text on them, and for themselves on the dark page */
-@supports (color: hsl(from red h s l)) {
-  :root {
-    --accent: hsl(from var(--glow) h 82% 67%);
-    --accent-hi: hsl(from var(--glow) h 88% 74%);
-    --accent-ink: hsl(from var(--glow) h 60% 8%);
-  }
+  /* labels, buttons and nav: the wordmark's spaced capitals */
+  --label: 500 12.5px/1.2 var(--font-display);
+  --label-track: 0.2em;
+
+  /* the logo's cream page, cocoa ink, dusty-rose actions */
+  --bg: #faf5f0;
+  --bg-2: #f3e9e2;
+  --surface: #fffcf9;
+  --ink: #3f2724;
+  --muted: #7a5a53;
+  --accent: #935e55;
+  --accent-hi: #7e4b42;
+  --accent-ink: #fffaf6;
+  --accent-soft: rgba(147, 94, 85, 0.1);
+  --brand-ink: #86554b;
+  --note: #8c564c;
+  --line: rgba(74, 47, 44, 0.12);
+  --line-2: rgba(74, 47, 44, 0.24);
+  --ctl-bg: rgba(255, 252, 249, 0.72);
+  --ctl-line: rgba(74, 47, 44, 0.18);
+  --ctl-line-hi: rgba(74, 47, 44, 0.45);
+  --wash: rgba(158, 105, 96, 0.08);
+  --shade: rgba(110, 66, 58, 0.3);
+  --nav-bg: rgba(250, 245, 240, 0.78);
+  --nav-solid: rgba(250, 245, 240, 0.97);
+  --nav-hl: rgba(255, 255, 255, 0.85);
+  --menu-bg: rgba(255, 252, 249, 0.98);
+  --frame-ring: 0 0 0 1px rgba(74, 47, 44, 0.14);
+  --scroll-thumb: #dcc0b6;
+  --scroll-thumb-hi: #c79d91;
+  /* light around the products stays in the petal family, whatever colour the artwork is */
+  --halo: color-mix(in oklab, var(--glow) 72%, var(--blush));
+  --wash-1: color-mix(in srgb, var(--blush) 30%, transparent);
+  --wash-2: color-mix(in srgb, var(--nude) 42%, transparent);
+  --wash-3: color-mix(in srgb, var(--halo) 26%, transparent);
+  --grain-opacity: 0.16;
+  --petal-opacity: 0.5;
+  /* the bulk-order panel: one field of dusty rose */
+  --panel: #935e55;
+  --panel-ink: #fff6f1;
+  --panel-muted: rgba(255, 246, 241, 0.78);
+  color-scheme: light;
 }
 
 /* z-index scale: night 0, field 0, stage 1, content 3, nav 20 */
@@ -44,33 +76,41 @@ html { -webkit-text-size-adjust: 100%; }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
-/* the page moves a whole section at a time: it always comes to rest on one section, never between two */
-html { scroll-snap-type: y mandatory; }
-.hero, .products, .show, .spaces-sec, .order, .maker, .faq { scroll-snap-align: start; scroll-snap-stop: always; }
 
 /* each product's own content (data-for="mantra mini") shows only while that product is picked */
 html[data-product="mantra"] [data-for]:not([data-for~="mantra"]),
 html[data-product="mini"] [data-for]:not([data-for~="mini"]),
 html[data-product="lamp"] [data-for]:not([data-for~="lamp"]) { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.footer { scroll-snap-align: end; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* clip, not hidden: "hidden" would make the body a scroll box of its own, and the section
+     snapping below (which belongs to the page) would stop working */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 /* the 3D canvases reach past the screen edge for their glow; clip them so phones never scroll sideways */
 html, main { overflow-x: clip; }
 
+/* Scrolling moves a whole section at a time: the page always comes to rest with a section's top at
+   the top of the screen, never in the space between two, and a quick flick stops at the next
+   section instead of flying past it. A section taller than the screen (the design picker or the
+   FAQ on a phone) still scrolls freely through its length, then moves on at its end.
+   (The mouse wheel and trackpad step a section at a time too: see "Scrolling" in script.js.) */
+html { scroll-snap-type: y mandatory; }
+.hero, .products, .show, .listen, .spaces-sec, .order, .maker, .faq { scroll-snap-align: start; scroll-snap-stop: always; }
+.footer { scroll-snap-align: end; }
+
 img { max-width: 100%; display: block; }
 a { color: inherit; text-decoration: none; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 500; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 300; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 p { margin: 0; }
 
 .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
@@ -81,9 +121,16 @@ p { margin: 0; }
 /* ---------- Fixed layers ---------- */
 .night {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* soft petal light, as on the logo's page: blush up high, nude pooling low, the artwork's own light between */
   background:
-    radial-gradient(60% 50% at 70% 40%, color-mix(in srgb, var(--glow) 18%, transparent), transparent 70%),
-    radial-gradient(80% 60% at 10% 100%, color-mix(in srgb, var(--glow-2) 12%, transparent), transparent 70%);
+    radial-gradient(55% 48% at 82% 14%, var(--wash-1), transparent 70%),
+    radial-gradient(70% 60% at 4% 100%, var(--wash-2), transparent 70%),
+    radial-gradient(45% 40% at 66% 46%, var(--wash-3), transparent 70%);
+}
+/* a fine paper grain over the whole page, like the logo's printed card */
+.night::after {
+  content: ""; position: absolute; inset: 0; opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .27 1.3 0 0 0 -.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 /* sized to the large viewport, so the mobile URL bar never resizes it */
 #field {
@@ -102,166 +149,338 @@ main, .footer { position: relative; z-index: 3; }
   pointer-events: none;
 }
 .model-slot.is-flat { display: flex; align-items: center; justify-content: center; }
-.model-slot.is-flat img { width: min(60%, 260px); border-radius: 18px; border: 10px solid #efe8dc; box-shadow: 0 30px 80px -20px color-mix(in srgb, var(--glow) 45%, transparent); }
+.model-slot.is-flat img { width: min(60%, 260px); border-radius: 18px; border: 10px solid #fbf6f1; box-shadow: 0 30px 70px -24px var(--shade); }
 /* copy that sits beside a product stays above the edge of its glow */
 .hero-copy, .show-captions, .show-bar, .order-copy { position: relative; z-index: 1; }
 
-/* tap anywhere in the showcase to move it on */
-.story { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.story .wrap, .story p, .story h2 { cursor: auto; }
-.next-btn {
-  display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 22px 0 28px; border-radius: 999px;
-  font: 500 17px var(--font-display); white-space: nowrap; cursor: pointer;
-  color: var(--accent-ink); background: var(--accent); border: 0;
-  box-shadow: 0 10px 26px -12px rgba(0, 0, 0, 0.8), 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
-  transition: background 0.25s, box-shadow 0.4s var(--ease);
-}
-.next-btn:hover { background: var(--accent-hi); box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.8), 0 0 0 10px color-mix(in srgb, var(--accent) 16%, transparent); }
-.next-btn .ph { font-size: 18px; animation: nudge 2s var(--ease) infinite; }
-@keyframes nudge { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(3px); } }
-.next-btn-sm { height: 48px; padding: 0 18px 0 22px; font-size: 15px; }
+/* ---------- Type: one family, three voices ---------- */
+.section-title { font-size: clamp(38px, 4.6vw, 68px); line-height: 1.04; letter-spacing: -0.015em; }
 
 /* ---------- Nav ---------- */
 .nav {
   position: fixed; top: 14px; left: 50%; z-index: 20;
   transform: translateX(-50%);
-  width: min(1180px, calc(100% - 2 * 16px));
-  height: 64px; padding: 0 10px 0 22px;
+  width: min(1200px, calc(100% - 2 * 16px));
+  height: 66px; padding: 0 10px 0 18px;
   display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  border-radius: 999px; border: 1px solid var(--line);
-  background: rgba(21, 18, 29, 0.7);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 999px 18px; border: 1px solid var(--line);
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: inset 0 1px 0 var(--nav-hl), 0 14px 34px -24px var(--shade);
 }
-.brand { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
-.brand-mark { font-family: var(--font-deva); font-size: 26px; color: var(--accent); line-height: 1; transform: translateY(2px); }
-.brand-name { font-family: var(--font-display); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; }
-.nav-links { display: flex; gap: 30px; font-size: 14px; color: var(--muted); }
+.brand { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; }
+.brand-mark { display: block; height: 34px; width: auto; }
+/* the wordmark, set as on the logo: the name in wide capitals, ENTERPRISES finer beneath it */
+.brand-name { display: flex; flex-direction: column; align-items: center; line-height: 1; color: var(--brand-ink); }
+.brand-name > span { font: 400 15px/1 var(--font-display); letter-spacing: 0.42em; margin-right: -0.42em; text-transform: uppercase; }
+.brand-name small { font: 400 7.5px/1 var(--font-display); letter-spacing: 0.46em; margin: 5px -0.46em 0 0; text-transform: uppercase; }
+.nav-links { display: flex; gap: 30px; font: var(--label); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
 .nav-links a { position: relative; transition: color 0.25s; padding: 10px 0; }
 .nav-links a:hover { color: var(--ink); }
-/* a fine gold line draws in under the link from the left, and leaves to the right */
+/* a fine rose line draws in under the link from the left, and leaves to the right */
 .nav-links a::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 1.5px; border-radius: 2px;
+  content: ""; position: absolute; left: 0; right: 0.18em; bottom: 4px; height: 1px;
   background: var(--accent); transform: scaleX(0); transform-origin: right; transition: transform 0.45s var(--ease);
 }
 .nav-links a:hover::after { transform: scaleX(1); transform-origin: left; }
 .nav-end { display: flex; align-items: center; gap: 8px; }
 
-/* ---------- Buttons ---------- */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  height: 52px; padding: 0 26px; border-radius: 999px; white-space: nowrap;
-  font-family: var(--font-display); font-weight: 500; font-size: 16px;
-  border: 1px solid transparent; cursor: pointer;
-  transition: background 0.25s, box-shadow 0.35s var(--ease), border-color 0.25s;
+/* the product switcher: which product the page is showing */
+.switcher { position: relative; }
+.switch-btn {
+  display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px 0 18px; border-radius: var(--leaf); cursor: pointer;
+  font: 400 15px var(--font-display); color: var(--ink); white-space: nowrap;
+  background: var(--ctl-bg); border: 1px solid var(--ctl-line);
+  transition: border-color 0.25s, background 0.25s;
 }
+.switch-btn:hover, .switch-btn[aria-expanded="true"] { border-color: var(--accent); }
+.switch-btn .ph { color: var(--accent); transition: transform 0.35s var(--ease); }
+.switch-btn[aria-expanded="true"] .ph { transform: rotate(180deg); }
+.switch-menu {
+  position: absolute; top: calc(100% + 12px); right: 0; min-width: 250px; padding: 8px;
+  display: grid; gap: 2px; border-radius: 28px 8px;
+  background: var(--menu-bg); border: 1px solid var(--line);
+  box-shadow: 0 26px 50px -22px var(--shade);
+}
+.switch-menu[hidden] { display: none; }
+.switch-menu button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 13px 16px; border-radius: 20px 6px; cursor: pointer;
+  text-align: left; color: var(--ink); background: none; border: 0; font: 400 17px var(--font-display);
+  transition: background 0.2s;
+}
+.switch-menu button small { font: var(--label); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.switch-menu button:hover { background: var(--wash); }
+.switch-menu button[aria-current="true"] { background: var(--accent-soft); }
+.switch-menu button[aria-current="true"] span { color: var(--accent); }
+
+/* ---------- Buttons: petals ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  height: 54px; padding: 0 28px; border-radius: var(--leaf); white-space: nowrap;
+  font: 500 16.5px/1 var(--font-display); letter-spacing: 0.01em;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background 0.25s, box-shadow 0.35s var(--ease), border-color 0.25s, color 0.25s;
+}
+.btn .ph { font-size: 17px; }
 .btn-sm { height: 44px; padding: 0 20px; font-size: 15px; }
-.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.7); }
-.btn-primary:hover { background: var(--accent-hi); box-shadow: 0 14px 26px -12px rgba(0, 0, 0, 0.75); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 22px -12px var(--shade); }
+.btn-primary:hover { background: var(--accent-hi); box-shadow: 0 16px 28px -14px var(--shade); }
 .btn-primary i { transition: transform 0.35s var(--ease); }
 .btn-primary:hover i { transform: translateX(4px); }
-.btn-ghost { border-color: rgba(243, 237, 228, 0.25); color: var(--ink); background: rgba(13, 11, 18, 0.35); }
+.btn-ghost { border-color: var(--ctl-line-hi); color: var(--ink); background: var(--ctl-bg); }
 .btn-ghost:hover { border-color: var(--ink); }
 
 /* Light on the controls: a soft pool of light follows the pointer across a button, as a lamp's glow
-   catches a surface (script.js sets --mx and --my). Lighter on gold buttons, gold on dark ones */
-.lit { position: relative; isolation: isolate; --lit: color-mix(in srgb, var(--accent) 30%, transparent); }
-.btn-primary.lit, .next-btn.lit, .store.lit:hover { --lit: rgba(255, 255, 255, 0.5); }
+   catches a surface (script.js sets --mx and --my). Lighter on rose buttons, rose on pale ones */
+.lit { position: relative; isolation: isolate; --lit: color-mix(in srgb, var(--accent) 22%, transparent); }
+.btn-primary.lit, .next-btn.lit, .store.lit:hover { --lit: rgba(255, 255, 255, 0.38); }
 .lit::before {
   content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
   background: radial-gradient(90px circle at var(--mx, 50%) var(--my, 50%), var(--lit), transparent 70%);
   opacity: 0; transition: opacity 0.35s var(--ease);
 }
 .lit:hover::before { opacity: 1; }
+.design-pick.lit::before { display: none; }
 /* a press sends an echo of the control's own outline outward, like the rings of sound */
-.press-echo {
-  position: fixed; z-index: 40; pointer-events: none;
-  border: 1.5px solid var(--accent);
-}
+.press-echo { position: fixed; z-index: 40; pointer-events: none; border: 1px solid var(--accent); }
 .pick-go:hover i { transform: translateY(3px); }
 
-/* ---------- Hero ---------- */
-.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 96px 0 48px; }
-.hero-grid { display: grid; grid-template-columns: 1.25fr 1fr; align-items: center; gap: 40px; }
-.hero-title {
-  font-size: clamp(40px, 4.6vw, 70px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 500;
-  margin-bottom: 26px;
+/* tap anywhere in the showcase to move it on */
+.story { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.story .wrap, .story p, .story h2 { cursor: auto; }
+.next-btn {
+  display: inline-flex; align-items: center; gap: 12px; height: 54px; padding: 0 22px 0 28px; border-radius: var(--leaf);
+  font: 500 16.5px/1 var(--font-display); letter-spacing: 0.01em; white-space: nowrap; cursor: pointer;
+  color: var(--accent-ink); background: var(--accent); border: 0;
+  box-shadow: 0 10px 24px -12px var(--shade);
+  transition: background 0.25s, box-shadow 0.4s var(--ease);
 }
-.hero-title .line { display: block; overflow: hidden; padding-bottom: 0.06em; white-space: nowrap; }
-.hero-title .line > span { display: inline-block; transform-origin: 0 100%; }
-.hero-sub { font-size: clamp(17px, 1.4vw, 19px); color: var(--muted); max-width: 34ch; margin-bottom: 26px; }
-.hero-points { list-style: none; margin: 0 0 34px; padding: 0; display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 28px; color: var(--muted); font-size: 15px; }
-.hero-points li { display: flex; align-items: center; gap: 10px; }
-.hero-points .ph { color: var(--accent); font-size: 19px; }
-.hero-hint {
-  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
-  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
-  font: 500 13px var(--font-display); color: #9d9184;
-}
-.hero-hint .ph { font-size: 16px; color: var(--accent); }
-.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
-.hero-space { min-height: 60vh; }
+.next-btn:hover { background: var(--accent-hi); box-shadow: 0 16px 30px -14px var(--shade); }
+.next-btn .ph { font-size: 17px; animation: nudge 2s var(--ease) infinite; }
+@keyframes nudge { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(3px); } }
+.next-btn-sm { height: 48px; padding: 0 18px 0 22px; font-size: 15.5px; }
 
-/* the best seller: a solid badge, and a lit pedestal for the model */
-.best-badge {
-  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px; padding: 8px 18px 8px 14px; border-radius: 999px;
-  font: 600 14px var(--font-display); letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--accent-ink); background: var(--accent);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent), 0 10px 26px -12px rgba(0, 0, 0, 0.8);
+/* ---------- Hero: the best seller, in front of the logo's petals ---------- */
+.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 104px 0 56px; }
+.hero > .wrap { width: 100%; }
+.hero-grid { display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 32px; }
+.hero-title {
+  font-size: clamp(46px, 5.6vw, 92px); line-height: 0.98; letter-spacing: -0.02em; font-weight: 300;
+  margin-bottom: 28px;
 }
-.best-badge .ph-fill { font-size: 15px; }
+.hero-title .line { display: block; overflow: hidden; padding-bottom: 0.08em; white-space: nowrap; }
+.hero-title .line > span { display: inline-block; transform-origin: 0 100%; }
+/* the claim is the headline; the product's full name sits beneath it as its nameplate, in rose */
+.hero-title .line:last-child { font-size: clamp(22px, 2.3vw, 38px); letter-spacing: -0.005em; margin-top: 0.35em; }
+.hero-sub { font-size: clamp(17px, 1.35vw, 19px); color: var(--muted); max-width: 36ch; margin-bottom: 30px; }
+/* the four features: a quiet two-column list, each on its own hairline */
+.hero-points { list-style: none; margin: 0 0 36px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 0 32px; font-size: 15.5px; }
+.hero-points li { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.hero-points .ph { color: var(--accent); font-size: 20px; }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-more {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 24px;
+  font: 400 16px var(--font-display); color: var(--muted); transition: color 0.25s;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em;
+  text-decoration-color: var(--ctl-line);
+}
+.hero-more:hover { color: var(--ink); text-decoration-color: var(--accent); }
+.hero-more .ph { color: var(--accent); font-size: 15px; }
+.hero-space { min-height: 66vh; }
+
+/* the logo's petals, opening behind the product: six layers that breathe a little, out of step */
+.bloom {
+  position: absolute; left: 50%; top: 46%; width: min(118%, 720px); aspect-ratio: 650 / 475;
+  transform: translate(-46%, -54%); pointer-events: none; opacity: var(--petal-opacity);
+}
+/* as the page opens, each petal unfurls from where it joins the flower, in the order the logo's
+   intro used (ribbon, swoosh, then the three upper petals, the leg last), coming to rest exactly in
+   its place in the logo. After that the logo breathes as one piece (on .bloom itself), so its
+   petals never drift out of line with each other */
+.bloom img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  transform-origin: var(--o, 46% 78%);
+  animation: petal-unfurl 1.25s var(--ease) var(--d, 0s) both;
+}
+.bloom { animation: bloom-breathe 12s ease-in-out 2.4s infinite; }
+@keyframes bloom-breathe {
+  0%, 100% { scale: 1; translate: 0 0; }
+  50% { scale: 1.025; translate: 0 -6px; }
+}
+.bloom .p-ribbon { --r: -28deg; --s: 0.25; --o: 47% 59%; --d: 0.15s; }
+.bloom .p-swoosh { --r: 34deg; --s: 0.25; --o: 48% 60%; --d: 0.3s; }
+.bloom .p-pink { --r: -38deg; --s: 0.05; --o: 60% 76%; --d: 0.5s; }
+.bloom .p-top { --r: -62deg; --s: 0.05; --o: 59% 76%; --d: 0.72s; }
+.bloom .p-mid { --r: -44deg; --s: 0.05; --o: 62% 78%; --d: 0.88s; }
+.bloom .p-leg { --r: 26deg; --s: 0.1; --o: 15% 78%; --d: 1s; }
+@keyframes petal-unfurl {
+  from { opacity: 0; rotate: var(--r); scale: var(--s); }
+  35% { opacity: 1; }
+  to { opacity: 1; rotate: 0deg; scale: 1; }
+}
+/* the still that stands in while the 3D box loads: the box's white face with its print, turned a
+   little as the 3D one stands; it fades out under the 3D box once that is drawn */
+.hero-poster {
+  position: absolute; left: 50%; top: 50%; height: 64%; aspect-ratio: 5.5 / 9; pointer-events: none;
+  transform: translate(-50%, -50%) perspective(900px) rotateY(-16deg);
+  transition: opacity 0.7s var(--ease);
+}
+.hero-poster span {
+  position: absolute; inset: 0; border-radius: 9% / 6%; padding: 9% 8% 15%;
+  background: linear-gradient(100deg, #f8f4ee, #ece6dc 70%, #e2dbd0);
+  box-shadow: 0 30px 50px -28px var(--shade), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+.hero-poster img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+.hero-space.is-live .hero-poster { opacity: 0; }
+.hero-space canvas { transition: opacity 0.7s var(--ease); }
+.hero-space:not(.is-live) canvas { opacity: 0; }
 .hero-pedestal {
-  position: absolute; left: 50%; bottom: 4%; width: 74%; aspect-ratio: 1; pointer-events: none;
+  position: absolute; left: 50%; bottom: 3%; width: 74%; aspect-ratio: 1; pointer-events: none;
   transform: translateX(-50%) translateY(46%) perspective(900px) rotateX(78deg);
 }
 .hero-pedestal span { position: absolute; inset: 0; border-radius: 50%; }
-.hero-pedestal span:first-child { border: 1.5px dashed color-mix(in srgb, var(--accent) 40%, transparent); animation: floor-spin 60s linear infinite; }
+.hero-pedestal span:first-child { border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
 .hero-pedestal span:last-child {
-  inset: 22%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 50%, transparent), color-mix(in srgb, var(--glow) 10%, transparent) 60%, transparent);
+  inset: 20%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--halo) 60%, transparent), color-mix(in srgb, var(--halo) 12%, transparent) 60%, transparent);
 }
 
+/* ---------- Products: the picker's turning stage ---------- */
+.products { position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; padding: 112px 0 36px; overflow: hidden; }
+.products-head { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.products-head .section-title { max-width: 18ch; font-size: clamp(34px, 3.8vw, 56px); }
+.stage { position: relative; flex: 1; min-height: 40vh; margin-top: 8px; cursor: grab; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+.stage:active { cursor: grabbing; }
+.stage-models { position: absolute; inset: 0; }
+.stage-models canvas { left: 0; width: 100%; top: -4%; height: 108%; }
+/* a soft beam from above, onto the product in front: a cone from a point above the stage, its edges
+   feathered by the mask itself (a blur filter here re-ran every frame while the light changed colour) */
+.stage-beam {
+  position: absolute; left: 50%; top: -30%; width: min(620px, 90vw); height: 140%; transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(50% 60% at 50% 0%, color-mix(in srgb, var(--halo) 34%, transparent), transparent 75%);
+  -webkit-mask-image: conic-gradient(from 150deg at 50% -32%, transparent 0deg, #000 14deg, #000 46deg, transparent 60deg);
+  mask-image: conic-gradient(from 150deg at 50% -32%, transparent 0deg, #000 14deg, #000 46deg, transparent 60deg);
+  opacity: 0.6;
+}
+/* the floor it stands on: a pool of light and a fine ring, seen from the side */
+.stage-floor {
+  position: absolute; left: 50%; bottom: 4%; width: min(640px, 92vw); aspect-ratio: 1; pointer-events: none;
+  transform: translateX(-50%) translateY(46%) perspective(900px) rotateX(78deg);
+}
+.stage-floor span { position: absolute; border-radius: 50%; }
+.stage-floor span:first-child {
+  inset: 26%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--halo) 62%, transparent), color-mix(in srgb, var(--halo) 14%, transparent) 60%, transparent);
+}
+.stage-floor span:last-child { inset: 12%; border: 1px solid var(--line-2); }
+.is-turning .stage-floor span:first-child { animation: floor-flash 1.1s var(--ease); }
+@keyframes floor-flash { 0% { transform: scale(0.7); opacity: 0.4; } 35% { transform: scale(1.25); opacity: 1; } 100% { transform: none; opacity: 1; } }
+
+/* the arrows sit close in either side of the name and line, not out at the page's edges; the
+   middle keeps one width whichever product is in front, so the arrows never move */
+.pick { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr minmax(0, 540px) 1fr; align-items: center; gap: 16px 24px; }
+.pick-arrow[data-step="-1"] { justify-self: end; }
+.pick-arrow[data-step="1"] { justify-self: start; }
+.pick-copy { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.pick-name { font-size: clamp(36px, 4.6vw, 68px); line-height: 1.04; letter-spacing: -0.02em; min-height: 1.1em; }
+.pick-name .word { display: inline-block; white-space: nowrap; }
+.pick-name .ch { display: inline-block; }
+/* room for two lines whichever product is in front, so nothing around it moves when it changes */
+.pick-tag { margin: 10px 0 24px; color: var(--muted); font-size: 17px; line-height: 1.6; max-width: 46ch; min-height: 3.2em; }
+/* the petals: each button is a full touch target; the petal in front opens wider and takes the rose */
+.pick-tabs { display: flex; gap: 4px; margin-top: 16px; }
+.pick-tab { position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
+.pick-tab::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 100% 0;
+  transform: translate(-50%, -50%) rotate(45deg); background: var(--line-2);
+  transition: transform 0.5s var(--ease), background 0.3s var(--ease);
+}
+.pick-tab:hover::after { background: var(--ctl-line-hi); }
+.pick-tab[aria-selected="true"]::after { transform: translate(-50%, -50%) rotate(45deg) scale(1.7); background: var(--accent); }
+.pick-arrow {
+  width: 58px; height: 58px; border-radius: 50% 10px; cursor: pointer; display: grid; place-items: center;
+  font-size: 20px; color: var(--ink); background: var(--ctl-bg); border: 1px solid var(--ctl-line);
+  transition: border-color 0.25s, color 0.25s, background 0.25s;
+}
+.pick-arrow[data-step="-1"] { border-radius: 10px 50%; }
+.pick-arrow:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ---------- Features showcase (plays on its own) ---------- */
-.show-pin { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; padding-top: 92px; }
+.show-pin { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; padding-top: 96px; }
 .show-grid { position: relative; flex: 1; display: flex; align-items: center; gap: 40px; }
-.show-captions { position: relative; width: min(460px, 44%); height: 280px; flex: none; }
+.show-captions { position: relative; width: min(480px, 44%); height: 300px; flex: none; }
 .show-visual { flex: 1; align-self: stretch; min-height: 60vh; }
 .cap {
-  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 18px;
   opacity: 0; transform: translateY(30px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease), filter 0.7s var(--ease);
   filter: blur(6px); pointer-events: none;
 }
 .cap.is-active { opacity: 1; transform: none; filter: none; }
 .cap.is-past { transform: translateY(-30px); }
-.cap h2 { font-size: clamp(34px, 4.2vw, 58px); line-height: 1.05; }
+.cap h2 { font-size: clamp(38px, 4.4vw, 64px); line-height: 1.03; letter-spacing: -0.015em; }
 .cap p { color: var(--muted); font-size: 18px; max-width: 34ch; }
-.show-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 5vh; }
-.show-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.show-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 5vh; }
+
+/* the steps: a rail of labels, each with a hairline above it; the one showing fills with rose
+   as the time runs down to the next */
+.show-steps, .room-steps { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .step {
-  position: relative; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
-  font: 500 14px var(--font-display); color: var(--muted);
-  background: rgba(13, 11, 18, 0.45); border: 1px solid rgba(243, 237, 228, 0.14);
-  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease);
+  position: relative; min-height: 48px; padding: 16px 4px 4px 0; min-width: 7.2em; cursor: pointer; text-align: left;
+  font: var(--label); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+  background: none; border: 0;
+  transition: color 0.3s var(--ease);
 }
-.step:hover { color: var(--ink); border-color: rgba(243, 237, 228, 0.4); }
-.step.is-active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
-/* how long until the showcase moves on: the active button starts full gold and a light grey shade
-   sweeps across it from left to right, behind its label */
-.step { overflow: hidden; isolation: isolate; }
-.step::after {
-  content: ""; position: absolute; inset: 0; z-index: -1;
-  background: rgba(13, 11, 18, 0.18); transform: scaleX(0); transform-origin: 0 50%;
+.step::before, .step::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; border-radius: 2px;
 }
-.is-playing .step.is-active::after { animation: step-fill var(--slide-time, 3.5s) linear forwards; }
+.step::before { background: var(--line-2); }
+.step::after { background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; transition: transform 0.4s var(--ease); }
+.step:hover { color: var(--ink); }
+.step.is-active { color: var(--ink); }
+.step.is-active::after { transform: scaleX(1); }
+.is-playing .step.is-active::after { transition: none; animation: step-fill var(--slide-time, 3.5s) linear forwards; }
 @keyframes step-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-/* ---------- Rooms: the line names a room, the photo shows the lamp there ---------- */
-.spaces-sec { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 60px; }
-.spaces-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
-
-.spaces {
-  font-size: clamp(40px, 5vw, 76px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 500;
+/* ---------- Listen (the chanting devices): recordings of the mantras, set like a track list ---------- */
+.listen { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 116px 0 70px; }
+.listen[hidden], .nav-links a[hidden] { display: none !important; }
+.listen > .wrap { width: 100%; }
+.listen-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 64px; align-items: start; }
+.listen-text { color: var(--muted); font-size: 18px; margin-top: 22px; max-width: 38ch; }
+.clips { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.clip { position: relative; border-bottom: 1px solid var(--line); }
+/* each row is one button: the play petal, the mantra's name in English and Devanagari, its length */
+.clip-btn {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px;
+  padding: 14px 4px 14px 0; text-align: left; cursor: pointer; color: var(--ink);
+  background: none; border: 0; border-radius: 0; font: inherit;
 }
+.clip-play {
+  width: 48px; height: 48px; border-radius: 50% 8px; display: grid; place-items: center;
+  font-size: 18px; color: var(--accent); background: var(--ctl-bg); border: 1px solid var(--ctl-line);
+  transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+.clip-btn:hover .clip-play { border-color: var(--accent); }
+.clip.is-playing .clip-play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.clip-names { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.clip-name { font: 300 clamp(20px, 1.7vw, 24px)/1.25 var(--font-display); }
+.clip-deva { font: 400 16px/1.35 var(--font-deva); color: var(--muted); }
+.clip-deva:empty { display: none; }
+.clip-time { font: 400 14px var(--font-display); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clip.is-playing .clip-name { color: var(--accent); }
+/* how far it has played: a rose line along the row's own rule */
+.clip-bar {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+  background: var(--accent); transform-origin: 0 50%; transform: scaleX(var(--p, 0));
+  transition: opacity 0.3s;
+}
+.clip:not(.is-playing):not(.is-paused) .clip-bar { opacity: 0; }
+.clip.is-missing .clip-btn { cursor: default; opacity: 0.55; }
+
+/* ---------- Rooms: the line names a room, the photo shows the lamp there ---------- */
+.spaces-sec { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 116px 0 60px; }
+.spaces-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.spaces { font-size: clamp(42px, 5.2vw, 80px); line-height: 1.04; letter-spacing: -0.02em; font-weight: 300; }
 .spaces-lead { display: block; color: var(--muted); }
 /* every room name shares one grid cell, so the heading never changes size as they swap */
 .spaces-word { display: grid; padding-bottom: 0.08em; }
@@ -272,15 +491,15 @@ main, .footer { position: relative; z-index: 3; }
 }
 .spaces-word > span.is-on { opacity: 1; filter: none; transform: none; }
 .spaces-word > span.is-off { transform: translateY(-0.45em); transition-duration: 0.45s; }
+.room-steps { margin-top: 44px; gap: 4px 12px; }
+.room-step { min-width: 0; padding-right: 6px; font-size: 12px; letter-spacing: 0.14em; }
 
-.room-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 40px; }
-
-/* the frame takes the photos' own shape (1430 x 1100), so each room shows whole */
+/* the frame takes the photos' own shape (1430 x 1100), so each room shows whole; its corners are a petal's */
 .room-frame {
   position: relative; justify-self: end;
   width: min(100%, calc(70vh * 1.3)); aspect-ratio: 1430 / 1100;
-  border-radius: var(--radius); overflow: hidden; /* the photo (or its placeholder) fills it */
-  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9), 0 0 0 1px var(--line);
+  border-radius: var(--leaf-lg); overflow: hidden; /* the photo (or its placeholder) fills it */
+  box-shadow: 0 40px 90px -42px var(--shade), var(--frame-ring);
 }
 .room { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity 0.9s var(--ease); }
 .room.is-on { opacity: 1; }
@@ -315,296 +534,368 @@ main, .footer { position: relative; z-index: 3; }
   box-shadow: inset 0 0 5px 1px rgba(255, 246, 228, 0.28);
 }
 
-/* placeholder until a photo is added: the room's own night tint and a glowing lamp on the wall */
+/* placeholder until a photo is in: the room's own night tint and a glowing lamp on the wall */
 .room-fallback {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px;
   background:
     radial-gradient(48% 38% at 50% 42%, rgba(255, 170, 80, 0.4), transparent 70%),
-    linear-gradient(180deg, rgb(var(--tint)) 0%, #0d0b12 100%);
+    linear-gradient(180deg, rgb(var(--tint)) 0%, #1c1214 100%);
 }
 .room.has-photo .room-fallback { display: none; }
 .room-lamp {
   width: 78px; height: 94px; border-radius: 14px; border: 6px solid #efe8dc;
   background: radial-gradient(circle at 50% 42%, #fff4cf 0%, #ffc560 22%, #f08a2a 55%, #a3361b 100%);
-  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.7); /* its glow is the placeholder's own radial light */
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
 }
-.room-name { font: 500 15px var(--font-display); letter-spacing: 0.02em; color: rgba(243, 237, 228, 0.6); }
+.room-name { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: rgba(246, 233, 226, 0.7); }
 
-/* ---------- Designs (in the buy section): the 3D lamp wears the chosen artwork ---------- */
-.design-picks { display: flex; flex-wrap: wrap; gap: 10px; max-width: 560px; }
+/* ---------- Order: pick a print, then buy ---------- */
+.order { padding: 116px 0 80px; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; }
+.order > .wrap { width: 100%; }
+.order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+.order-space { min-height: 62vh; }
+.order-text { color: var(--muted); font-size: 18px; margin: 18px 0 26px; max-width: 38ch; }
+
+/* the designs: a wall of small prints, each in a petal-cornered frame; the name of the one chosen,
+   and a line about it, read beneath */
+.design-picks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 10px; max-width: 560px; }
 .design-pick[hidden] { display: none; } /* a design the product on show doesn't offer */
 .design-pick {
-  display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 5px 18px 5px 5px; border-radius: 999px; cursor: pointer;
-  font: 500 15px var(--font-display); color: var(--muted);
-  background: rgba(13, 11, 18, 0.45); border: 1px solid rgba(243, 237, 228, 0.14);
-  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease);
+  position: relative; display: block; padding: 0; cursor: pointer;
+  background: none; border: 0; border-radius: 16px 4px; color: var(--muted);
 }
-.design-pick:hover { color: var(--ink); border-color: rgba(243, 237, 228, 0.4); }
-/* the little print lifts and glows, as if lit from behind */
-.design-thumb { transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease); }
-.design-pick:hover .design-thumb, .design-pick.is-active .design-thumb {
-  transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 0 0 2px #efe8dc, 0 6px 18px -4px color-mix(in srgb, var(--glow) 80%, transparent);
-}
-.design-pick.is-active { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.design-pick > span:not(.design-thumb) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .design-thumb {
-  flex: none; width: 34px; height: 42px; border-radius: 8px; overflow: hidden;
-  background: var(--surface); box-shadow: 0 0 0 2px #efe8dc;
+  display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 16px 4px; overflow: hidden;
+  background: var(--surface); box-shadow: var(--frame-ring), 0 8px 18px -12px var(--shade);
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
 }
 .design-thumb canvas, .design-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.design-note { min-height: 1.6em; margin: 18px 0 40px; color: var(--muted); font-size: 16px; max-width: 42ch; }
+/* the little print lifts, as if picked up to look at */
+.design-pick:hover .design-thumb { transform: translateY(-3px); box-shadow: var(--frame-ring), 0 14px 22px -12px var(--shade); }
+.design-pick.is-active .design-thumb {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent), 0 16px 24px -12px var(--shade);
+}
+.design-note { min-height: 3.2em; margin: 18px 0 30px; color: var(--muted); font-size: 16px; max-width: 46ch; }
+/* a design with a sound shows a speaker on its print; it pulses while the sound plays */
+.design-sound {
+  position: absolute; right: 4px; bottom: 4px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  font-size: 13px; color: var(--accent-ink); background: var(--accent);
+}
+.design-pick.is-playing .design-sound { animation: sound-pulse 1.1s ease-in-out infinite; }
+@keyframes sound-pulse { 50% { opacity: 0.55; transform: scale(0.88); } }
 
-/* ---------- Order ---------- */
-.order { padding: 110px 0 80px; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; }
-.order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
-.order-space { min-height: 60vh; }
-.section-title { font-size: clamp(36px, 4.4vw, 64px); line-height: 1.04; letter-spacing: -0.03em; }
-.order-text { color: var(--muted); font-size: 18px; margin: 20px 0 28px; max-width: 36ch; }
-/* the chanting devices open the section with their mantras, then the designs; a hairline and
-   generous space keep the two headings apart, and the second steps down a size */
-.order-intro { padding-bottom: clamp(36px, 5vh, 52px); margin-bottom: clamp(36px, 5vh, 52px); border-bottom: 1px solid var(--line); }
-.order-intro .order-text { margin-bottom: 0; max-width: 44ch; }
-html:not([data-product="lamp"]) .order-title { font-size: clamp(28px, 3.2vw, 46px); }
-/* a design with a sound shows a speaker; it pulses while the sound plays */
-.design-sound { font-size: 16px; color: var(--muted); margin-left: -2px; transition: color 0.25s; }
-.design-pick:hover .design-sound { color: var(--ink); }
-.design-pick.is-playing .design-sound { color: var(--accent); animation: sound-pulse 1.1s ease-in-out infinite; }
-@keyframes sound-pulse { 50% { opacity: 0.45; transform: scale(0.88); } }
+/* ---------- Perks (in the buy section) ---------- */
+.perks { list-style: none; margin: 0 0 30px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font: 400 16px var(--font-display); }
+.perks li { display: flex; align-items: center; gap: 8px; }
+.perks .ph { color: var(--accent); font-size: 19px; }
 
-.buy-label { font: 500 15px var(--font-display); color: var(--muted); margin-bottom: 14px; }
-.stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 520px; }
+.buy-label { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 540px; }
 .store {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  height: 58px; padding: 0 20px 0 24px; border-radius: 999px;
-  background: var(--surface); border: 1px solid rgba(243, 237, 228, 0.16); color: var(--ink);
-  font: 500 17px var(--font-display); white-space: nowrap;
+  height: 58px; padding: 0 20px 0 24px; border-radius: var(--leaf);
+  background: var(--surface); border: 1px solid var(--ctl-line); color: var(--ink);
+  font: 500 17px/1 var(--font-display); letter-spacing: 0.01em; white-space: nowrap;
   transition: background 0.25s var(--ease), color 0.25s var(--ease), border-color 0.25s var(--ease);
 }
 .store .ph { color: var(--accent); font-size: 18px; transition: transform 0.35s var(--ease), color 0.25s; }
 .store:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .store:hover .ph { color: var(--accent-ink); transform: translate(2px, -2px); }
-.buy-note { min-height: 1.6em; margin-top: 16px; font-size: 15px; color: #ffc98a; }
+.buy-note { min-height: 1.6em; margin-top: 16px; font-size: 15px; color: var(--note); }
 
-
-/* ---------- Maker: who makes the lamp, and the line for bulk orders ---------- */
-.maker { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 80px; }
+/* ---------- Maker: who makes them, and the line for custom designs and bulk orders ---------- */
+.maker { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 116px 0 80px; }
 .maker > .wrap { width: 100%; }
-.maker-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 64px; align-items: start; }
-.maker-text { font-size: clamp(19px, 1.6vw, 22px); line-height: 1.55; max-width: 46ch; text-wrap: pretty; }
-.bulk { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--line); }
-.bulk h3 { font: 500 24px/1.2 var(--font-display); letter-spacing: -0.01em; }
-.bulk p { color: var(--muted); font-size: 17px; max-width: 46ch; margin: 12px 0 24px; }
+.maker-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 64px; align-items: start; }
+.maker-text { font-size: clamp(20px, 1.7vw, 24px); font-weight: 300; line-height: 1.55; max-width: 44ch; text-wrap: pretty; }
+/* custom designs and bulk orders: one field of dusty rose, cut like a petal, with the number set large */
+.bulk {
+  position: relative; overflow: hidden; margin-top: 48px; padding: clamp(28px, 3.4vw, 44px);
+  border-radius: var(--leaf-lg); color: var(--panel-ink); background: var(--panel);
+  box-shadow: 0 34px 60px -40px var(--shade);
+}
+.bulk h3 { font: 400 26px/1.2 var(--font-display); letter-spacing: -0.005em; }
+.bulk p { color: var(--panel-muted); font-size: 17px; max-width: 46ch; margin: 12px 0 22px; }
 /* the number is the one thing to remember here, so it is set large */
 .bulk-number {
-  display: inline-block; margin-bottom: 28px;
-  font: 500 clamp(32px, 3.4vw, 48px)/1 var(--font-display); letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums; color: var(--accent); transition: color 0.25s;
+  display: inline-block; margin-bottom: 26px;
+  font: 300 clamp(36px, 3.8vw, 56px)/1 var(--font-display); letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums; color: var(--panel-ink);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--panel-ink) 35%, transparent);
+  transition: text-decoration-color 0.25s;
 }
-.bulk-number:hover { color: var(--accent-hi); }
+.bulk-number:hover { text-decoration-color: var(--panel-ink); }
 .bulk-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.bulk .btn-primary { background: var(--panel-ink); color: var(--panel); box-shadow: 0 10px 22px -12px rgba(0, 0, 0, 0.45); }
+.bulk .btn-primary:hover { background: #fff; }
+.bulk .btn-ghost { color: var(--panel-ink); background: transparent; border-color: color-mix(in srgb, var(--panel-ink) 45%, transparent); }
+.bulk .btn-ghost:hover { border-color: var(--panel-ink); }
+.bulk .btn-primary.lit { --lit: rgba(255, 255, 255, 0.5); }
 .bulk-actions .btn-primary:hover i { transform: none; }
+
 /* links inside running text */
 details p a, .footer-copy a {
   color: var(--ink); text-decoration: underline; text-underline-offset: 3px;
   text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 details p a:hover, .footer-copy a:hover { text-decoration-color: var(--accent); }
+
 /* ---------- FAQ ---------- */
-.faq { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 80px; }
+.faq { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 116px 0 80px; }
 .faq > .wrap { width: 100%; }
 .faq-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 64px; align-items: start; }
-.faq-list { display: grid; }
+.faq-list { display: grid; border-top: 1px solid var(--line-2); }
 details { border-bottom: 1px solid var(--line); }
 summary {
-  list-style: none; cursor: pointer; padding: 28px 0; display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  font: 400 clamp(20px, 1.8vw, 26px) var(--font-display); letter-spacing: -0.015em;
+  list-style: none; cursor: pointer; padding: 24px 0; display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  font: 300 clamp(21px, 1.8vw, 26px)/1.3 var(--font-display); letter-spacing: -0.005em;
   transition: color 0.3s var(--ease);
 }
 summary:hover, details[open] summary { color: var(--accent); }
 summary::-webkit-details-marker { display: none; }
-summary .ph { color: var(--accent); font-size: 20px; transition: transform 0.4s var(--ease); flex-shrink: 0; }
-details[open] summary .ph { transform: rotate(45deg); }
-details p { padding: 0 0 30px; color: var(--muted); max-width: 56ch; font-size: 17px; }
+/* the plus sits in a small petal outline, and turns to a cross when open */
+summary .ph {
+  flex-shrink: 0; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50% 6px;
+  font-size: 17px; color: var(--accent); border: 1px solid var(--ctl-line);
+  transition: transform 0.4s var(--ease), background 0.3s, color 0.3s, border-color 0.3s;
+}
+summary:hover .ph { border-color: var(--accent); }
+details[open] summary .ph { transform: rotate(45deg); background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 17px; }
 
 /* ---------- Footer ---------- */
-.footer { padding: 120px 0 56px; border-top: 1px solid var(--line); background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 5%, transparent)); }
-.footer-line { font-family: var(--font-display); font-size: clamp(40px, 6.5vw, 96px); line-height: 1.02; letter-spacing: -0.04em; max-width: 14ch; margin-bottom: 96px; }
-.footer-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 28px; color: var(--muted); font-size: 14px; }
+.footer { padding: 120px 0 56px; border-top: 1px solid var(--line); background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--blush) 14%, transparent)); }
+.footer-line { font-family: var(--font-display); font-weight: 300; font-size: clamp(42px, 6.8vw, 104px); line-height: 1.02; letter-spacing: -0.025em; max-width: 14ch; margin-bottom: 96px; }
+.footer-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding-top: 32px; border-top: 1px solid var(--line); }
+.footer-links { display: flex; flex-wrap: wrap; gap: 8px 28px; font: var(--label); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .footer-links a { padding: 10px 0; }
 .footer-links a:hover { color: var(--ink); }
-.footer-copy { color: var(--muted); font-size: 13px; }
-/* ---------- Products: the picker's turning stage ---------- */
-.products { position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; padding: 104px 0 36px; overflow: hidden; }
-.products-head { text-align: center; display: flex; flex-direction: column; align-items: center; }
-.products-head .section-title { max-width: 18ch; font-size: clamp(32px, 3.6vw, 52px); }
-.stage { position: relative; flex: 1; min-height: 36vh; margin-top: 4px; cursor: grab; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
-.stage:active { cursor: grabbing; }
-.stage-models { position: absolute; inset: 0; }
-.stage-models canvas { left: 0; width: 100%; top: -4%; height: 108%; }
-/* a beam of light from above, onto the product in front */
-.stage-beam {
-  position: absolute; left: 50%; top: -30%; width: min(640px, 90vw); height: 140%; transform: translateX(-50%); pointer-events: none;
-  background: radial-gradient(50% 60% at 50% 0%, color-mix(in srgb, var(--glow) 26%, transparent), transparent 75%);
-  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
-  filter: blur(18px); opacity: 0.5;
-}
-/* the floor it stands on: a pool of light, seen from the side */
-.stage-floor {
-  position: absolute; left: 50%; bottom: 4%; width: min(620px, 92vw); aspect-ratio: 1; pointer-events: none;
-  transform: translateX(-50%) translateY(46%) perspective(900px) rotateX(78deg);
-}
-.stage-floor span {
-  position: absolute; inset: 28%; border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 55%, transparent), color-mix(in srgb, var(--glow) 12%, transparent) 60%, transparent);
-}
-@keyframes floor-spin { to { transform: rotate(360deg); } }
-.is-turning .stage-floor span { animation: floor-flash 1.1s var(--ease); }
-@keyframes floor-flash { 0% { transform: scale(0.7); opacity: 0.4; } 35% { transform: scale(1.25); opacity: 1; } 100% { transform: none; opacity: 1; } }
+.footer-copy { color: var(--muted); font-size: 14px; flex-basis: 100%; }
 
-.pick { position: relative; z-index: 1; display: flex; justify-content: center; }
-/* the arrows: a close pair, centred right under the heading */
-.pick-nav { display: flex; gap: 10px; margin-top: 14px; position: relative; z-index: 1; }
-.pick-nav .pick-arrow { width: 48px; height: 48px; font-size: 18px; }
-.pick-copy { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
-.pick-name { font-size: clamp(34px, 4.4vw, 64px); line-height: 1.04; letter-spacing: -0.035em; min-height: 1.1em; }
-.pick-name .word { display: inline-block; white-space: nowrap; }
-.pick-name .ch { display: inline-block; }
-/* room for two lines whichever product is in front, so nothing around it moves when it changes */
-.pick-tag { margin: 10px 0 24px; color: var(--muted); font-size: 17px; line-height: 1.6; max-width: 46ch; min-height: 3.2em; }
-/* the dots: each button is a full touch target; the dot drawn inside it stretches into a pill in front */
-.pick-tabs { display: flex; gap: 2px; margin-top: 16px; }
-.pick-tab { position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 999px; cursor: pointer; background: none; }
-.pick-tab::after {
-  content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 8px;
-  transform: translate(-50%, -50%); background: rgba(243, 237, 228, 0.28);
-  /* a dot, drawn out into a pill when picked: the clip animates, so nothing reflows */
-  clip-path: inset(0 9px round 4px);
-  transition: clip-path 0.5s var(--ease), background 0.3s var(--ease);
-}
-.pick-tab:hover::after { background: rgba(243, 237, 228, 0.6); }
-.pick-tab[aria-selected="true"]::after { clip-path: inset(0 0 round 4px); background: var(--accent); }
-.pick-arrow {
-  width: 56px; height: 56px; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
-  font-size: 20px; color: var(--ink); background: rgba(13, 11, 18, 0.5); border: 1px solid rgba(243, 237, 228, 0.2);
-  transition: border-color 0.25s, color 0.25s, background 0.25s;
-}
-.pick-arrow:hover { border-color: var(--accent); color: var(--accent); }
-
-/* ---------- Perks (in the buy section) ---------- */
-.perks { list-style: none; margin: 0 0 30px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--muted); font: 500 15px var(--font-display); }
-.perks li { display: flex; align-items: center; gap: 8px; }
-.perks .ph { color: var(--accent); font-size: 18px; }
-
+/* ---------- Tablet ---------- */
 @media (max-width: 1080px) {
   .nav-links { display: none; }
 }
-@media (max-width: 767px) {
-  .brand-name { display: none; }
-  .nav-buy { height: 40px; padding: 0 16px; font-size: 14px; }
-  .best-badge { margin-bottom: 12px; font-size: 12.5px; padding: 7px 14px 7px 12px; }
-  .hero-points { grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13.5px; margin-bottom: 24px; }
-  .hero-points li { gap: 7px; }
+@media (max-width: 1024px) {
+  .nav-links { gap: 22px; }
+  .design-picks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
 
-  .products { padding: 84px 0 28px; }
+/* ---------- Mobile: single column, the product sits above the copy ---------- */
+@media (max-width: 767px) {
+  .nav { height: 58px; padding: 0 6px 0 12px; top: 10px; gap: 10px; border-radius: 999px 14px; }
+  .brand-mark { height: 30px; }
+  .brand-name { display: none; }
+  .switch-btn { height: 42px; padding: 0 12px 0 14px; font-size: 14px; }
+  .nav-buy { height: 42px; padding: 0 16px; font-size: 14.5px; }
+
+  .hero { padding: 80px 0 72px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 6px; }
+  .hero-space { order: -1; min-height: 36vh; }
+  /* on a phone the petals step back, so they never compete with the print on the box */
+  .bloom { width: 96%; opacity: calc(var(--petal-opacity) * 0.55); }
+  .hero-title { font-size: clamp(40px, 12vw, 58px); margin-bottom: 16px; }
+  .hero-sub { margin-bottom: 20px; font-size: 16px; }
+  .hero-points { grid-template-columns: 1fr 1fr; gap: 0 14px; font-size: 13.5px; margin-bottom: 24px; }
+  .hero-points li { gap: 8px; padding: 9px 0; }
+  .hero-points .ph { font-size: 17px; }
+  .hero-ctas .btn { flex: 1 1 auto; padding: 0 18px; }
+  .hero-more { margin-top: 18px; }
+
+  .products { padding: 88px 0 28px; }
   .stage { min-height: 34vh; }
   .stage-floor { width: 120vw; }
-  .pick-arrow { width: 46px; height: 46px; font-size: 18px; }
-  .pick-name { font-size: clamp(30px, 9vw, 40px); }
+  .pick { grid-template-columns: 1fr; }
+  /* phones: the arrows sit either side of the petals */
+  .pick-arrow { position: absolute; bottom: -4px; width: 46px; height: 46px; font-size: 18px; }
+  .pick-arrow[data-step="-1"] { left: var(--gutter); }
+  .pick-arrow[data-step="1"] { right: var(--gutter); }
+  .pick-name { font-size: clamp(32px, 9.4vw, 42px); }
   .pick-tag { font-size: 15px; margin: 6px 0 16px; }
   .pick-go { width: 100%; }
 
-  .perks { margin-bottom: 22px; gap: 6px 16px; font-size: 14px; }
-}
-
-/* ---------- Tablet ---------- */
-@media (max-width: 1024px) {
-  .nav-links { gap: 22px; }
-}
-
-/* ---------- Mobile: single column, lamp sits above the copy ---------- */
-@media (max-width: 767px) {
-  .nav { height: 56px; padding: 0 6px 0 16px; top: 10px; }
-  .nav-links { display: none; }
-  .brand-name { font-size: 16px; }
-
-  .hero { padding: 76px 0 72px; }
-  .hero-grid { grid-template-columns: 1fr; gap: 8px; }
-  .hero-space { order: -1; min-height: 38vh; }
-  .hero-title { font-size: clamp(40px, 12vw, 56px); margin-bottom: 18px; }
-  .hero-sub { margin-bottom: 26px; }
-  .hero-ctas .btn { flex: 1 1 auto; }
-  .hero-hint { bottom: 22px; }
-
-  .show-pin { padding-top: 72px; }
+  .show-pin { padding-top: 76px; }
   .show-grid { flex-direction: column; align-items: stretch; gap: 12px; padding-bottom: 20px; }
   .show-visual { order: -1; flex: 1; min-height: 36vh; }
-  .show-captions { width: 100%; height: 170px; }
+  .show-captions { width: 100%; height: 176px; }
   .cap { justify-content: flex-end; gap: 10px; }
-  .cap h2 { font-size: clamp(30px, 8.6vw, 40px); }
+  .cap h2 { font-size: clamp(32px, 9vw, 42px); }
   .cap p { font-size: 16px; }
-  .show-bar { padding-bottom: 3vh; }
-  .show-steps { gap: 0; flex-wrap: nowrap; }
-  /* on phones the steps become dots; each keeps a full 44px touch target */
-  .show-steps .step { width: 34px; padding: 0; background: none; border: 0; }
+  .show-bar { padding-bottom: 3vh; align-items: center; }
+  /* on phones the steps become short segments of the rail; each keeps a full 44px touch target */
+  .show-steps { gap: 6px; flex-wrap: nowrap; }
+  .show-steps .step { min-width: 0; width: 34px; height: 44px; padding: 0; }
   .show-steps .step span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .show-steps .step::before { content: ""; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: rgba(243, 237, 228, 0.3); transition: transform 0.3s var(--ease), background 0.3s; }
-  .show-steps .step.is-active { background: none; }
-  .show-steps .step::after { display: none; }
-  .show-steps .step.is-active::before { background: var(--accent); transform: scale(1.5); }
+  .show-steps .step::before, .show-steps .step::after { top: 21px; }
+
+  .listen { padding: 88px 0 64px; }
+  .listen-grid { grid-template-columns: 1fr; gap: 26px; }
+  .listen-text { font-size: 16px; margin-top: 14px; }
+  .clip-btn { gap: 14px; padding: 12px 2px 12px 0; }
+  .clip-play { width: 44px; height: 44px; }
 
   .spaces-sec { padding: 96px 0 56px; }
-  .spaces-grid { grid-template-columns: 1fr; gap: 28px; }
-  .spaces { font-size: clamp(36px, 10.5vw, 52px); }
-  .room-steps { margin-top: 24px; }
-  .room-step { min-height: 40px; padding: 0 14px; font-size: 13px; }
-  .room-frame { justify-self: center; width: min(100%, calc(46svh * 1.3)); }
+  .spaces-grid { grid-template-columns: 1fr; gap: 26px; }
+  .spaces { font-size: clamp(38px, 11vw, 54px); }
+  .room-steps { margin-top: 22px; gap: 2px 12px; }
+  .room-step { font-size: 11px; letter-spacing: 0.14em; }
+  .room-frame { justify-self: center; width: min(100%, calc(46svh * 1.3)); border-radius: 40px 10px; }
 
-  .order-text { font-size: 16px; margin: 14px 0 22px; }
-  .design-note { margin-bottom: 28px; }
-  .design-picks { gap: 8px; }
-  .design-pick { min-height: 46px; font-size: 14px; padding-right: 14px; }
-  .design-thumb { width: 28px; height: 35px; }
-
-  .order { padding: 76px 0 100px; }
+  .order { padding: 80px 0 100px; }
   .order-grid { grid-template-columns: 1fr; gap: 8px; }
-  .order-space { min-height: 36vh; }
+  .order-space { min-height: 34vh; }
+  .order-text { font-size: 16px; margin: 12px 0 20px; }
+  .design-picks { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 8px; max-width: none; }
+  .design-note { margin: 14px 0 22px; font-size: 15px; }
+  .perks { margin-bottom: 22px; gap: 6px 16px; font-size: 15px; }
   .stores { grid-template-columns: 1fr; max-width: none; }
 
-  .faq { padding: 80px 0 110px; }
-  .faq-grid { grid-template-columns: 1fr; gap: 32px; }
-  .maker { padding: 80px 0 110px; }
-  .maker-grid { grid-template-columns: 1fr; gap: 24px; }
-  .bulk { margin-top: 36px; padding-top: 32px; }
+  .maker { padding: 84px 0 110px; }
+  .maker-grid { grid-template-columns: 1fr; gap: 22px; }
+  .bulk { margin-top: 28px; }
   .bulk-actions .btn { flex: 1 1 auto; }
-  summary { padding: 18px 0; font-size: 18px; }
-  details p { padding: 0 0 20px; }
+  .faq { padding: 84px 0 110px; }
+  .faq-grid { grid-template-columns: 1fr; gap: 28px; }
+  summary { padding: 18px 0; font-size: 19px; }
+  summary .ph { width: 34px; height: 34px; }
+  details p { padding: 0 0 20px; font-size: 16px; }
 
   .footer { padding: 80px 0 40px; }
-  .footer-line { margin-bottom: 64px; }
+  .footer-line { margin-bottom: 56px; }
+}
+@media (max-width: 380px) {
+  .design-picks { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .switch-btn { padding: 0 10px 0 12px; font-size: 13px; }
+}
+
+/* desktop: the FAQ's rows sit a little closer, so all the questions fit one screen and the snap
+   lands on the whole section (an open answer can still make it taller; that is the visitor's doing) */
+@media (min-width: 768px) {
+  .faq { padding: 100px 0 40px; }
+  summary { padding: 15px 0; font-size: clamp(19px, 1.45vw, 22px); }
+  details p { padding-bottom: 20px; }
+}
+/* on a wide screen the questions run in two columns under the heading (an answer opening makes
+   only its own row taller), so every product's questions fit one screen */
+@media (min-width: 1024px) {
+  .faq-grid { grid-template-columns: 1fr; gap: 36px; }
+  .faq-list { grid-template-columns: 1fr 1fr; column-gap: 56px; align-items: start; border-top: 0; }
+  .faq-list details { border-top: 1px solid var(--line); border-bottom: 0; }
+}
+/* shorter laptop screens: the picker and the designs step in a little, so each still fits */
+@media (min-width: 768px) and (max-height: 860px) {
+  .products { padding-top: 96px; }
+  .stage { min-height: 34vh; }
+  .pick-tag { margin: 6px 0 16px; }
+  .order { padding: 96px 0 40px; }
+  .order-space { min-height: 56vh; }
+  .order-text { margin: 12px 0 18px; }
+  .design-note { margin: 12px 0 18px; }
+  .perks { margin-bottom: 18px; }
+}
+
+/* ---------- Phones: every section fits one screen, so each snap lands on a whole section ----------
+   (the page snaps a section at a time; a section taller than the screen would stop part-way) */
+@media (max-width: 767px) {
+  /* best seller: the two buttons side by side, tighter spacing */
+  .hero { padding: 70px 0 18px; }
+  .hero-space { min-height: 30svh; }
+  .hero-title { margin-bottom: 12px; }
+  .hero-sub { font-size: 15px; line-height: 1.5; margin-bottom: 14px; }
+  .hero-points { margin-bottom: 16px; }
+  .hero-points li { padding: 7px 0; }
+  .hero-ctas { flex-wrap: nowrap; gap: 8px; }
+  .hero-ctas .btn { flex: 1 1 auto; min-width: 0; height: 50px; padding: 0 14px; font-size: 15px; gap: 8px; }
+  .hero-ctas .btn-ghost { flex: 0 0 auto; }
+  .hero-more { margin-top: 14px; font-size: 15px; }
+
+  /* designs: one row of prints, swiped sideways, fading at the edge to show there are more */
+  .order { padding: 70px 0 18px; }
+  /* minmax(0, 1fr): the long sideways row of prints must not stretch the column past the screen */
+  .order-grid { grid-template-columns: minmax(0, 1fr); }
+  .order-copy { min-width: 0; }
+  .order-space { min-height: 24svh; }
+  .order-title { font-size: clamp(28px, 8.4vw, 34px); }
+  .order-text { font-size: 15px; line-height: 1.5; margin: 8px 0 12px; }
+  .design-picks {
+    display: flex; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain;
+    margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter) 8px; scroll-padding-inline: var(--gutter);
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .design-picks::-webkit-scrollbar { display: none; }
+  .design-pick { flex: 0 0 60px; scroll-snap-align: start; }
+  .design-note { min-height: 3em; margin: 8px 0 12px; font-size: 14.5px; line-height: 1.5; }
+  .perks { margin-bottom: 14px; gap: 4px 14px; font-size: 14px; }
+  .buy-label { margin-bottom: 10px; }
+  /* the three stores in one row */
+  .stores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .store { height: 50px; padding: 0 10px 0 14px; font-size: 15px; gap: 4px; }
+  .store .ph { font-size: 15px; }
+  .buy-note { min-height: 0; margin-top: 10px; font-size: 14px; }
+
+  /* made by: smaller type, the two contact buttons side by side */
+  .maker { padding: 70px 0 18px; }
+  .maker-grid { gap: 14px; }
+  .maker .section-title { font-size: clamp(30px, 9vw, 36px); }
+  .maker-text { font-size: 16px; line-height: 1.55; }
+  .bulk { margin-top: 18px; padding: 22px 20px; border-radius: 40px 10px; }
+  .bulk h3 { font-size: 20px; }
+  .bulk p { font-size: 14.5px; line-height: 1.5; margin: 8px 0 14px; }
+  .bulk-number { font-size: clamp(28px, 8.6vw, 34px); margin-bottom: 16px; }
+  .bulk-actions { flex-wrap: nowrap; gap: 8px; }
+  .bulk-actions .btn { height: 48px; padding: 0 14px; font-size: 15px; }
+
+  /* FAQ: compact rows, each still a full 44px touch target */
+  .faq { padding: 70px 0 18px; }
+  .faq-grid { gap: 16px; }
+  .faq .section-title { font-size: clamp(30px, 9vw, 36px); }
+  summary { padding: 8px 0; min-height: 46px; font-size: 16px; gap: 12px; }
+  summary .ph { width: 30px; height: 30px; font-size: 14px; }
+  details p { padding: 0 0 14px; font-size: 15px; line-height: 1.55; }
+}
+/* short phones (under 700px tall): a little tighter still */
+@media (max-width: 767px) and (max-height: 700px) {
+  .hero-space { min-height: 24svh; }
+  .hero-more { display: none; } /* the picker is the very next section, and in the nav */
+  .hero-points { font-size: 13px; }
+  .order-space { min-height: 17svh; }
+  .order-text { display: none; } /* the heading says it: tap a design, see it on the product */
+  .maker-text { font-size: 15px; }
+  .bulk p { font-size: 14px; }
+  summary { min-height: 44px; padding: 6px 0; font-size: 15.5px; }
+  .faq { padding-top: 64px; }
+  .faq-grid { gap: 10px; }
 }
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   /* keep fades and colour changes, drop spatial movement and loops */
   *, *::before, *::after { animation: none !important; }
-  .spaces-word > span, .cap, .room-scene, .design-thumb { transform: none !important; filter: none !important; }
-  .design-pick.is-playing .design-sound { animation: none; }
+  .spaces-word > span, .cap, .room-scene, .design-thumb, .bloom img { transform: none !important; filter: none !important; }
+  .hero-poster { transition: none; }
   .nav-links a::after { transition: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .nav { background: var(--bg-2); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .nav { background: var(--nav-solid); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
 /* ---------- Browser surfaces ---------- */
-::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: #fff8ec; }
-html { scrollbar-color: #3b3144 var(--bg); scrollbar-width: thin; }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--ink); }
+html { scrollbar-color: var(--scroll-thumb) var(--bg); scrollbar-width: thin; caret-color: var(--accent); accent-color: var(--accent); }
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #3b3144; border-radius: 999px; border: 2px solid var(--bg); }
-::-webkit-scrollbar-thumb:hover { background: #5a4a5e; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 999px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hi); }
 a { text-underline-offset: 0.2em; }
 
 /* ---------- Low-end devices (set by perf.js): skip the costliest compositing effects ---------- */
-.lite .nav { background: rgba(21, 18, 29, 0.95); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.lite .nav { background: var(--nav-solid); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .lite .cap, .lite .spaces-word > span { filter: none !important; }
+.lite .night::after { display: none; }
+.lite .bloom, .lite .bloom img { animation: none; }
+/* the page's light changes colour at once instead of fading, which repaints the whole screen for over a second */
+:root.lite { transition: none; }

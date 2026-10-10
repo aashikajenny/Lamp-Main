@@ -5,6 +5,7 @@
    animation loop, and a viewer only draws while its canvas is on screen.
    Exposes window.Models:
      create(canvas, {kinds, fog})  a viewer showing those products (default ["lamp"]), or null without WebGL
+     prepare(kind)       build a product's shapes ahead, while the page is idle
        units[i]            one product on the viewer's stage:
          setKind(k, flip)    "mantra" | "mini" | "lamp"; with flip, it turns once and changes while edge-on
          setArt(id, flip)    show a design (see designs.js) on its front, the same way
@@ -19,6 +20,8 @@
          power               0..1 multiplier on the light
          art, kind           what it shows now
        focus               index of the unit the page's light follows
+       drawn               a promise, resolved the first time the viewer has drawn
+       warm()              compile its shaders ahead, in the background (done for you on changes)
        (a one-product viewer also has its unit's methods itself)
      focusPoint()        [x, y, design id, kind] of the on-screen product nearest the middle of the screen */
 (function () {
@@ -32,6 +35,17 @@
   const TAU = Math.PI * 2;
   const ratioFor = (level) => Math.min(DPR, [2, 1.5, 1][level] || 1);
   const FOV = 30, DIST = 12;
+  // on the cream page the products sit in a bright, blush-white studio and never fall fully into
+  // darkness; PAGE is the page's cream, for the picker's fog
+  const PAGE = 0xfaf5f0;
+  const ROOM_MIN = 0.42;
+  // the light a product gives off (its halo, the lamp's spill, the rings of sound): added light would
+  // vanish into the cream, so it is laid on as coloured light instead, the way a lit print tints a
+  // pale wall. The halo reaches well out and fades slowly, since only its outer part shows round the
+  // product, and that is where coloured light on a pale wall is seen
+  const GLOW_BLEND = THREE.NormalBlending;
+  const HALO_K = 0.95, SPILL_K = 0.85, WAVE_K = 1.35;
+  const HALO_SIZE = 6.4;
   const H = 2.9; // every product is modelled this tall, so they share one scale
 
   /* ---------- Shape helpers ---------- */
@@ -190,18 +204,45 @@
   const miniFrontZ = (x, y) => N.FRONT_Z - rollFront(x, y);
   const miniBackZ = (x, y) => N.BACK_Z + rollBack(x, y);
 
+  // the bands of height where each shell is flat (no roll), and so stays exactly as extruded
+  const FLAT = {
+    front: [-1.45 + ROLL.frontBot[1], 1.45 - ROLL.frontTop[1]],
+    back: [-1.45 + ROLL.backBot[1], 1.45 - ROLL.backTop[1]]
+  };
+  const inBand = (y, [lo, hi]) => y >= lo && y <= hi;
+  // an edge the bend leaves straight: both ends in the same shell's flat band
+  const straightOnBody = (a, b) => {
+    const front = a[2] > N.SEAM_Z;
+    if (front !== b[2] > N.SEAM_Z) return false; // it crosses the seam, where the bend changes
+    const band = front ? FLAT.front : FLAT.back;
+    return inBand(a[1], band) && inBand(b[1], band);
+  };
+
   // split a (non-indexed) geometry's long triangles, so a surface can be bent smoothly;
-  // texture coordinates come along
-  function tessellate(geo, maxEdge) {
+  // texture coordinates come along. `straight(a, b)` names edges the bend will leave straight
+  // (where the shell is flat): those needn't be cut, however long. Whether an edge is cut depends
+  // only on the edge itself, so the two triangles either side of it always cut it the same way and
+  // the surface never cracks. (This runs on tens of thousands of points while the page loads, so
+  // it works on plain arrays of numbers rather than making an object for every point.)
+  function tessellate(geo, maxEdge, straight) {
     const pos = geo.attributes.position, uv = geo.attributes.uv;
     const outP = [], outU = [];
     const max2 = maxEdge * maxEdge;
-    const vert = (i) => ({ p: [pos.getX(i), pos.getY(i), pos.getZ(i)], u: uv ? [uv.getX(i), uv.getY(i)] : [0, 0] });
-    const mid = (a, b) => ({ p: a.p.map((v, k) => (v + b.p[k]) / 2), u: a.u.map((v, k) => (v + b.u[k]) / 2) });
-    const d2 = (a, b) => (a.p[0] - b.p[0]) ** 2 + (a.p[1] - b.p[1]) ** 2 + (a.p[2] - b.p[2]) ** 2;
+    // a point is [x, y, z, u, v]
+    const vert = (i) => [pos.getX(i), pos.getY(i), pos.getZ(i), uv ? uv.getX(i) : 0, uv ? uv.getY(i) : 0];
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2, (a[4] + b[4]) / 2];
+    // the edge's squared length if it has to be cut, else 0
+    const cut = (a, b) => {
+      const l2 = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+      return l2 > max2 && !(straight && straight(a, b)) ? l2 : 0;
+    };
     const split = (a, b, c, depth) => {
-      const ab = d2(a, b), bc = d2(b, c), ca = d2(c, a), m = Math.max(ab, bc, ca);
-      if (m <= max2 || depth > 14) { [a, b, c].forEach((v) => { outP.push(...v.p); outU.push(...v.u); }); return; }
+      const ab = cut(a, b), bc = cut(b, c), ca = cut(c, a), m = Math.max(ab, bc, ca);
+      if (m === 0 || depth > 14) {
+        outP.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+        outU.push(a[3], a[4], b[3], b[4], c[3], c[4]);
+        return;
+      }
       if (m === ab) { const q = mid(a, b); split(a, q, c, depth + 1); split(q, b, c, depth + 1); }
       else if (m === bc) { const q = mid(b, c); split(a, b, q, depth + 1); split(a, q, c, depth + 1); }
       else { const q = mid(c, a); split(a, b, q, depth + 1); split(q, b, c, depth + 1); }
@@ -215,25 +256,48 @@
     g.setAttribute("uv", new THREE.Float32BufferAttribute(outU, 2));
     return g;
   }
-  // smooth shading across shared corners (an extrusion's triangles don't share vertices)
+  // smooth shading across shared corners (an extrusion's triangles don't share vertices): points in
+  // the same place (to 1/10000) share the sum of their faces' normals, each weighted by the angle of
+  // its corner there, so the shading is the same however finely a flat part happens to be cut
   function smoothNormals(geo) {
-    const pos = geo.attributes.position, n = pos.count;
-    const acc = new Map(), keys = new Array(n);
-    const key = (i) => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    const p = geo.attributes.position.array, n = p.length / 3;
+    const Q = 131072, OFF = 65536; // each rounded coordinate packed into 17 bits of one number
+    const slotOf = new Map(), slots = new Int32Array(n);
+    const sums = [];
+    for (let i = 0; i < n; i++) {
+      const key = ((Math.round(p[i * 3] * 1e4) + OFF) * Q + (Math.round(p[i * 3 + 1] * 1e4) + OFF)) * Q
+        + (Math.round(p[i * 3 + 2] * 1e4) + OFF);
+      let s = slotOf.get(key);
+      if (s === undefined) { s = sums.length / 3; slotOf.set(key, s); sums.push(0, 0, 0); }
+      slots[i] = s;
+    }
+    // the angle at corner o of a triangle, between its edges to e1 and e2
+    const angle = (o, e1, e2) => {
+      const x1 = p[e1] - p[o], y1 = p[e1 + 1] - p[o + 1], z1 = p[e1 + 2] - p[o + 2];
+      const x2 = p[e2] - p[o], y2 = p[e2 + 1] - p[o + 1], z2 = p[e2 + 2] - p[o + 2];
+      const l = Math.hypot(x1, y1, z1) * Math.hypot(x2, y2, z2);
+      return l ? Math.acos(Math.max(-1, Math.min(1, (x1 * x2 + y1 * y2 + z1 * z2) / l))) : 0;
+    };
     for (let i = 0; i < n; i += 3) {
-      a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i + 1); c.fromBufferAttribute(pos, i + 2);
-      const f = c.clone().sub(b).cross(a.clone().sub(b));
+      const a = i * 3, b = a + 3, c = a + 6;
+      // the face's normal: (c - b) x (a - b), made unit length
+      const ux = p[c] - p[b], uy = p[c + 1] - p[b + 1], uz = p[c + 2] - p[b + 2];
+      const vx = p[a] - p[b], vy = p[a + 1] - p[b + 1], vz = p[a + 2] - p[b + 2];
+      let fx = uy * vz - uz * vy, fy = uz * vx - ux * vz, fz = ux * vy - uy * vx;
+      const fl = Math.hypot(fx, fy, fz);
+      if (!fl) continue; // a sliver with no area has no direction
+      fx /= fl; fy /= fl; fz /= fl;
+      const corners = [angle(a, b, c), angle(b, c, a), angle(c, a, b)];
       for (let k = 0; k < 3; k++) {
-        const kk = keys[i + k] = key(i + k);
-        const v = acc.get(kk);
-        if (v) v.add(f); else acc.set(kk, f.clone());
+        const s = slots[i + k] * 3, w = corners[k];
+        sums[s] += fx * w; sums[s + 1] += fy * w; sums[s + 2] += fz * w;
       }
     }
     const normals = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const v = acc.get(keys[i]).clone().normalize();
-      normals[i * 3] = v.x; normals[i * 3 + 1] = v.y; normals[i * 3 + 2] = v.z;
+      const s = slots[i] * 3, x = sums[s], y = sums[s + 1], z = sums[s + 2];
+      const l = Math.hypot(x, y, z) || 1;
+      normals[i * 3] = x / l; normals[i * 3 + 1] = y / l; normals[i * 3 + 2] = z / l;
     }
     geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
     return geo;
@@ -246,7 +310,7 @@
       depth: N.FRONT_Z - N.BACK_Z - 2 * B, bevelEnabled: true, bevelThickness: B, bevelSize: B, bevelSegments: lite ? 3 : 5, curveSegments: 1
     });
     g.translate(0, 0, N.BACK_Z + B);
-    g = tessellate(g, lite ? 0.16 : 0.09);
+    g = tessellate(g, lite ? 0.16 : 0.09, straightOnBody);
     const pos = g.attributes.position;
     const LF = N.FRONT_Z - N.SEAM_Z, LB = N.SEAM_Z - N.BACK_Z;
     for (let i = 0; i < pos.count; i++) {
@@ -264,7 +328,8 @@
   }
   // a flat piece laid onto the front (or back) surface, following its curves
   function onSurface(geo, lift, back) {
-    let g = tessellate(geo, 0.08);
+    const band = back ? FLAT.back : FLAT.front;
+    let g = tessellate(geo, 0.08, (a, b) => inBand(a[1], band) && inBand(b[1], band));
     const pos = g.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), y = pos.getY(i);
@@ -394,12 +459,12 @@
     draw(c.getContext("2d"));
     return c;
   }
-  // a soft warm studio, so plastic and metal read properly
+  // a soft warm studio, so plastic and metal read properly (pale blush and cream on the light page)
   const envCanvas = canvasTexture((g) => {
     const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, "#5a4a3c");
-    grad.addColorStop(0.45, "#2a2230");
-    grad.addColorStop(1, "#0b0a10");
+    grad.addColorStop(0, "#a8948a");
+    grad.addColorStop(0.45, "#6e5752");
+    grad.addColorStop(1, "#3a2c2a");
     g.fillStyle = grad; g.fillRect(0, 0, 512, 256);
     [[140, 70, 70, "rgba(255,226,180,0.95)"], [390, 90, 50, "rgba(255,170,90,0.7)"]].forEach(([x, y, r, col]) => {
       const rg = g.createRadialGradient(x, y, 0, x, y, r);
@@ -418,10 +483,7 @@
   }, [256, 256]));
   const haloTex = new THREE.CanvasTexture(canvasTexture((g) => {
     const rg = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-    rg.addColorStop(0, "rgba(255,255,255,0.9)");
-    rg.addColorStop(0.25, "rgba(235,235,235,0.45)");
-    rg.addColorStop(0.6, "rgba(210,210,210,0.12)");
-    rg.addColorStop(1, "rgba(210,210,210,0)");
+    [[0, 0.95], [0.3, 0.62], [0.55, 0.28], [0.8, 0.08], [1, 0]].forEach(([o, a]) => rg.addColorStop(o, `rgba(255,255,255,${a})`));
     g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
   }, [256, 256]));
   // the Mini's speaker grille, measured from the photo of the device: nine arcs centred on the
@@ -547,7 +609,7 @@
   // each product on a stage has its own materials, since its light and artwork are its own
   function materials() {
     const additive = (color) => new THREE.MeshBasicMaterial({
-      color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide
+      color, blending: GLOW_BLEND, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide
     });
     const m = {
       plastic: coated({
@@ -567,7 +629,7 @@
       cover: coated({ color: 0xffffff, transparent: true, opacity: 0.03, roughness: 0.12, clearcoat: 1, depthWrite: false }),
       led: new THREE.MeshStandardMaterial({ color: 0xc8000a, roughness: 0.3, emissive: new THREE.Color(0xff0008), emissiveIntensity: 0 }),
       grille: new THREE.MeshStandardMaterial({ map: grilleTex, transparent: true, depthWrite: false, roughness: 0.6 }),
-      spill: new THREE.MeshBasicMaterial({ map: spillTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 }),
+      spill: new THREE.MeshBasicMaterial({ map: spillTex, blending: GLOW_BLEND, transparent: true, depthWrite: false, opacity: 0 }),
       waves: [0, 1, 2].map(() => additive(0xffd9a8))
     };
     m.art.toneMapped = false;
@@ -726,9 +788,9 @@
     root.add(spin);
     viewer.scene.add(root);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: haloTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0
+      map: haloTex, blending: GLOW_BLEND, transparent: true, depthWrite: false, opacity: 0
     }));
-    halo.scale.set(4.6, 4.6, 1);
+    halo.scale.set(HALO_SIZE, HALO_SIZE, 1);
     halo.position.z = -1.2;
     root.add(halo);
 
@@ -744,6 +806,7 @@
       model = BUILD[k](m);
       spin.add(model.group);
       m.plastic.emissiveIntensity = 0;
+      viewer.warm();
     }
     function applyArt(id) {
       shownArt = id;
@@ -751,7 +814,7 @@
       const first = !m.art.map;
       m.art.map = tex;
       m.art.emissiveMap = tex;
-      if (first) m.art.needsUpdate = true;
+      if (first) { m.art.needsUpdate = true; viewer.warm(); }
       m.plastic.emissive.setHex(0xffd9a8);
       halo.material.color.setHex(0xffb35c);
       m.spill.color.setHex(0xffe2b8);
@@ -760,9 +823,12 @@
         if (shownArt !== id) return;
         const glow = new THREE.Color(...l.glow);
         m.plastic.emissive.copy(warmWhite).lerp(glow, 0.45);
-        m.spill.color.copy(warmWhite).lerp(glow, 0.6);
+        // on the cream page the light keeps more of the print's own colour, and the rings of sound
+        // are a shade deeper, so both still read against the pale ground
+        m.spill.color.copy(warmWhite).lerp(glow, 0.85);
         halo.material.color.copy(glow);
-        m.waves.forEach((w) => w.color.copy(warmWhite).lerp(glow, 0.5));
+        const wave = glow.clone().multiplyScalar(0.78);
+        m.waves.forEach((w) => w.color.copy(wave));
         unit.light = l;
         if (viewer.units[viewer.focus] === unit) viewer.tint(l);
         wake();
@@ -841,13 +907,17 @@
           const flicker = reduceMotion ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
           m.art.emissiveIntensity = Math.min(1.12, glow * 1.05) * flicker;
           m.plastic.emissiveIntensity = glow * 0.5;
-          halo.material.opacity = Math.min(1, glow * 0.95) * flicker * (0.35 + 0.65 * facing);
-          model.spill.material.opacity = Math.min(1, glow * 0.7) * flicker * facing;
+          halo.material.opacity = Math.min(1, glow * 0.95) * flicker * (0.35 + 0.65 * facing) * HALO_K;
+          model.spill.material.opacity = Math.min(1, glow * 0.7) * flicker * facing * SPILL_K;
         } else {
-          // a printed panel in a white case: lit by the room, not from behind
-          m.art.emissiveIntensity = Math.min(0.95, 0.5 + glow * 0.4) * Math.max(0.35, room + 0.25) * unit.power;
-          halo.material.opacity = Math.min(0.5, glow * 0.4) * (0.4 + 0.6 * facing);
           const on = Math.max(0, Math.min(1, cur.on)) * unit.power;
+          // rings of sound leave the speaker, stronger as the dial turns up; each chant also sends a
+          // breath of light in the print's colour out from the device, in step with the first ring
+          const strength = cur.sound * on * (0.35 + 0.65 * cur.knob) * (0.3 + 0.7 * facing);
+          const beat = reduceMotion ? 0 : Math.pow(1 - ((t * 0.42) % 1), 2.5);
+          // a printed panel in a white case: lit by the room, not from behind
+          m.art.emissiveIntensity = (Math.min(0.95, 0.5 + glow * 0.4) * Math.max(0.35, room + 0.25) + strength * beat * 0.12) * unit.power;
+          halo.material.opacity = (Math.min(0.5, glow * 0.4) + strength * beat * 0.5) * (0.4 + 0.6 * facing) * HALO_K;
           m.led.emissiveIntensity = 0.3 * unit.power; // a plain red button (it changes the mantra), not a light
           model.button.position.x = model.button.userData.x - cur.press * 0.045;
           model.knob.rotation.x = -(cur.knob - 0.5) * 4.2;
@@ -858,12 +928,10 @@
             const k = Math.min(1, p / 0.18), sweep = 1 - Math.pow(1 - k, 3);
             model.glint.offset.x = 0.9 - 1.8 * sweep + Math.sin(ry) * 0.18;
           }
-          // rings of sound leaving the speaker, stronger as the dial turns up
-          const strength = cur.sound * on * (0.35 + 0.65 * cur.knob) * (0.3 + 0.7 * facing);
           model.waves.forEach((w, i) => {
             const k = reduceMotion ? 0.35 + i * 0.25 : (t * 0.42 + i / 3) % 1;
             w.scale.setScalar(0.3 + k * 1.9);
-            w.material.opacity = Math.pow(1 - k, 1.6) * strength * 0.45;
+            w.material.opacity = Math.min(1, Math.pow(1 - k, 1.6) * strength * 0.45 * WAVE_K);
             w.visible = strength > 0.005;
           });
         }
@@ -882,14 +950,20 @@
       failed = true;
       return null;
     }
+    // don't ask after each shader the moment it is sent off to compile (asking makes the page wait
+    // for it); the viewer checks they are done before it draws instead (see compiled() below)
+    renderer.debug.checkShaderErrors = false;
+    const parallel = renderer.extensions.get("KHR_parallel_shader_compile");
+    const gl = renderer.getContext();
     renderer.setPixelRatio(ratioFor(Perf.level));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
 
     const scene = new THREE.Scene();
-    // on a stage of several, the ones further back sink into the night
-    if (opts.fog) scene.fog = new THREE.Fog(0x0d0b12, DIST - 1, DIST + 9);
+    // on a stage of several, the ones further back fade into the page
+    // (gentler on the cream page, where white products fading into it would lose their shape)
+    if (opts.fog) scene.fog = new THREE.Fog(PAGE, DIST + 1, DIST + 18);
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
     camera.position.set(0, 0, DIST);
 
@@ -901,17 +975,44 @@
     envTex.dispose();
     pmrem.dispose();
 
-    const hemi = new THREE.HemisphereLight(0xfff1dc, 0x1a1530, 0.35);
+    const hemi = new THREE.HemisphereLight(0xfff1dc, 0x8a6a62, 0.35);
     const key = new THREE.DirectionalLight(0xffe6c4, 1.1);
     key.position.set(4, 5, 7);
     const rim = new THREE.DirectionalLight(0xff9a3c, 1.3);
     rim.position.set(-6, 2, -5);
-    const fill = new THREE.DirectionalLight(0x9c8cff, 0.25);
+    const fill = new THREE.DirectionalLight(0xf0c4b8, 0.25);
     fill.position.set(-5, -3, 5);
     scene.add(hemi, key, rim, fill);
 
     const v = new THREE.Vector3();
     const rimTo = rim.color.clone(), fillTo = fill.color.clone(), warmFill = new THREE.Color(0xfff1dc);
+
+    // Shaders are compiled ahead (as soon as the viewer is made, while the page is idle, and whenever
+    // a product or design brings new ones), not on the frame its section first scrolls into view,
+    // which used to freeze the page for a moment right then. The viewer only draws once the
+    // graphics card has finished them all; until then its canvas simply keeps its last frame.
+    let pending = true, warmTimer = 0, drawn = false, onDrawn;
+    let sized = false, sizeTimer = 0;
+    const firstDraw = new Promise((res) => { onDrawn = res; });
+    function compiled() {
+      if (!pending || !parallel) return true;
+      const list = renderer.info.programs;
+      for (let i = 0; i < list.length; i++) {
+        if (!gl.getProgramParameter(list[i].program, parallel.COMPLETION_STATUS_KHR)) return false;
+      }
+      pending = false;
+      return true;
+    }
+    // start compiling every material in the scene, including parts hidden right now (the rings of
+    // sound only show while it plays), so none of them has to compile mid-animation later
+    function compileAll() {
+      warmTimer = 0;
+      const hidden = [];
+      scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      try { renderer.compile(scene, camera); } catch (e) { /* compiling ahead is only an optimisation */ }
+      hidden.forEach((o) => { o.visible = false; });
+      pending = true;
+    }
     const viewer = {
       canvas, scene, visible: false, visW: 1, visH: 1, focus: 0, units: [],
       // the rim and fill lights take the colours of the artwork in focus
@@ -929,16 +1030,25 @@
         u.root.getWorldPosition(v).project(camera);
         return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height, u.art, u.kind];
       },
-      resize(w, h) {
+      resize(w, h, now) {
         if (!w || !h) return;
-        renderer.setSize(w, h, false);
+        // the camera takes the new shape at once; the drawing buffer, slow to reallocate, follows
+        // once the size has settled (the picture is stretched to fit until then), so dragging a
+        // window edge or turning a phone doesn't stutter
+        clearTimeout(sizeTimer);
+        if (now || !sized) { sized = true; renderer.setSize(w, h, false); }
+        else sizeTimer = setTimeout(() => { renderer.setSize(w, h, false); wake(); }, 160);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         viewer.visH = 2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * DIST;
         viewer.visW = viewer.visH * camera.aspect;
         wake();
       },
-      quality(level) { renderer.setPixelRatio(ratioFor(level)); viewer.resize(canvas.clientWidth, canvas.clientHeight); },
+      quality(level) { renderer.setPixelRatio(ratioFor(level)); viewer.resize(canvas.clientWidth, canvas.clientHeight, true); },
+      // compile the scene's shaders soon (once, however many changes ask for it in a row)
+      warm() { if (!warmTimer) warmTimer = setTimeout(compileAll, 0); },
+      // resolves the first time the viewer has actually drawn its product
+      drawn: firstDraw,
       // build each product once out of sight and compile its shaders now, so changing product later
       // never stalls on the GPU while something is moving
       prewarm(kinds) {
@@ -951,18 +1061,21 @@
         });
         tmp.position.z = -50;
         scene.add(tmp);
-        try { renderer.compile(scene, camera); } catch (e) { /* compiling ahead is only an optimisation */ }
+        compileAll();
         scene.remove(tmp);
       },
       frame(dt, t) {
         const f = viewer.units[viewer.focus];
-        const room = Math.max(0.04, Math.min(1, f ? f.room() : 1));
+        const room = Math.max(ROOM_MIN, Math.min(1, f ? f.room() : 1));
         hemi.intensity = 0.35 * room; key.intensity = 1.1 * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
         const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
         rim.color.lerp(rimTo, k); fill.color.lerp(fillTo, k);
         viewer.units.forEach((u) => u.frame(dt, t, room));
+        if (warmTimer) { clearTimeout(warmTimer); compileAll(); }
+        if (!compiled()) return; // still compiling: keep the last frame on screen for now
         renderer.render(scene, camera);
+        if (!drawn) { drawn = true; onDrawn(); }
       }
     };
 
@@ -1034,6 +1147,9 @@
 
   window.Models = {
     create,
+    // build a product's shapes now (the slowest part of making a viewer), so the viewer that needs
+    // them later is made in a much shorter pause
+    prepare(kind) { if (BUILD[kind]) geometry(kind); },
     focusPoint() {
       let best = null, bestD = Infinity;
       const mid = window.innerHeight / 2;

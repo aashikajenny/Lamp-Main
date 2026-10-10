@@ -71,9 +71,12 @@
   function file(id) {
     return files[id] || (files[id] = new Promise((resolve) => {
       const img = new Image();
-      img.addEventListener("load", () => resolve(img));
-      img.addEventListener("error", () => resolve(null));
       img.src = `images/designs/${encodeURIComponent(id)}.webp`;
+      // decoded off the main thread before anyone uses it, so turning it into a 3D texture or a
+      // thumbnail never stops the page to decode it
+      const loaded = img.decode ? img.decode()
+        : new Promise((ok, fail) => { img.onload = ok; img.onerror = fail; });
+      loaded.then(() => resolve(img), () => resolve(img.complete && img.naturalWidth ? img : null));
     }));
   }
 

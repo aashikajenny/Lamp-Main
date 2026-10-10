@@ -22,6 +22,13 @@
   const Perf = window.Perf || { level: 0, onChange() {} };
   const TAU = Math.PI * 2;
   const RIPPLE_SPEED = 560, RIPPLE_LIFE = 1.7, MAX_RIPPLES = 6, FRONT_DOTS = 120;
+  // on the cream page the dots keep most of the artwork's colour, deepened a little towards the
+  // logo's mauve so they still read on cream. The drifting motes are kept faint, so they never
+  // look like dust on the screen
+  const TO = "vec3(0.58, 0.37, 0.34)";
+  const MIX = ["0.42", "0.3", "0.35"];
+  const GAIN = "1.3";
+  const MOTE = "0.4";
 
   /* ---------- Shaders ---------- */
   // a: kind-specific data; b: more of it. kind 0 = ring dot, 1 = mote, 2 = ripple-front dot
@@ -63,7 +70,7 @@
         glow = min(glow, 1.0);
         size = a.z + glow * 1.4;
         alpha = 0.085 + 0.75 * glow;
-        vColor = mix(mix(colA, colB, b.z), vec3(1.0), 0.4);
+        vColor = mix(mix(colA, colB, b.z), ${TO}, ${MIX[0]});
       } else if (kind < 1.5) {
         // mote: a = (x 0..1, y phase 0..1, size, rise px/s), b = (sway phase, twinkle phase, colour mix, kind)
         float h = res.y + 20.0;
@@ -82,17 +89,17 @@
         float near = exp(-dot(c, c) / (minDim * minDim * 0.18));
         float twinkle = 0.55 + 0.45 * sin(time * 1.3 + b.y);
         size = a.z;
-        alpha = (0.12 + 0.5 * near) * twinkle;
-        vColor = mix(mix(colA, colB, b.z), vec3(1.0), 0.3);
+        alpha = (0.12 + 0.5 * near) * twinkle * ${MOTE};
+        vColor = mix(mix(colA, colB, b.z), ${TO}, ${MIX[1]});
       } else {
         // ripple front: a = (angle, ripple index, -, -)
         vec4 r = rip[int(a.y)];
         p = r.xy + vec2(cos(a.x), sin(a.x)) * r.z;
         size = 1.0;
         alpha = 0.3 * r.w;
-        vColor = mix(colA, vec3(1.0), 0.2);
+        vColor = mix(colA, ${TO}, ${MIX[2]});
       }
-      vAlpha = alpha * shown;
+      vAlpha = min(alpha * ${GAIN}, 1.0) * shown;
       vSize = size * 2.0 * dpr + 1.0;
       gl_PointSize = vSize;
       gl_Position = vec4(p.x / res.x * 2.0 - 1.0, 1.0 - p.y / res.y * 2.0, 0.0, 1.0);
@@ -118,24 +125,37 @@
   gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
   gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
   gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    canvas.style.display = "none";
-    window.Field = { level: 0, burst() {} };
-    return;
-  }
-  gl.useProgram(prog);
+  // The shaders compile in the background where the browser can (KHR_parallel_shader_compile):
+  // asking whether they linked straight away would stop the page until they had. So the field
+  // waits for them a frame at a time and sets itself up once they're done; it fades in anyway.
+  const parallel = gl.getExtension("KHR_parallel_shader_compile");
   const U = {};
-  ["res", "dpr", "time", "shown", "minDim", "centre", "pointer", "rip", "colA", "colB"].forEach((n) => { U[n] = gl.getUniformLocation(prog, n); });
-  const locA = gl.getAttribLocation(prog, "a"), locB = gl.getAttribLocation(prog, "b");
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.enableVertexAttribArray(locA);
-  gl.enableVertexAttribArray(locB);
-  gl.vertexAttribPointer(locA, 4, gl.FLOAT, false, 32, 0);
-  gl.vertexAttribPointer(locB, 4, gl.FLOAT, false, 32, 16);
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  gl.clearColor(0, 0, 0, 0);
+  let ready = false;
+  function setup() {
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      canvas.style.display = "none";
+      api.level = 0;
+      return;
+    }
+    gl.useProgram(prog);
+    ["res", "dpr", "time", "shown", "minDim", "centre", "pointer", "rip", "colA", "colB"].forEach((n) => { U[n] = gl.getUniformLocation(prog, n); });
+    const locA = gl.getAttribLocation(prog, "a"), locB = gl.getAttribLocation(prog, "b");
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(locA);
+    gl.enableVertexAttribArray(locB);
+    gl.vertexAttribPointer(locA, 4, gl.FLOAT, false, 32, 0);
+    gl.vertexAttribPointer(locB, 4, gl.FLOAT, false, 32, 16);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
+    ready = true;
+    build();
+  }
+  function whenLinked() {
+    if (parallel && !gl.getProgramParameter(prog, parallel.COMPLETION_STATUS_KHR)) requestAnimationFrame(whenLinked);
+    else setup();
+  }
 
   /* ---------- State ---------- */
   let looping = false, prev = 0, shown = 0, lastPulse = 0;
@@ -175,10 +195,13 @@
   /* ---------- Points: built once per size and quality level ---------- */
   let W = 0, H = 0, DPR = 1, count = 0;
   function build() {
+    if (!ready) return;
     const level = Perf.level;
-    DPR = Math.min(window.devicePixelRatio || 1, level ? 1 : 1.5);
     W = window.innerWidth;
     H = canvas.clientHeight || window.innerHeight;
+    // on a big, sharp screen the canvas would be many millions of pixels, cleared and blended every
+    // frame for a few hundred soft dots: keep it to about 3.5 megapixels
+    DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, level ? 1 : 1.5, Math.sqrt(3.5e6 / (W * H))));
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -208,10 +231,15 @@
     gl.uniform1f(U.minDim, Math.min(W, H));
     start();
   }
-  build();
-  // the canvas is 100lvh, so the mobile URL bar showing or hiding doesn't rebuild it
+  whenLinked();
+  // the canvas is 100lvh, so the mobile URL bar showing or hiding doesn't rebuild it; a real resize
+  // rebuilds it once the size has settled (the field is stretched to fit for that moment), so
+  // dragging a window edge doesn't stutter
+  let resizeTimer = 0;
   window.addEventListener("resize", () => {
-    if (window.innerWidth !== W || (canvas.clientHeight || window.innerHeight) !== H) build();
+    if (window.innerWidth === W && (canvas.clientHeight || window.innerHeight) === H) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(build, 160);
   });
   Perf.onChange(build);
 
@@ -227,7 +255,7 @@
 
   /* ---------- Frame ---------- */
   function start() {
-    if (looping || document.hidden) return;
+    if (looping || document.hidden || !ready) return;
     looping = true;
     prev = 0;
     requestAnimationFrame(frame);
