@@ -206,6 +206,7 @@
 
     stopSound(); // a design's sound belongs to the product it was played on
     stopClip(); // and a recording to the device it was played for
+    requestAnimationFrame(() => fitFaq()); // each product has its own questions
     // the 3D products below turn once and come round as the new one
     ["features", "order"].forEach((k) => {
       if (!views[k]) return;
@@ -882,14 +883,20 @@
 
   /* ---------- Scrolling: one section per turn of the wheel ---------- */
   // The page snaps to sections (style.css), so it never comes to rest in the space between two.
-  // Touch, the keyboard and the scrollbar get that from the browser; the mouse wheel and the
-  // trackpad get this, so that even a small turn of the wheel moves on to the next section instead
-  // of springing back. A section clearly taller than the screen is stepped through, most of a
-  // screen at a time, before the next one (one only a little taller, by some of its padding, is
-  // not: a step of a few pixels would feel like the wheel did nothing). One gesture moves one
-  // step: the wheel events that follow it (a trackpad keeps sending them as it coasts to a stop)
-  // are swallowed until they pause.
+  // Touch, the keyboard and the scrollbar get that from the browser. The mouse wheel and the
+  // trackpad get this, because the browser alone springs a small turn of the wheel back to where it
+  // was: here even one click of the wheel moves on to the next section.
+  // - Every section is laid out to fit the screen. If one is ever taller (an FAQ answer open, an
+  //   unusual window), it is stepped through, most of a screen at a time, and its bottom always
+  //   comes into view before the next section, so nothing is out of reach.
+  // - A mouse wheel sends one event per click, each a deliberate push: once a step has finished, the
+  //   next click moves on, however soon it comes. A trackpad sends a stream of small events and keeps
+  //   sending them, ever smaller, as it coasts to a stop: those are the same swipe and are swallowed,
+  //   while a fresh swipe (after a short pause, or a clear new push while still coasting) counts.
+  // - On very short screens (a phone held sideways) the page doesn't snap at all (style.css), and
+  //   the wheel scrolls as usual.
   const SECTIONS = ".hero, .products, .show, .listen, .spaces-sec, .order, .maker, .faq";
+  const snapping = () => getComputedStyle(document.documentElement).scrollSnapType !== "none";
   function scrollStops() {
     const vh = window.innerHeight, maxY = document.documentElement.scrollHeight - vh;
     const stops = [];
@@ -898,26 +905,24 @@
       if (!h) return; // hidden: another product's section, or recordings not listed yet
       const top = s.getBoundingClientRect().top + window.scrollY;
       stops.push(top);
-      if (h - vh > vh * 0.12) {
-        for (let y = top + vh * 0.85; y < top + h - vh; y += vh * 0.85) stops.push(y);
-        stops.push(top + h - vh);
+      if (h > vh + 4) {
+        for (let y = top + vh * 0.85; y < top + h - vh - vh * 0.15; y += vh * 0.85) stops.push(y);
+        stops.push(top + h - vh); // its bottom, before the next section
       }
     });
     stops.push(maxY); // the footer
-    return stops.map((y) => Math.round(Math.min(Math.max(y, 0), maxY))).sort((a, b) => a - b);
+    return [...new Set(stops.map((y) => Math.round(Math.min(Math.max(y, 0), maxY))))].sort((a, b) => a - b);
   }
-  // A mouse wheel sends one event per click of the wheel, each a deliberate push: once the last step
-  // has finished, the next click moves on, however soon it comes. A trackpad sends a stream of small
-  // events and keeps sending them as it coasts to a stop: those are the same gesture and are
-  // swallowed, but a fresh swipe (after a short pause, or a clear new push while still coasting)
-  // always counts, so a visitor who keeps scrolling never finds the page stuck.
-  let stepEnds = 0, lastWheel = 0, lastSize = 0;
-  const isWheelClick = (e) => e.deltaMode !== 0 || (Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+  let stepEnds = 0, lastWheel = 0, lastSize = 0, sameCount = 0;
   window.addEventListener("wheel", (e) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return; // zooming, or sideways
-    const now = performance.now(), size = Math.abs(e.deltaY);
-    const gap = now - lastWheel;
-    const fresh = isWheelClick(e) || gap > 140 || size > lastSize * 1.6 + 6;
+    if (!snapping()) return; // free scrolling on this screen
+    const now = performance.now(), size = Math.abs(e.deltaY), gap = now - lastWheel;
+    // a mouse wheel: line or page steps, or the same large step again and again (at any zoom or
+    // display scaling); a trackpad's stream changes size from one event to the next
+    sameCount = gap < 400 && Math.abs(size - lastSize) < 0.5 ? sameCount + 1 : 0;
+    const wheelClick = e.deltaMode !== 0 || (size >= 40 && (Number.isInteger(size) || sameCount >= 1));
+    const fresh = wheelClick || gap > 140 || size > lastSize * 1.6 + 6;
     lastWheel = now;
     lastSize = size;
     e.preventDefault();
@@ -931,11 +936,60 @@
   // the step is over as soon as the page settles, where the browser says so
   window.addEventListener("scrollend", () => { stepEnds = 0; });
 
+  // the FAQ is fitted to the screen once the fonts have settled, and again whenever the window's
+  // size really changes (not a phone's address bar sliding away)
+  // (fitFaq is set up further down, with the FAQ: these calls wait until the script has run)
+  let fitW = window.innerWidth, fitH = window.innerHeight, fitTimer = 0;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const refit = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitFaq, 150); };
+  window.addEventListener("resize", () => {
+    if (coarse && window.innerWidth === fitW && Math.abs(window.innerHeight - fitH) < 120) return;
+    fitW = window.innerWidth; fitH = window.innerHeight;
+    refit();
+  });
+  requestAnimationFrame(() => {
+    fitFaq();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+  });
+
   /* ---------- FAQ: answers ease open ---------- */
   $$("details").forEach((d) => {
     d.addEventListener("toggle", () => {
       if (d.open && !reduceMotion) animate($("p", d), { opacity: [0, 1], transform: ["translateY(-6px)", "translateY(0px)"] }, { duration: 0.4, ease: EASE });
     });
+  });
+
+  /* ---------- FAQ: as many questions as fit one screen, the rest behind "More questions" ----------
+     The page snaps a section at a time, so the FAQ should fit the screen. On a short screen not every
+     question can (each keeps a full-size tap target), so the last ones fold away behind a button;
+     a tap shows them all, and the section then scrolls through its length like any tall one.
+     Measured afresh whenever the screen's size or the product changes */
+  const faqSec = $("#faq"), faqMore = $(".faq-more");
+  let faqAll = false;
+  function fitFaq() {
+    const items = $$(".faq-list details");
+    items.forEach((d) => d.classList.remove("is-folded"));
+    faqMore.hidden = true;
+    if (faqAll || !snapping()) return;
+    // visible questions (the others belong to another product), last first; keep at least four
+    const shown = items.filter((d) => d.offsetHeight);
+    if (shown.some((d) => d.open)) return; // never fold away an answer someone is reading
+    if (faqSec.offsetHeight <= window.innerHeight + 1) return; // every question fits
+    let folded = 0;
+    faqMore.hidden = false; // from here, measure with the button in place, since it takes room too
+    for (let i = shown.length - 1; i >= 4 && faqSec.offsetHeight > window.innerHeight + 1; i--) {
+      shown[i].classList.add("is-folded");
+      folded++;
+    }
+    faqMore.hidden = !folded;
+    faqMore.firstChild.textContent = `More questions (${folded}) `;
+  }
+  faqMore.addEventListener("click", () => {
+    faqAll = true;
+    faqMore.setAttribute("aria-expanded", "true");
+    const first = $(".faq-list details.is-folded summary");
+    fitFaq();
+    if (first) first.focus({ preventScroll: true });
   });
 
   /* ---------- Buy: each product's marketplace listings ---------- */

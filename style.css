@@ -681,7 +681,6 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 }
 @media (max-width: 1024px) {
   .nav-links { gap: 22px; }
-  .design-picks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 /* ---------- Mobile: single column, the product sits above the copy ---------- */
@@ -778,23 +777,76 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   summary { padding: 15px 0; font-size: clamp(19px, 1.45vw, 22px); }
   details p { padding-bottom: 20px; }
 }
-/* on a wide screen the questions run in two columns under the heading (an answer opening makes
+/* from tablet width up the questions run in two columns under the heading (an answer opening makes
    only its own row taller), so every product's questions fit one screen */
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .faq-grid { grid-template-columns: 1fr; gap: 36px; }
-  .faq-list { grid-template-columns: 1fr 1fr; column-gap: 56px; align-items: start; border-top: 0; }
+  .faq-list { grid-template-columns: 1fr 1fr; column-gap: clamp(28px, 4vw, 56px); align-items: start; border-top: 0; }
   .faq-list details { border-top: 1px solid var(--line); border-bottom: 0; }
 }
-/* shorter laptop screens: the picker and the designs step in a little, so each still fits */
-@media (min-width: 768px) and (max-height: 860px) {
-  .products { padding-top: 96px; }
-  .stage { min-height: 34vh; }
-  .pick-tag { margin: 6px 0 16px; }
-  .order { padding: 96px 0 40px; }
-  .order-space { min-height: 56vh; }
-  .order-text { margin: 12px 0 18px; }
-  .design-note { margin: 12px 0 18px; }
-  .perks { margin-bottom: 18px; }
+/* tablets, laptops and desktops: the page snaps a section at a time, so every section must fit the
+   window's height, whatever it is (a 1080p laptop at 125% shows only about 730px, a 768p one about
+   650px). Each vertical size is capped by the window's height as well as its width: on a tall window
+   nothing changes, on a short one headings, spacing, buttons and the prints step down together.
+   The caps (the last value in each clamp) are the sizes the page was designed at */
+@media (min-width: 768px) {
+  .hero { padding: clamp(80px, 11.5vh, 104px) 0 clamp(20px, 6vh, 56px); }
+  .products { padding: clamp(80px, 12.4vh, 112px) 0 clamp(14px, 4vh, 36px); }
+  .show-pin { padding-top: clamp(78px, 10.7vh, 96px); }
+  .listen, .spaces-sec, .maker { padding: clamp(80px, 12.9vh, 116px) 0 clamp(20px, 6vh, 60px); }
+  .order { padding: clamp(80px, 12.9vh, 116px) 0 clamp(18px, 6vh, 80px); }
+  .faq { padding: clamp(80px, 11vh, 100px) 0 clamp(14px, 4.4vh, 40px); }
+
+  .section-title { font-size: clamp(30px, min(4.6vw, 7.4vh), 68px); }
+  .btn:not(.btn-sm), .next-btn { height: clamp(44px, 6vh, 54px); }
+
+  .hero-title { font-size: clamp(38px, min(5.6vw, 10vh), 92px); margin-bottom: clamp(12px, 3.1vh, 28px); }
+  .hero-title .line:last-child { font-size: clamp(19px, min(2.3vw, 4.2vh), 38px); }
+  .hero-sub { margin-bottom: clamp(12px, 3.3vh, 30px); }
+  .hero-points { margin-bottom: clamp(14px, 4vh, 36px); }
+  .hero-points li { padding: clamp(5px, 1.2vh, 11px) 0; }
+  .hero-more { margin-top: clamp(10px, 2.7vh, 24px); }
+
+  .stage { min-height: 24vh; }
+  .pick-name { font-size: clamp(28px, min(4.6vw, 7.6vh), 68px); }
+  .pick-tag { margin: clamp(2px, 1.1vh, 10px) 0 clamp(10px, 2.7vh, 24px); }
+  .pick-tabs { margin-top: clamp(4px, 1.8vh, 16px); }
+
+  .show-captions { height: clamp(210px, 33vh, 300px); }
+  .cap h2 { font-size: clamp(30px, min(4.4vw, 7vh), 64px); }
+  .show-bar { padding-bottom: clamp(12px, 5vh, 48px); }
+
+  .spaces { font-size: clamp(34px, min(5.2vw, 8.8vh), 80px); }
+  .room-steps { margin-top: clamp(16px, 4.9vh, 44px); }
+
+  .order-space { min-height: 50vh; }
+  .order-text { margin: clamp(6px, 2vh, 18px) 0 clamp(10px, 2.9vh, 26px); }
+  .design-picks { max-width: clamp(380px, 64vh, 560px); gap: clamp(7px, 1.3vh, 12px) clamp(7px, 1.1vh, 10px); }
+  .design-note { margin: clamp(6px, 2vh, 18px) 0 clamp(8px, 3.3vh, 30px); }
+  .perks { margin-bottom: clamp(10px, 3.3vh, 30px); }
+  .buy-label { margin-bottom: clamp(8px, 1.6vh, 14px); }
+  .store { height: clamp(44px, 6.4vh, 58px); }
+  .buy-note { min-height: 0; margin-top: clamp(6px, 1.8vh, 16px); }
+
+  .maker-text { font-size: clamp(16px, min(1.7vw, 3.3vh), 24px); }
+  .bulk { margin-top: clamp(16px, 5.3vh, 48px); padding: clamp(18px, 4.6vh, 44px); }
+  .bulk h3 { font-size: clamp(19px, 2.9vh, 26px); }
+  .bulk p { font-size: clamp(14.5px, 1.9vh, 17px); margin: clamp(4px, 1.3vh, 12px) 0 clamp(10px, 2.4vh, 22px); }
+  .bulk-number { font-size: clamp(28px, min(3.8vw, 6.2vh), 56px); margin-bottom: clamp(10px, 2.9vh, 26px); }
+  .bulk-actions { flex-wrap: nowrap; }
+  .bulk-actions .btn { padding: 0 clamp(14px, 2vw, 28px); }
+
+  .faq-grid { gap: clamp(14px, 4vh, 36px); }
+  summary { padding: clamp(8px, 1.7vh, 15px) 0; }
+}
+/* short windows (700px tall or less): the few lines that repeat what the heading already says go,
+   as on a phone, and the longest text steps down a size */
+@media (min-width: 768px) and (max-height: 700px) {
+  .order-text { display: none; }
+  .design-note { font-size: 15px; line-height: 1.45; min-height: 2.9em; }
+  .maker-text { font-size: clamp(15px, 2.8vh, 18px); line-height: 1.5; }
+  .hero-more { margin-top: 8px; }
+  .hero-points li { padding: 4px 0; }
 }
 
 /* ---------- Phones: every section fits one screen, so each snap lands on a whole section ----------
@@ -869,6 +921,54 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   summary { min-height: 44px; padding: 6px 0; font-size: 15.5px; }
   .faq { padding-top: 64px; }
   .faq-grid { gap: 10px; }
+  .spaces-sec { padding: 70px 0 18px; }
+}
+
+/* phones under 640px tall (an iPhone SE in Safari shows about 550px): the picker, the rooms and
+   "Made by" step down with the screen's height too */
+@media (max-width: 767px) and (max-height: 640px) {
+  .products { padding-top: 64px; }
+  .stage { min-height: 22svh; }
+  .pick-name { font-size: clamp(26px, 5.6vh, 36px); }
+  .pick-tag { font-size: 14px; line-height: 1.45; margin: 4px 0 10px; }
+  .pick-go { height: 44px; }
+  .pick-tabs { margin-top: 6px; }
+
+  .spaces-sec { padding: 64px 0 14px; }
+  .spaces-grid { gap: 14px; }
+  .spaces { font-size: clamp(30px, 6.4vh, 40px); }
+  .room-steps { margin-top: 12px; }
+  .room-frame { width: min(100%, calc(36svh * 1.3)); }
+
+  .maker { padding-top: 64px; }
+  .maker .section-title { font-size: clamp(26px, 5.4vh, 32px); }
+  .maker-text { font-size: 14.5px; line-height: 1.5; }
+  .bulk { margin-top: 12px; padding: 16px 18px; }
+  .bulk h3 { font-size: 18px; }
+  .bulk p { font-size: 13.5px; margin: 6px 0 10px; }
+  .bulk-number { font-size: 26px; margin-bottom: 12px; }
+  .bulk-actions .btn { height: 44px; }
+
+  .faq { padding-top: 62px; }
+  .order { padding-top: 62px; }
+}
+
+/* the FAQ shows as many questions as fit one screen, and the rest behind "More questions"
+   (script.js measures it; a tap shows them all, and the section then scrolls through its length) */
+.faq-list details.is-folded { display: none; }
+.faq-more {
+  justify-self: start; margin-top: 12px; min-height: 44px; padding: 0 20px; border-radius: var(--leaf); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 15px var(--font-display); color: var(--accent); background: var(--ctl-bg); border: 1px solid var(--ctl-line);
+  transition: border-color 0.25s;
+}
+.faq-more:hover { border-color: var(--accent); }
+.faq-more[hidden] { display: none; }
+
+/* very short screens (a phone held sideways, a tiny window): sections can't fit, so the page
+   scrolls freely there instead of snapping part-way (see "Scrolling" in script.js too) */
+@media (max-height: 519px) {
+  html { scroll-snap-type: none; }
 }
 
 /* ---------- Reduced motion ---------- */
