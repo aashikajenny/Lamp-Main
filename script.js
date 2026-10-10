@@ -43,8 +43,11 @@
   // product's picker. A product left out of this list offers every design.
   // the Divine Mantra Box and the night lamp offer the same designs
   const SHARED_DESIGNS = [
-    "khatu-shyam-ji", "premanand-ji-maharaj", "radha-krishna", "mahadev", "ram-bhakt-hanuman", "hanuman-ji",
-    "om", "3d-hanuman-ji", "bhakti-hanuman", "krishna-om", "meditating-shiv-ji", "neem-karoli-baba", "radhe-radhe", "shiv-ji", "trishul-om", "veer-hanuman"
+    "khatu-shyam-ji", "radha-krishna", "mahadev", "ram-bhakt-hanuman", "hanuman-ji",
+    "om", "3d-hanuman-ji", "bhakti-hanuman", "krishna-om", "meditating-shiv-ji", "neem-karoli-baba", "radhe-radhe", "shiv-ji", "trishul-om", "veer-hanuman",
+    "anant-om-eternal-harmony", "premanand-ji-maharaj-with-lord-krishna", "shiv-parvati-divya-darshan-kailash-ki-jyoti",
+    "shri-premanand-maharaj-ji-radha-kripa", "shri-ram-darbar-suvarna-divya-darshan",
+    "shri-siddhivinayak-suvarna-divya-darshan", "sikh-gurus-darshan-suvarna-guru-parampara", "jai-guru-ji-anant-kripa"
   ];
   const DESIGNS_FOR = {
     mantra: SHARED_DESIGNS,
@@ -267,7 +270,7 @@
   let stageIndex = ORDER.indexOf(product);
   const orbits = ORDER.map((_, i) => 0);
   let stageInView = false;
-  const narrow = window.matchMedia("(max-width: 767px)");
+  const narrow = window.matchMedia("(max-width: 767.98px)");
   narrow.addEventListener("change", () => poseStage());
 
   function poseStage() {

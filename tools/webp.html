@@ -41,7 +41,7 @@
   // "3d-hanuman-ji" -> "3D Hanuman Ji"
   const SPECIAL_NAMES = { om: "Sacred OM" };
   const title = (s) => SPECIAL_NAMES[slug(s)] || s.replace(/[-_]+/g, " ").trim().replace(/\s+/g, " ").split(" ")
-    .map((w) => (/\d/.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase())).join(" ");
+    .map((w) => (/\d/.test(w) ? w.toUpperCase() : w.toLowerCase().replace(/(^|[–—])(\S)/g, (m, a, c) => a + c.toUpperCase()))).join(" ");
   // Room photos: at most 1430 px wide, as shown. Designs: the lamp's 4:5 print, at most 1000 x 1250;
   // a sliver is trimmed off every edge (photos of prints often have a dark or pale rim), then the
   // image is cropped to 4:5, keeping more of the top so heads aren't cut.
@@ -132,7 +132,10 @@
       }
       if (job.keepWebp) {
         // every WebP in the folder is a design: the ones just made, and the ones converted before
-        files.filter(isWebp).forEach((f) => { if (!names.has(f.name)) names.set(f.name, title(base(f.name))); });
+        // (one converted before keeps its name from designs.json, so a hand-edited name stays)
+        const listed = await fetch("/images/designs/designs.json").then((r) => (r.ok ? r.json() : [])).catch(() => []);
+        const kept = new Map(listed.map((d) => [`${d.id}.webp`, d.name]));
+        files.filter(isWebp).forEach((f) => { if (!names.has(f.name)) names.set(f.name, kept.get(f.name) || title(base(f.name))); });
       } else {
         // room photos: remove WebPs that no photo makes any more (from photos removed or renamed)
         const outs = [...byOut.keys()];

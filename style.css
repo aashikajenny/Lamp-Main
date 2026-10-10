@@ -562,13 +562,14 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
 /* ---------- Order: pick a print, then buy ---------- */
 .order { padding: 116px 0 80px; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; }
 .order > .wrap { width: 100%; }
-.order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+/* the copy side gets the larger share: the heading holds two lines and the design prints have room */
+.order-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 48px; align-items: center; }
 .order-space { min-height: 62vh; }
-.order-text { color: var(--muted); font-size: 18px; margin: 18px 0 26px; max-width: 38ch; }
+.order-text { color: var(--muted); font-size: 18px; margin: 18px 0 0; max-width: 38ch; text-wrap: pretty; }
 
 /* the designs: a wall of small prints, each in a petal-cornered frame; the name of the one chosen,
    and a line about it, read beneath */
-.design-picks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 10px; max-width: 560px; }
+.design-picks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 16px 14px; max-width: 620px; margin-top: 28px; }
 .design-pick[hidden] { display: none; } /* a design the product on show doesn't offer */
 .design-pick {
   position: relative; display: block; padding: 0; cursor: pointer;
@@ -587,7 +588,7 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
   transform: translateY(-3px);
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent), 0 16px 24px -12px var(--shade);
 }
-.design-note { min-height: 3.2em; margin: 18px 0 30px; color: var(--muted); font-size: 16px; max-width: 46ch; }
+.design-note { min-height: 3.2em; margin: 20px 0 22px; color: var(--muted); font-size: 16px; max-width: 46ch; }
 /* a design with a sound shows a speaker on its print; it pulses while the sound plays */
 .design-sound {
   position: absolute; right: 4px; bottom: 4px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
@@ -597,7 +598,7 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
 @keyframes sound-pulse { 50% { opacity: 0.55; transform: scale(0.88); } }
 
 /* ---------- Perks (in the buy section) ---------- */
-.perks { list-style: none; margin: 0 0 30px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font: 400 16px var(--font-display); }
+.perks { list-style: none; margin: 0 0 38px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font: 400 16px var(--font-display); }
 .perks li { display: flex; align-items: center; gap: 8px; }
 .perks .ph { color: var(--accent); font-size: 19px; }
 
@@ -614,6 +615,7 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
 .store:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .store:hover .ph { color: var(--accent-ink); transform: translate(2px, -2px); }
 .buy-note { min-height: 1.6em; margin-top: 16px; font-size: 15px; color: var(--note); }
+.buy-note:empty { margin-top: 0; } /* no gap held for a message that isn't showing */
 
 /* ---------- Maker: who makes them, and the line for custom designs and bulk orders ---------- */
 .maker { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 116px 0 80px; }
@@ -694,7 +696,7 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 }
 
 /* ---------- Mobile: single column, the product sits above the copy ---------- */
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   .nav { height: 58px; padding: 0 6px 0 12px; top: 10px; gap: 10px; border-radius: 999px 14px; }
   .brand-mark { height: 30px; }
   .brand-name { display: none; }
@@ -756,8 +758,7 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .order { padding: 80px 0 100px; }
   .order-grid { grid-template-columns: 1fr; gap: 8px; }
   .order-space { min-height: 34vh; }
-  .order-text { font-size: 16px; margin: 12px 0 20px; }
-  .design-picks { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 8px; max-width: none; }
+  .order-text { font-size: 16px; margin: 12px 0 0; }
   .design-note { margin: 14px 0 22px; font-size: 15px; }
   .perks { margin-bottom: 22px; gap: 6px 16px; font-size: 15px; }
   .stores { grid-template-columns: 1fr; max-width: none; }
@@ -776,7 +777,6 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .footer-line { margin-bottom: 56px; }
 }
 @media (max-width: 380px) {
-  .design-picks { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .switch-btn { padding: 0 10px 0 12px; font-size: 13px; }
 }
 
@@ -804,7 +804,7 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .products { padding: clamp(80px, 12.4vh, 112px) 0 clamp(14px, 4vh, 36px); }
   .show-pin { padding-top: clamp(78px, 10.7vh, 96px); }
   .listen, .spaces-sec, .maker { padding: clamp(80px, 12.9vh, 116px) 0 clamp(20px, 6vh, 60px); }
-  .order { padding: clamp(80px, 12.9vh, 116px) 0 clamp(18px, 6vh, 80px); }
+  .order { padding: clamp(80px, 12.9vh, 116px) 0 clamp(16px, 3vh, 40px); }
   .faq { padding: clamp(80px, 11vh, 100px) 0 clamp(14px, 4.4vh, 40px); }
 
   .section-title { font-size: clamp(30px, min(4.6vw, 7.4vh), 68px); }
@@ -830,10 +830,10 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .room-steps { margin-top: clamp(16px, 4.9vh, 44px); }
 
   .order-space { min-height: 50vh; }
-  .order-text { margin: clamp(6px, 2vh, 18px) 0 clamp(10px, 2.9vh, 26px); }
-  .design-picks { max-width: clamp(380px, 64vh, 560px); gap: clamp(7px, 1.3vh, 12px) clamp(7px, 1.1vh, 10px); }
-  .design-note { margin: clamp(6px, 2vh, 18px) 0 clamp(8px, 3.3vh, 30px); }
-  .perks { margin-bottom: clamp(10px, 3.3vh, 30px); }
+  .order-text { margin: clamp(6px, 2vh, 18px) 0 0; max-width: 54ch; } /* one line beside a wide column */
+  .design-picks { max-width: clamp(400px, 72vh, 600px); margin-top: clamp(16px, 3.4vh, 28px); gap: clamp(10px, 1.9vh, 16px) clamp(9px, 1.6vh, 14px); }
+  .design-note { margin: clamp(10px, 2.2vh, 20px) 0 clamp(8px, 2vh, 18px); }
+  .perks { margin-bottom: clamp(14px, 4vh, 38px); }
   .buy-label { margin-bottom: clamp(8px, 1.6vh, 14px); }
   .store { height: clamp(44px, 6.4vh, 58px); }
   .buy-note { min-height: 0; margin-top: clamp(6px, 1.8vh, 16px); }
@@ -849,11 +849,21 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .faq-grid { gap: clamp(14px, 4vh, 36px); }
   summary { padding: clamp(8px, 1.7vh, 15px) 0; }
 }
-/* short windows (700px tall or less): the few lines that repeat what the heading already says go,
-   as on a phone, and the longest text steps down a size */
-@media (min-width: 768px) and (max-height: 700px) {
+/* upright tablets: the column is narrow but tall, so six prints to a row, each larger */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .design-picks { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px 10px; max-width: none; }
+  .order-text { display: none; } /* four rows of prints need the room; the heading says it already */
+}
+/* laptop screens up to 820px tall: the line under the buy heading goes (the heading says it already),
+   so the three rows of design prints keep their size and the section still fits one screen */
+@media (min-width: 768px) and (max-height: 820px) {
   .order-text { display: none; }
+}
+/* short windows (700px tall or less): the longest text steps down a size */
+@media (min-width: 768px) and (max-height: 700px) {
   .design-note { font-size: 15px; line-height: 1.45; min-height: 2.9em; }
+  .design-picks { row-gap: 9px; }
+  .perks { margin-bottom: clamp(12px, 3vh, 20px); }
   .maker-text { font-size: clamp(15px, 2.8vh, 18px); line-height: 1.5; }
   .hero-more { margin-top: 8px; }
   .hero-points li { padding: 4px 0; }
@@ -861,7 +871,7 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 
 /* ---------- Phones: every section fits one screen, so each snap lands on a whole section ----------
    (the page snaps a section at a time; a section taller than the screen would stop part-way) */
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   /* best seller: the two buttons side by side, tighter spacing */
   .hero { padding: 70px 0 18px; }
   .hero-space { min-height: 30svh; }
@@ -874,22 +884,15 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   .hero-ctas .btn-ghost { flex: 0 0 auto; }
   .hero-more { margin-top: 14px; font-size: 15px; }
 
-  /* designs: one row of prints, swiped sideways, fading at the edge to show there are more */
+  /* designs: a grid of prints (on phones, one row swiped sideways: see below) */
   .order { padding: 70px 0 18px; }
   /* minmax(0, 1fr): the long sideways row of prints must not stretch the column past the screen */
   .order-grid { grid-template-columns: minmax(0, 1fr); }
   .order-copy { min-width: 0; }
   .order-space { min-height: 24svh; }
   .order-title { font-size: clamp(28px, 8.4vw, 34px); }
-  .order-text { font-size: 15px; line-height: 1.5; margin: 8px 0 12px; }
-  .design-picks {
-    display: flex; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain;
-    margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter) 8px; scroll-padding-inline: var(--gutter);
-    scroll-snap-type: x mandatory; scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent);
-  }
-  .design-picks::-webkit-scrollbar { display: none; }
-  .design-pick { flex: 0 0 60px; scroll-snap-align: start; }
+  .order-text { font-size: 15px; line-height: 1.5; margin: 8px 0 0; max-width: 46ch; }
+  .design-picks { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 10px; max-width: 600px; margin-top: 18px; }
   .design-note { min-height: 3em; margin: 8px 0 12px; font-size: 14.5px; line-height: 1.5; }
   .perks { margin-bottom: 14px; gap: 4px 14px; font-size: 14px; }
   .buy-label { margin-bottom: 10px; }
@@ -919,8 +922,21 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
   summary .ph { width: 30px; height: 30px; font-size: 14px; }
   details p { padding: 0 0 14px; font-size: 15px; line-height: 1.55; }
 }
+/* phones (480px wide or less): the designs are one row of prints, swiped sideways, fading at the
+   edge to show there are more. Wider than that (large phones held sideways, small tablets, narrow
+   windows), they stay a grid */
+@media (max-width: 480.98px) {
+  .design-picks {
+    display: flex; gap: 10px; overflow-x: auto; overscroll-behavior-x: contain; max-width: none;
+    margin: 12px calc(-1 * var(--gutter)) 0; padding: 6px var(--gutter) 8px; scroll-padding-inline: var(--gutter);
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .design-picks::-webkit-scrollbar { display: none; }
+  .design-pick { flex: 0 0 60px; scroll-snap-align: start; }
+}
 /* short phones (under 700px tall): a little tighter still */
-@media (max-width: 767px) and (max-height: 700px) {
+@media (max-width: 767.98px) and (max-height: 700px) {
   .hero-space { min-height: 24svh; }
   .hero-more { display: none; } /* the picker is the very next section, and in the nav */
   .hero-points { font-size: 13px; }
@@ -936,7 +952,7 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 
 /* phones under 640px tall (an iPhone SE in Safari shows about 550px): the picker, the rooms and
    "Made by" step down with the screen's height too */
-@media (max-width: 767px) and (max-height: 640px) {
+@media (max-width: 767.98px) and (max-height: 640px) {
   .products { padding-top: 64px; }
   .stage { min-height: 22svh; }
   .pick-name { font-size: clamp(26px, 5.6vh, 36px); }
@@ -961,6 +977,29 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 
   .faq { padding-top: 62px; }
   .order { padding-top: 62px; }
+  .design-picks { margin-top: 6px; }
+  .design-note { margin: 6px 0 10px; }
+  .order .perks { margin-bottom: 12px; }
+}
+
+/* between phone and laptop (481-767px wide): the designs are a grid of eight to a row under a
+   shorter product, and the prints size to the screen's height too, so all three rows of prints
+   and the store buttons fit one screen */
+@media (min-width: 481px) and (max-width: 767.98px) {
+  .order-space { min-height: 18svh; }
+  .design-picks { max-width: min(600px, 72vh); }
+  .design-note { margin-top: 14px; }
+  .order .perks { margin-bottom: 20px; }
+}
+@media (min-width: 481px) and (max-width: 767.98px) and (max-height: 760px) {
+  .order-text { display: none; } /* the heading says it already */
+}
+@media (min-width: 481px) and (max-width: 767.98px) and (max-height: 700px) {
+  .design-picks { margin-top: 14px; }
+  .order-space { min-height: max(12svh, 84px); }
+}
+@media (min-width: 481px) and (max-width: 767.98px) and (max-height: 600px) {
+  .order .perks { display: none; } /* a very short window: the prints and the store buttons come first */
 }
 
 /* the FAQ shows as many questions as fit one screen, and the rest behind "More questions"

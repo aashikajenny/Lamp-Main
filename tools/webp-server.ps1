@@ -3,6 +3,7 @@
 # Only .webp files inside lamp-main/images, and the design list images/designs/designs.json, can be written;
 # a converted design's original goes to the Recycle Bin, so images/designs ends up holding only WebP files.
 Add-Type -AssemblyName Microsoft.VisualBasic # for sending replaced originals to the Recycle Bin
+Add-Type -AssemblyName System.Web # for reading the query as UTF-8
 $root = Split-Path -Parent $PSScriptRoot
 $images = Join-Path $root "images"
 $l = New-Object System.Net.HttpListener
@@ -14,10 +15,12 @@ while ($l.IsListening) {
   $ctx = $l.GetContext()
   $req = $ctx.Request; $res = $ctx.Response
   $res.Headers.Add("Cache-Control", "no-store")
+  # the query read as UTF-8 (HttpListener's own QueryString garbles names with an en dash)
+  $q = [System.Web.HttpUtility]::ParseQueryString($req.Url.Query, [Text.Encoding]::UTF8)
   try {
     $p = [Uri]::UnescapeDataString($req.Url.AbsolutePath.TrimStart('/'))
     if ($req.HttpMethod -eq "POST" -and $p -eq "save") {
-      $rel = $req.QueryString["path"]
+      $rel = $q["path"]
       $full = [IO.Path]::GetFullPath((Join-Path $root $rel))
       $manifest = Join-Path (Join-Path $images "designs") "designs.json"
       if (-not $full.StartsWith($images + [IO.Path]::DirectorySeparatorChar) -or ([IO.Path]::GetExtension($full) -ne ".webp" -and $full -ne $manifest)) {
@@ -33,7 +36,7 @@ while ($l.IsListening) {
     } elseif ($req.HttpMethod -eq "POST" -and $p -eq "recycle") {
       # once a design's WebP is saved, its original (.jpg/.jpeg/.png in images/designs) goes to the
       # Recycle Bin, so the folder holds only the WebP and the original can still be restored
-      $rel = $req.QueryString["path"]
+      $rel = $q["path"]
       $full = [IO.Path]::GetFullPath((Join-Path $root $rel))
       $ok = $full.StartsWith((Join-Path $images "designs") + "\") -and @(".jpg", ".jpeg", ".png") -contains [IO.Path]::GetExtension($full).ToLower()
       if ($ok -and (Test-Path $full -PathType Leaf)) {
@@ -44,18 +47,18 @@ while ($l.IsListening) {
     } elseif ($req.HttpMethod -eq "POST" -and $p -eq "prune") {
       # delete the .webp files in images/<dir> that aren't in the posted list (left by removed or
       # renamed images); only .webp files, which the converter makes, are ever deleted
-      $dir = Join-Path $images ($req.QueryString["dir"] -replace '[\\/.]', '')
+      $dir = Join-Path $images ($q["dir"] -replace '[\\/.]', '')
       $keep = (New-Object IO.StreamReader($req.InputStream)).ReadToEnd() | ConvertFrom-Json
       $gone = @()
       if (Test-Path $dir) {
-        Get-ChildItem $dir -File -Filter *.webp | ? { $keep -notcontains $_.Name } | % { Remove-Item $_.FullName; $gone += $_.Name; Write-Host "removed images/$($req.QueryString["dir"])/$($_.Name)" }
+        Get-ChildItem $dir -File -Filter *.webp | ? { $keep -notcontains $_.Name } | % { Remove-Item $_.FullName; $gone += $_.Name; Write-Host "removed images/$($q["dir"])/$($_.Name)" }
       }
       $b = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $gone -Compress))
       $res.ContentType = "application/json"
       $res.OutputStream.Write($b, 0, $b.Length)
     } elseif ($p -eq "list") {
       # the .jpg/.png/.webp files in images/<dir> with when each was last changed, as JSON
-      $dir = Join-Path $images ($req.QueryString["dir"] -replace '[\\/.]', '')
+      $dir = Join-Path $images ($q["dir"] -replace '[\\/.]', '')
       $names = @(if (Test-Path $dir) { Get-ChildItem $dir -File | ? { @(".jpg", ".jpeg", ".png", ".webp") -contains $_.Extension.ToLower() } | % { @{ name = $_.Name; mtime = [long]($_.LastWriteTimeUtc - [datetime]'1970-01-01').TotalMilliseconds } } })
       $b = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $names -Compress))
       $res.ContentType = "application/json"

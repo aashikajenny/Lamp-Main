@@ -26,13 +26,20 @@
     "meditating-shiv-ji": "Shiv Ji in meditation among flowers, at sunrise.",
     "neem-karoli-baba": "Neem Karoli Baba in blessing, with सीता राम सीता राम above.",
     "khatu-shyam-ji": "Khatu Shyam Ji in his peacock-feather crown, garlanded in marigolds.",
-    "premanand-ji-maharaj": "Premanand Ji Maharaj, smiling in blessing, in yellow and green.",
     "radha-krishna": "Radha and Krishna side by side, in deep reds and gold.",
     "mahadev": "Mahadev with his trishul and serpents, glowing in blue light.",
     "ram-bhakt-hanuman": "Hanuman Ji with his gada, as Shri Ram and Sita Ji bless him from behind.",
     "hanuman-ji": "Hanuman Ji seated in meditation, in a forest of green light.",
     "ganesh-ji": "Ganesh Ji seated in blessing, with a pink lotus, on a warm golden glow.",
-    "guru-nanak-dev-ji": "Guru Nanak Dev Ji in blessing, beside the Golden Temple at Amritsar."
+    "guru-nanak-dev-ji": "Guru Nanak Dev Ji in blessing, beside the Golden Temple at Amritsar.",
+    "anant-om-eternal-harmony": "A golden OM at the heart of an endless swirl of fiery light.",
+    "premanand-ji-maharaj-with-lord-krishna": "Premanand Ji Maharaj laughing with joy, holding baby Krishna close.",
+    "shiv-parvati-divya-darshan-kailash-ki-jyoti": "Shiv Ji and Parvati Maa in meditation, beneath the moon over Kailash.",
+    "shri-premanand-maharaj-ji-radha-kripa": "Premanand Ji Maharaj in blessing, ringed by roses and the name राधा.",
+    "shri-ram-darbar-suvarna-divya-darshan": "Shri Ram and Sita Ji enthroned, with Lakshman, Bharat, Shatrughan and Hanuman Ji.",
+    "shri-siddhivinayak-suvarna-divya-darshan": "Ganesh Ji on a golden throne, with lotuses and a bowl of laddoos.",
+    "sikh-gurus-darshan-suvarna-guru-parampara": "Guru Nanak Dev Ji and Guru Gobind Singh Ji, with the Sikh Gurus in golden frames.",
+    "jai-guru-ji-anant-kripa": "Guru Ji smiling gently, resting on his hand, against a glow of golden flowers."
   };
   const DEFAULT_LIGHT = [1, 0.66, 0.3]; // warm amber, until (or unless) the artwork can be read
   // the design every lamp shows until a visitor picks one (falls back to the first design)

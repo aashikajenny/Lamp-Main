@@ -8,6 +8,10 @@
     "name": "3D Hanuman Ji"
   },
   {
+    "id": "anant-om-eternal-harmony",
+    "name": "Anant Om – Eternal Harmony"
+  },
+  {
     "id": "bhakti-hanuman",
     "name": "Bhakti Hanuman"
   },
@@ -22,6 +26,10 @@
   {
     "id": "hanuman-ji",
     "name": "Hanuman Ji"
+  },
+  {
+    "id": "jai-guru-ji-anant-kripa",
+    "name": "Jai Guru Ji – Anant Kripa"
   },
   {
     "id": "khatu-shyam-ji",
@@ -44,8 +52,8 @@
     "name": "Neem Karoli Baba"
   },
   {
-    "id": "premanand-ji-maharaj",
-    "name": "Premanand Ji Maharaj"
+    "id": "premanand-ji-maharaj-with-lord-krishna",
+    "name": "Premanand Ji Maharaj with Lord Krishna"
   },
   {
     "id": "radha-krishna",
@@ -62,6 +70,26 @@
   {
     "id": "shiv-ji",
     "name": "Shiv Ji"
+  },
+  {
+    "id": "shiv-parvati-divya-darshan-kailash-ki-jyoti",
+    "name": "Shiv–Parvati Divya Darshan – Kailash Ki Jyoti"
+  },
+  {
+    "id": "shri-premanand-maharaj-ji-radha-kripa",
+    "name": "Shri Premanand Maharaj Ji – Radha Kripa"
+  },
+  {
+    "id": "shri-ram-darbar-suvarna-divya-darshan",
+    "name": "Shri Ram Darbar – Suvarna Divya Darshan"
+  },
+  {
+    "id": "shri-siddhivinayak-suvarna-divya-darshan",
+    "name": "Shri Siddhivinayak – Suvarna Divya Darshan"
+  },
+  {
+    "id": "sikh-gurus-darshan-suvarna-guru-parampara",
+    "name": "Sikh Gurus Darshan – Suvarna Guru Parampara"
   },
   {
     "id": "trishul-om",
