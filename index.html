@@ -73,16 +73,19 @@
     <nav class="nav-links" aria-label="Primary">
       <a href="#products">Products</a>
       <a href="#features">Features</a>
-      <a href="#listen" class="nav-listen" data-for="mantra mini" hidden>Listen</a>
-      <a href="#spaces" data-for="lamp">Rooms</a>
       <a href="#order">Designs</a>
       <a href="#faq">FAQ</a>
+      <!-- each product's own link sits in one reserved slot at the end, so switching never moves the others -->
+      <span class="nav-swap">
+        <a href="#listen" class="nav-listen" data-for="mantra mini" hidden>Listen</a>
+        <a href="#spaces" data-for="lamp">Rooms</a>
+      </span>
     </nav>
     <div class="nav-end">
       <!-- the product the page is showing; switch it from anywhere -->
       <div class="switcher">
         <button type="button" class="switch-btn" aria-haspopup="true" aria-expanded="false" aria-controls="switch-menu">
-          <span class="switch-label"><span class="sr-only">Showing: </span><span data-p="short">Mantra Box</span></span>
+          <span class="switch-label"><span class="sr-only">Showing: </span><span data-p="short">Mantra Box</span><span class="switch-sizer" aria-hidden="true">Mini Chanting Box</span></span>
           <i class="ph ph-caret-down" aria-hidden="true"></i>
         </button>
         <div class="switch-menu" id="switch-menu" hidden>

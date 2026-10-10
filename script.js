@@ -238,10 +238,11 @@
       if (!reduceMotion) animate(switchMenu, { opacity: [0, 1], transform: ["translateY(-6px) scale(0.98)", "translateY(0px) scale(1)"] }, { duration: 0.3, ease: EASE });
     }
   });
+  // picking a product glides down to its features
   $$("button", switchMenu).forEach((b) => b.addEventListener("click", () => {
     closeMenu();
-    setProduct(b.dataset.product);
-    switchBtn.focus();
+    switchBtn.focus({ preventScroll: true });
+    explore(b.dataset.product);
   }));
   document.addEventListener("click", (e) => { if (!e.target.closest(".switcher")) closeMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !switchMenu.hidden) { closeMenu(); switchBtn.focus(); } });
@@ -249,7 +250,8 @@
   // "Explore" buttons: show that product, then go to its features
   function explore(id) {
     setProduct(id);
-    show.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+    // wait for the new product's sections to settle, or the page's snapping cancels the glide
+    requestAnimationFrame(() => requestAnimationFrame(() => show.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" })));
   }
   $$("[data-choose]").forEach((b) => b.addEventListener("click", () => explore(b.dataset.choose)));
   // "Buy now" on the best seller: show it, then go straight to its design picker and stores

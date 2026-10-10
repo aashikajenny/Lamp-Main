@@ -184,6 +184,12 @@ main, .footer { position: relative; z-index: 3; }
 }
 .nav-links a:hover::after { transform: scaleX(1); transform-origin: left; }
 .nav-end { display: flex; align-items: center; gap: 8px; }
+/* the product's own link (Listen / Rooms) keeps its slot; another product's just goes invisible */
+.nav-swap { display: inline-grid; }
+html .nav-swap > a[data-for]:not([hidden]) { display: block !important; grid-area: 1 / 1; }
+html[data-product="mantra"] .nav-swap > a:not([data-for~="mantra"]),
+html[data-product="mini"] .nav-swap > a:not([data-for~="mini"]),
+html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hidden; pointer-events: none; }
 
 /* the product switcher: which product the page is showing */
 .switcher { position: relative; }
@@ -194,6 +200,10 @@ main, .footer { position: relative; z-index: 3; }
   transition: border-color 0.25s, background 0.25s;
 }
 .switch-btn:hover, .switch-btn[aria-expanded="true"] { border-color: var(--accent); }
+/* the label always takes the width of the longest name, so the button never resizes */
+.switch-label { display: inline-grid; justify-items: start; }
+.switch-label > [data-p], .switch-sizer { grid-area: 1 / 1; }
+.switch-sizer { visibility: hidden; }
 .switch-btn .ph { color: var(--accent); transition: transform 0.35s var(--ease); }
 .switch-btn[aria-expanded="true"] .ph { transform: rotate(180deg); }
 .switch-menu {
