@@ -39,6 +39,10 @@
   // darkness; PAGE is the page's cream, for the picker's fog
   const PAGE = 0xfaf5f0;
   const ROOM_MIN = 0.42;
+  // the white plastic is lit less by the even glow of the studio all round and more by the key light
+  // from the upper left, so its front stays bright while its right side (the button and the dial) and
+  // its edges fall into soft shade, and its shape reads on the pale page
+  const PLASTIC_ENV = 0.6, KEY = 1.45;
   // the light a product gives off (its halo, the lamp's spill, the rings of sound): added light would
   // vanish into the cream, so it is laid on as coloured light instead, the way a lit print tints a
   // pale wall. The halo reaches well out and fades slowly, since only its outer part shows round the
@@ -46,6 +50,10 @@
   const GLOW_BLEND = THREE.NormalBlending;
   const HALO_K = 0.95, SPILL_K = 0.85, WAVE_K = 1.35;
   const HALO_SIZE = 6.4;
+  // each product's shadow on the page: a warm cocoa (the page's text colour), behind the product and
+  // dropped a little down and to the right, away from the key light
+  const SHADOW_COLOR = 0x3a2420, SHADOW_K = 0.5, SHADOW_FIT = 1.08;
+  const SHADOW_AT = [0.14, -0.3, -1.0];
   const H = 2.9; // every product is modelled this tall, so they share one scale
 
   /* ---------- Shape helpers ---------- */
@@ -486,6 +494,18 @@
     [[0, 0.95], [0.3, 0.62], [0.55, 0.28], [0.8, 0.08], [1, 0]].forEach(([o, a]) => rg.addColorStop(o, `rgba(255,255,255,${a})`));
     g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
   }, [256, 256]));
+  // the soft shadow each product casts on the page behind it: a blurred rounded rectangle whose solid
+  // middle is half the texture (drawn off the canvas, so only its blurred shadow lands on it). It is
+  // white, so the sprite's colour sets the shadow's colour
+  const shadowTex = new THREE.CanvasTexture(canvasTexture((g) => {
+    g.shadowColor = "#fff";
+    g.shadowBlur = 40;
+    g.shadowOffsetX = 1024;
+    g.fillStyle = "#fff";
+    g.beginPath();
+    if (g.roundRect) g.roundRect(64 - 1024, 64, 128, 128, 18); else g.rect(64 - 1024, 64, 128, 128);
+    g.fill();
+  }, [256, 256]));
   // the Mini's speaker grille, measured from the photo of the device: nine arcs centred on the
   // screw, evenly spaced, each reaching about 45 degrees either side of straight up, with a bar
   // down the middle. The outer part of every arc is a shallow groove in the plastic; only the middle
@@ -640,7 +660,8 @@
   }
 
   /* ---------- Building each product ---------- */
-  // every builder returns { group, W, knob, button, waves, spill }; the group is centred in depth,
+  // every builder returns { group, W, box, knob, button, waves, spill } (W: its width plus room round
+  // it; box: its own width and depth, for its shadow); the group is centred in depth,
   // so the product turns around its middle
   function buildLamp(m) {
     const g = geometry("lamp");
@@ -657,7 +678,7 @@
     // light spilling round the lamp's edges, in the plane of the front face, just behind the print
     const spill = add(g.spill, m.spill, 0, 0, L.FRONT_Z - L.RECESS - 0.04);
     group.children.forEach((o) => { o.position.z += 0.45; });
-    return { group, W: L.W, knob: null, button: null, waves: [], spill };
+    return { group, W: L.W, box: [L.W, L.BODY_D + 2 * L.BODY_B], knob: null, button: null, waves: [], spill };
   }
 
   // the lamp's two-pin plug: round metal pins with rounded tips, in collars
@@ -722,7 +743,7 @@
     add(g.grille, m.mantraGrille, 0, M.GRILLE_Y, BZ - 0.003).rotation.y = Math.PI;
     const waves = soundWaves(g, m, group, 0, M.ART_Y, FZ + 0.04);
     group.children.forEach((o) => { o.position.z += 0.3; });
-    return { group, W: M.W + 0.5, knob, button, waves, spill: null, glint: m.sheen.map };
+    return { group, W: M.W + 0.5, box: [M.W, M.D + 2 * M.B], knob, button, waves, spill: null, glint: m.sheen.map };
   }
 
   function buildMini(m) {
@@ -769,7 +790,7 @@
     add(g.topSlot, m.hole, -0.24, edgeAt(-0.24, true) + 0.004, N.SEAM_Z + 0.07).rotation.x = -Math.PI / 2;
     const waves = soundWaves(g, m, group, 0, 0.12, N.FRONT_Z + 0.03);
     group.children.forEach((o) => { o.position.z += 0.35; });
-    return { group, W: 1.82 + 0.5, knob, button, waves, spill: null };
+    return { group, W: 1.82 + 0.5, box: [1.82, N.FRONT_Z - N.BACK_Z], knob, button, waves, spill: null };
   }
   const BUILD = { lamp: buildLamp, mantra: buildMantra, mini: buildMini };
 
@@ -793,6 +814,14 @@
     halo.scale.set(HALO_SIZE, HALO_SIZE, 1);
     halo.position.z = -1.2;
     root.add(halo);
+    // its soft shadow on the page, over the halo (the product blocks its light) and a little below,
+    // so the white product stands clear of the cream page instead of melting into it
+    const shadow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: shadowTex, color: SHADOW_COLOR, transparent: true, depthWrite: false, opacity: 0
+    }));
+    shadow.material.toneMapped = false;
+    shadow.position.set(SHADOW_AT[0], SHADOW_AT[1], SHADOW_AT[2]);
+    root.add(shadow);
 
     const target = Object.assign({ rx: 0, ry: 0, glow: 0 }, DEFAULTS);
     const cur = Object.assign({}, target);
@@ -897,12 +926,20 @@
         const ry = cur.ry + turn + (Math.sin(t * 0.55 + phase) * cur.sway + pointer.sx * 0.22) * motion;
         spin.rotation.set(cur.rx + pointer.sy * 0.12 * motion, ry, 0);
 
-        m.plastic.envMapIntensity = m.back.envMapIntensity = m.knob.envMapIntensity = room;
+        m.plastic.envMapIntensity = m.back.envMapIntensity = m.knob.envMapIntensity = room * PLASTIC_ENV;
         m.art.envMapIntensity = 0.15 * room;
         m.metal.envMapIntensity = 1.4 * room;
 
         const glow = Math.max(0, cur.glow) * unit.power;
         const facing = Math.max(0, Math.cos(ry));
+
+        // the shadow takes the width the product shows as it turns (its front, its side, or between);
+        // its solid middle is half the sprite, a little smaller than the product, so only the soft
+        // edge shows round it. A lit lamp throws light more than shadow, so its shadow is lighter
+        const [bw, bd] = model.box;
+        const shown = bw * Math.abs(Math.cos(ry)) + bd * Math.abs(Math.sin(ry));
+        shadow.scale.set(2 * shown * SHADOW_FIT, 2 * H * SHADOW_FIT, 1);
+        shadow.material.opacity = SHADOW_K * (kind === "lamp" ? 1 - 0.45 * Math.min(1, glow) : 1);
         if (kind === "lamp") {
           const flicker = reduceMotion ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
           m.art.emissiveIntensity = Math.min(1.12, glow * 1.05) * flicker;
@@ -976,8 +1013,8 @@
     pmrem.dispose();
 
     const hemi = new THREE.HemisphereLight(0xfff1dc, 0x8a6a62, 0.35);
-    const key = new THREE.DirectionalLight(0xffe6c4, 1.1);
-    key.position.set(4, 5, 7);
+    const key = new THREE.DirectionalLight(0xffe6c4, KEY);
+    key.position.set(-3, 5, 7);
     const rim = new THREE.DirectionalLight(0xff9a3c, 1.3);
     rim.position.set(-6, 2, -5);
     const fill = new THREE.DirectionalLight(0xf0c4b8, 0.25);
@@ -1067,7 +1104,7 @@
       frame(dt, t) {
         const f = viewer.units[viewer.focus];
         const room = Math.max(ROOM_MIN, Math.min(1, f ? f.room() : 1));
-        hemi.intensity = 0.35 * room; key.intensity = 1.1 * room;
+        hemi.intensity = 0.35 * room; key.intensity = KEY * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
         const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
         rim.color.lerp(rimTo, k); fill.color.lerp(fillTo, k);
