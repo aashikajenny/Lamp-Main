@@ -124,6 +124,8 @@ To replace a photo: put the new one in `images/generallayout/` under the same na
 
 In `script.js`, paste each product's Amazon, Flipkart and Meesho listing URLs into `STORES` (one set per product). While a link is empty, its button shows a "listing coming soon" note.
 
+A store can instead list one link per design (by design id), plus `"*"` for designs with no listing of their own. The store button then follows the design shown in the buy section. Meesho is set up this way (October 2026). Each Meesho listing is one product in one design, and designs without a listing for that product open the shop page (Pingaksch Aura). The Meesho shop page shows one card per catalog, so a card marked "+4 More" hides four more listings; open the listing to see the rest. Not linked: the rainbow OM box and lamp, the Premanand Ji box with folded hands, the Radha Krishna box under a tree, the two combos and the orange Hanuman Chalisa box, since the site has no matching design or product. Hanuman Ji, Bhakti Hanuman, Veer Hanuman, Radhe Radhe and Shiv Ji have no Meesho listing yet.
+
 ## WebP converter
 
 Every image the site loads is WebP, so pages load faster. This machine has no WebP command-line tool, so the converter uses the browser's own encoder:

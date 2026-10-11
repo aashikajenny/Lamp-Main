@@ -14,11 +14,54 @@
 
   /* ---------- Store settings: fill these in before going live ---------- */
   // Marketplace listings for each product: paste each full product URL here before going live.
+  // A store can have one link for the whole product, or one per design (by design id, the design's
+  // file name in images/designs without .webp), with "*" for designs that have no listing of their
+  // own; the store button then follows the design on show in the buy section.
   // While a link is empty, its button shows a short "coming soon" note instead.
+  const MEESHO = "https://www.meesho.com/";
+  const MEESHO_SHOP = MEESHO + "PingakschAura";
   const STORES = {
-    mantra: { amazon: "", flipkart: "", meesho: "" },
-    mini: { amazon: "", flipkart: "", meesho: "" },
-    lamp: { amazon: "", flipkart: "", meesho: "" }
+    mantra: {
+      amazon: "", flipkart: "",
+      meesho: {
+        "om": MEESHO + "om-35-in-1-led-gayatri-mantra-chanting-box-mantra-chanting-device-of-hindu-god-om-mantra-chant-for-peace-prosperity-meditation-spiritual-mantra-chanting-machine-pack-1/p/if8kdb",
+        "anant-om-eternal-harmony": MEESHO + "om-chanting-box-35-in-1/p/ik2zya",
+        "mahadev": MEESHO + "35-in-1-mantra-chanting-box-with-led-illumination-divine-spiritual-audio-device-for-puja-meditation-home/p/ik5h8c",
+        "meditating-shiv-ji": MEESHO + "meditating-shiv-ji-led-mantra-chanting-device-35-in-1/p/ik4zj3",
+        "trishul-om": MEESHO + "35-in-1-mantra-chanting-box-with-led-illumination-divine-spiritual-audio-device-for-puja-meditation-home/p/ik8clt",
+        "shri-premanand-maharaj-ji-radha-kripa": MEESHO + "premanand-ji-maharaj-sound-with-lighting-photo/p/if8ysy",
+        "khatu-shyam-ji": MEESHO + "khatu-shyam-ji-led-mantra-chanting-device-35-in-1/p/iiah69",
+        "radha-krishna": MEESHO + "radha-krishna-continuous-mantra-bell-with-specific-radhe-krishna-mantras-and-glowing-image/p/iiah6c",
+        "*": MEESHO_SHOP
+      }
+    },
+    mini: {
+      amazon: "", flipkart: "",
+      meesho: {
+        "ganesh-ji": MEESHO + "35-in-one-mini-mantra/p/ig69eu",
+        "guru-nanak-dev-ji": MEESHO + "satnam-nanak-dev-ji-mantra-chanting-bell/p/ig8gvn",
+        "*": MEESHO_SHOP
+      }
+    },
+    lamp: {
+      amazon: "", flipkart: "",
+      meesho: {
+        "om": MEESHO + "om-led-night-lamp/p/ibzuim",
+        "krishna-om": MEESHO + "om-krishna-led-night-lamp/p/igfkpy",
+        "3d-hanuman-ji": MEESHO + "hanumanji-3d-led-night-lamp/p/ihm5pa",
+        "ram-bhakt-hanuman": MEESHO + "hanumanji-led-night-lamp/p/ic3dit",
+        "jai-guru-ji-anant-kripa": MEESHO + "guruji-led-night-lamp/p/ibxhy5",
+        "sikh-gurus-darshan-suvarna-guru-parampara": MEESHO + "sikh-gurus-led-night-lamp/p/igudyt",
+        "premanand-ji-maharaj-with-lord-krishna": MEESHO + "premanand-ji-led-night-lamp/p/ihrf9p",
+        "shri-premanand-maharaj-ji-radha-kripa": MEESHO + "led-night-lamp/p/iaxlcp",
+        "shiv-parvati-divya-darshan-kailash-ki-jyoti": MEESHO + "shiv-parvati-led-night-lamp/p/ibv867",
+        "shri-siddhivinayak-suvarna-divya-darshan": MEESHO + "shri-ganesh-led-night-lamp/p/ibcf0n",
+        "shri-ram-darbar-suvarna-divya-darshan": MEESHO + "ramdurbar-night-lamp/p/ibakjr",
+        "neem-karoli-baba": MEESHO + "neem-karoli-baba-led-night-lamp/p/igfdds",
+        "meditating-shiv-ji": MEESHO + "lord-shiva-led-night-lamp/p/iadod7",
+        "*": MEESHO_SHOP
+      }
+    }
   };
 
   /* ---------- Design sounds: what plays when someone taps a design ---------- */
@@ -588,6 +631,7 @@
     const d = Art.DESIGNS[id];
     designNote.textContent = d ? d.note || d.name : "";
     if (views.order) views.order.setArt(id, true);
+    setStores(); // a store with a listing per design links the one on show
     // on a phone the designs are one row swiped sideways: bring the one chosen into view
     // (sideways only, so the page itself never moves)
     const b = picks.find((p) => p.dataset.design === id);
@@ -769,15 +813,23 @@
 
   /* ---------- Reveals: content is visible by default; scripts lift it in as it arrives ---------- */
   if (!reduceMotion) {
+    // A section's pieces lift in together, one after another, as the section comes on screen.
+    // (Each piece used to wait for itself to pass a line a tenth of the way up the screen, but the
+    // page comes to rest with each section filling the screen, and the store buttons sit at the very
+    // foot of theirs: arriving straight there, or coming back to the page, they never passed the
+    // line and stayed hidden.)
+    const groups = new Map();
     $$(".reveal").forEach((el) => {
-      const sibs = $$(":scope > .reveal", el.parentElement);
-      const i = Math.max(0, sibs.indexOf(el));
+      const sec = el.closest("section, footer") || el.parentElement;
+      if (!groups.has(sec)) groups.set(sec, []);
+      groups.get(sec).push(el);
       el.style.opacity = "0";
       el.style.transform = "translateY(24px)";
-      inView(el, () => {
-        animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: Math.min(i * 0.06, 0.3), ease: EASE });
-      }, { margin: "0px 0px -10% 0px" });
     });
+    groups.forEach((els, sec) => inView(sec, () => {
+      els.forEach((el, i) => animate(el, { opacity: 1, transform: "translateY(0px)" },
+        { duration: 0.9, delay: Math.min(i * 0.06, 0.4), ease: EASE }));
+    }, { margin: "0px 0px -20% 0px" }));
     const head = $$(".products-head > *");
     head.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(24px)"; });
     inView(productsSec, () => {
@@ -1000,16 +1052,33 @@
   /* ---------- Buy: each product's marketplace listings ---------- */
   const STORE_NAMES = { amazon: "Amazon", flipkart: "Flipkart", meesho: "Meesho" };
   const buyNote = $(".buy-note");
+  // a store's link for the product on show: its listing in the design on show when the store has
+  // one per design (design: true), the store's fallback when that design has none (shop: true)
+  function storeUrl(store) {
+    const s = STORES[product][store];
+    if (!s || typeof s === "string") return { url: s || "" };
+    if (s[shownDesign]) return { url: s[shownDesign], design: true };
+    return { url: s["*"] || "", shop: true };
+  }
   function setStores() {
     buyNote.textContent = "";
+    const d = Art.DESIGNS[shownDesign];
+    // the product's name, with the design when a link is for that design and the name doesn't say it
+    // already (a lamp picked in a design is named after it)
+    const what = (design) => {
+      const n = PRODUCTS[product].buyName;
+      return design && !n.includes(design.name) ? `${n} in the ${design.name} design` : n;
+    };
     $$(".store").forEach((a) => {
-      const url = STORES[product][a.dataset.store];
+      const { url, design, shop } = storeUrl(a.dataset.store);
       const name = STORE_NAMES[a.dataset.store];
       if (url) {
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener";
-        a.setAttribute("aria-label", `Buy ${PRODUCTS[product].buyName} on ${name} (opens in a new tab)`);
+        a.setAttribute("aria-label", shop
+          ? `See our shop on ${name} (opens in a new tab)`
+          : `Buy ${what(design && d)} on ${name} (opens in a new tab)`);
         a.dataset.soon = "";
       } else {
         a.href = "#order";
