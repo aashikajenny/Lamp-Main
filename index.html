@@ -6,6 +6,7 @@
   <title>Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, Night Lamps</title>
   <meta name="description" content="Devotional products for the home from Aashi Enterprises: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps, each with a sacred artwork of your choice." />
   <meta name="theme-color" content="#faf5f0" />
+  <link rel="icon" href="images/brand/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon.ico" sizes="48x48" />
   <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
@@ -15,7 +16,11 @@
   <meta property="og:title" content="Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, Night Lamps" />
   <meta property="og:description" content="Devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps, each with a sacred artwork of your choice." />
   <meta property="og:url" content="https://aashienterprises.pages.dev/" />
-  <meta property="og:image" content="https://aashienterprises.pages.dev/images/designs/om.webp" />
+  <meta property="og:image" content="https://aashienterprises.pages.dev/images/share/home.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="The Divine Mantra Box, the Mini Chanting Box and a Sacred Night Lamp from Aashi Enterprises" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://aashienterprises.pages.dev/" />
   <meta name="google-site-verification" content="WcmXaSoSBchNL-0sWLKVzpbwoxoHAhmw7E76L6w8INA" />
   <!-- what Google reads about the business and its products -->
@@ -38,25 +43,25 @@
         "url": "https://aashienterprises.pages.dev/",
         "logo": "https://aashienterprises.pages.dev/icon-512.png",
         "telephone": "+91-82879-94052",
+        "sameAs": ["https://www.meesho.com/PingakschAura"],
         "contactPoint": { "@type": "ContactPoint", "telephone": "+91-82879-94052", "contactType": "sales", "areaServed": "IN", "availableLanguage": ["en", "hi"] }
       },
       {
         "@type": "ItemList",
         "name": "Aashi Enterprises products",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "item": { "@type": "Product", "name": "Divine Mantra Box", "description": "35-in-1 mantra chanting box with 35 divine mantras, clear, high-quality sound and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/khatu-shyam-ji.webp" } },
-          { "@type": "ListItem", "position": 2, "item": { "@type": "Product", "name": "Mini Chanting Box", "description": "Slim, light plug-in mantra chanting box with 35 Vedic mantras.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/shiv-ji.webp" } },
-          { "@type": "ListItem", "position": 3, "item": { "@type": "Product", "name": "Night Lamps", "description": "Plug-in night lamp with a soft, warm glow and a sacred artwork of your choice.", "brand": { "@id": "https://aashienterprises.pages.dev/#org" }, "image": "https://aashienterprises.pages.dev/images/designs/krishna-om.webp" } }
+          { "@type": "ListItem", "position": 1, "url": "https://aashienterprises.pages.dev/mantra-box", "name": "Divine Mantra Box" },
+          { "@type": "ListItem", "position": 2, "url": "https://aashienterprises.pages.dev/mini-chanting-box", "name": "Mini Chanting Box" },
+          { "@type": "ListItem", "position": 3, "url": "https://aashienterprises.pages.dev/night-lamp", "name": "Night Lamps" }
         ]
       }
     ]
   }
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,300;0,400;0,500;1,300&family=Tiro+Devanagari+Sanskrit&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+  <!-- fonts and icons are served with the site (fonts/): the text's font starts loading at once -->
+  <link rel="preload" href="fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="fonts/icons.css" />
+  <!-- (the filled icons, for the mantra recordings' play buttons, load with the recordings: script.js) -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -67,7 +72,7 @@
 
   <header class="nav">
     <a class="brand" href="#hero" aria-label="Aashi Enterprises, back to the start">
-      <img class="brand-mark" src="images/brand/logo-mark.webp" alt="" width="132" height="96" />
+      <img class="brand-mark" src="images/brand/logo-mark.svg" alt="" width="132" height="96" />
       <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
     </a>
     <nav class="nav-links" aria-label="Primary">
@@ -104,7 +109,9 @@
     <section class="hero" id="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <!-- the claim is the headline; the product's full name is its nameplate -->
+          <!-- the claim is the headline; the product's full name is its nameplate. (On a product's
+               own address the page's main heading is that product's name, in the picker below, and
+               this one becomes a section heading: tools/product-pages.mjs) -->
           <h1 class="hero-title">
             <span class="line"><span>Our best seller.</span></span>
             <span class="line"><span class="accent-text">35-in-1 Divine Mantra Box</span></span>
@@ -126,12 +133,12 @@
              page opens (the brand's moment, without holding the page back) -->
         <div class="hero-space model-slot" data-slot="hero" aria-hidden="true">
           <div class="bloom">
-            <img class="p-leg" src="images/brand/petal-leg.webp" alt="" style="--i: 0" />
-            <img class="p-ribbon" src="images/brand/petal-ribbon.webp" alt="" style="--i: 1" />
-            <img class="p-swoosh" src="images/brand/petal-swoosh.webp" alt="" style="--i: 2" />
-            <img class="p-top" src="images/brand/petal-top.webp" alt="" style="--i: 3" />
-            <img class="p-mid" src="images/brand/petal-mid.webp" alt="" style="--i: 4" />
-            <img class="p-pink" src="images/brand/petal-pink.webp" alt="" style="--i: 5" />
+            <img class="p-leg" src="images/brand/petal-leg.svg" alt="" style="--i: 0" />
+            <img class="p-ribbon" src="images/brand/petal-ribbon.svg" alt="" style="--i: 1" />
+            <img class="p-swoosh" src="images/brand/petal-swoosh.svg" alt="" style="--i: 2" />
+            <img class="p-top" src="images/brand/petal-top.svg" alt="" style="--i: 3" />
+            <img class="p-mid" src="images/brand/petal-mid.svg" alt="" style="--i: 4" />
+            <img class="p-pink" src="images/brand/petal-pink.svg" alt="" style="--i: 5" />
           </div>
           <div class="hero-pedestal"><span></span><span></span></div>
           <!-- a still of the box in its default design, shown at once while the 3D loads, then
@@ -157,6 +164,7 @@
         <button type="button" class="pick-arrow" data-step="-1" aria-label="Previous product"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
         <div class="pick-copy">
           <h3 class="pick-name" aria-live="polite">Divine Mantra Box</h3>
+          <p class="pick-price"><span class="pick-price-from">From</span> <span class="pick-price-amount">₹249</span></p>
           <p class="pick-tag">Our best seller: 35 divine mantras in one small box, for a home filled with peace.</p>
           <button type="button" class="btn btn-primary pick-go">Explore <i class="ph ph-arrow-down" aria-hidden="true"></i></button>
           <!-- which of the three is in front: a petal each, the one in front opens out -->
@@ -278,12 +286,14 @@
           </div>
         </div>
 
-        <!-- Photos load from images/rooms/<name>.webp; until then each shows a lit placeholder.
-             rooms.js lays the chosen design over the lamp in each photo -->
+        <!-- Photos load from images/rooms/<name>.webp (data-src: only once the night lamp is on show
+             and this section is near, so the other products' visitors never download them; the
+             lamp's own address has them as plain images, tools/product-pages.mjs); until then each
+             shows a lit placeholder. rooms.js lays the chosen design over the lamp in each photo -->
         <div class="room-frame">
           <figure class="room is-on" data-room="puja-room" style="--tint: 58, 26, 10">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" src="images/rooms/puja-room.webp" loading="lazy" alt="The night lamp glowing on the wall of a home puja room" decoding="async" />
+              <img class="room-shot" data-src="images/rooms/puja-room.webp" loading="lazy" alt="The night lamp glowing on the wall of a home puja room" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
               <div class="room-art" aria-hidden="true"></div>
             </div></div>
@@ -291,7 +301,7 @@
           </figure>
           <figure class="room" data-room="bedside" style="--tint: 40, 22, 44">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" src="images/rooms/bedside.webp" loading="lazy" alt="The night lamp giving a soft glow beside a bed at night" decoding="async" />
+              <img class="room-shot" data-src="images/rooms/bedside.webp" loading="lazy" alt="The night lamp giving a soft glow beside a bed at night" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
               <div class="room-art" aria-hidden="true"></div>
             </div></div>
@@ -299,7 +309,7 @@
           </figure>
           <figure class="room" data-room="meditation-corner" style="--tint: 24, 30, 40">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" src="images/rooms/meditation-corner.webp" loading="lazy" alt="The night lamp lighting a quiet meditation corner" decoding="async" />
+              <img class="room-shot" data-src="images/rooms/meditation-corner.webp" loading="lazy" alt="The night lamp lighting a quiet meditation corner" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
               <div class="room-art" aria-hidden="true"></div>
             </div></div>
@@ -307,7 +317,7 @@
           </figure>
           <figure class="room" data-room="living-room" style="--tint: 46, 32, 20">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" src="images/rooms/living-room.webp" loading="lazy" alt="The night lamp glowing on a living room wall in the evening" decoding="async" />
+              <img class="room-shot" data-src="images/rooms/living-room.webp" loading="lazy" alt="The night lamp glowing on a living room wall in the evening" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
               <div class="room-art" aria-hidden="true"></div>
             </div></div>
@@ -315,7 +325,7 @@
           </figure>
           <figure class="room" data-room="office-desk" style="--tint: 22, 28, 34">
             <div class="room-scene"><div class="room-stage">
-              <img class="room-shot" src="images/rooms/office-desk.webp" loading="lazy" alt="The night lamp plugged in beside an office desk" decoding="async" />
+              <img class="room-shot" data-src="images/rooms/office-desk.webp" loading="lazy" alt="The night lamp plugged in beside an office desk" decoding="async" />
               <span class="room-tint" aria-hidden="true"></span>
               <div class="room-art" aria-hidden="true"></div>
             </div></div>
@@ -337,17 +347,21 @@
           </div>
           <p class="design-note reveal" aria-live="polite"></p>
 
+          <!-- the price comes first ("From ₹", PAGES in script.js keeps it), then what the product is like -->
           <ul class="perks reveal" data-for="mantra">
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹249</span></li>
             <li><i class="ph ph-speaker-high" aria-hidden="true"></i>Clear audio</li>
             <li><i class="ph ph-gear-six" aria-hidden="true"></i>Easy to use</li>
             <li><i class="ph ph-plug" aria-hidden="true"></i>Plugs into any socket</li>
           </ul>
           <ul class="perks reveal" data-for="mini">
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹169</span></li>
             <li><i class="ph ph-lightning" aria-hidden="true"></i>Energy efficient</li>
             <li><i class="ph ph-shield-check" aria-hidden="true"></i>Durable and safe</li>
             <li><i class="ph ph-flower-lotus" aria-hidden="true"></i>Made in Bharat</li>
           </ul>
           <ul class="perks reveal" data-for="lamp">
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹149</span></li>
             <li><i class="ph ph-moon-stars" aria-hidden="true"></i>Soft warm glow</li>
             <li><i class="ph ph-plug" aria-hidden="true"></i>Plugs into the wall</li>
             <li><i class="ph ph-gift" aria-hidden="true"></i>A thoughtful gift</li>
@@ -462,19 +476,45 @@
       <p class="footer-line" data-for="mantra">Fill your home with <span class="accent-text">sacred vibrations.</span></p>
       <p class="footer-line" data-for="mini">Feel the power. <span class="accent-text">Hear the blessings.</span></p>
       <p class="footer-line" data-for="lamp">A small light with a <span class="accent-text">peaceful presence.</span></p>
-      <div class="footer-row">
-        <a class="brand" href="#hero" aria-label="Aashi Enterprises, back to the start">
-          <img class="brand-mark" src="images/brand/logo-mark.webp" alt="" width="132" height="96" loading="lazy" />
-          <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
-        </a>
-        <nav class="footer-links" aria-label="Footer">
-          <a href="#products">Products</a>
-          <a href="#features">Features</a>
-          <a href="#order">Buy now</a>
-          <a href="#maker">Custom &amp; bulk orders</a>
-          <a href="#faq">FAQ</a>
+      <!-- the business, then its products (their own pages, made by tools/product-pages.mjs when
+           the site is built), this page's sections and how to reach us; the fine print below -->
+      <div class="footer-grid">
+        <div class="footer-about">
+          <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+            <img class="brand-mark" src="images/brand/logo-mark.svg" alt="" width="132" height="96" loading="lazy" />
+            <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+          </a>
+          <p>Devotional products for the home: mantra chanting boxes and sacred night lamps, each with an artwork of your choice.</p>
+        </div>
+        <nav class="footer-col" aria-label="Our products">
+          <p class="footer-head">Products</p>
+          <ul>
+            <li><a href="/mantra-box">Divine Mantra Box</a></li>
+            <li><a href="/mini-chanting-box">Mini Chanting Box</a></li>
+            <li><a href="/night-lamp">Night Lamps</a></li>
+          </ul>
         </nav>
-        <p class="footer-copy">&copy; 2026 Aashi Enterprises · Custom designs and bulk orders: <a href="tel:+918287994052">+91 82879 94052</a> (call or WhatsApp)</p>
+        <nav class="footer-col" aria-label="On this page">
+          <p class="footer-head">Explore</p>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#order">Choose a design</a></li>
+            <li><a href="#maker">Custom &amp; bulk orders</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <div class="footer-col">
+          <p class="footer-head">Get in touch</p>
+          <ul>
+            <li><a href="tel:+918287994052">+91 82879 94052</a></li>
+            <li><a href="https://wa.me/918287994052" target="_blank" rel="noopener">WhatsApp us</a></li>
+            <li><a href="https://www.meesho.com/PingakschAura" target="_blank" rel="noopener">Our Meesho shop</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-base">
+        <p>&copy; 2026 Aashi Enterprises.<span class="base-more"> All rights reserved.</span></p>
+        <p>Made in Bharat</p>
       </div>
     </div>
   </footer>

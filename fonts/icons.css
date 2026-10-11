@@ -1,0 +1,46 @@
+/* Phosphor icons (MIT), only the ones the site uses: made by tools/icons.py, run it again after using a new icon */
+@font-face { font-family: "Phosphor"; src: url("phosphor.woff2") format("woff2"); font-weight: normal; font-style: normal; font-display: block; }
+.ph {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: "Phosphor" !important;
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Enable Ligatures ================ */
+  letter-spacing: 0;
+  -webkit-font-feature-settings: "liga";
+  -moz-font-feature-settings: "liga=1";
+  -moz-font-feature-settings: "liga";
+  -ms-font-feature-settings: "liga" 1;
+  font-feature-settings: "liga";
+  -webkit-font-variant-ligatures: discretionary-ligatures;
+  font-variant-ligatures: discretionary-ligatures;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.ph.ph-arrow-down:before { content: "\e03e"; }
+.ph.ph-arrow-left:before { content: "\e058"; }
+.ph.ph-arrow-right:before { content: "\e06c"; }
+.ph.ph-arrow-up-right:before { content: "\e092"; }
+.ph.ph-caret-down:before { content: "\e136"; }
+.ph.ph-flower-lotus:before { content: "\e6cc"; }
+.ph.ph-gear-six:before { content: "\e272"; }
+.ph.ph-gift:before { content: "\e276"; }
+.ph.ph-lightning:before { content: "\e2de"; }
+.ph.ph-moon-stars:before { content: "\e58e"; }
+.ph.ph-pause:before { content: "\e39e"; }
+.ph.ph-phone:before { content: "\e3b8"; }
+.ph.ph-play:before { content: "\e3d0"; }
+.ph.ph-plug:before { content: "\e946"; }
+.ph.ph-plus:before { content: "\e3d4"; }
+.ph.ph-shield-check:before { content: "\e40c"; }
+.ph.ph-speaker-high:before { content: "\e44a"; }
+.ph.ph-suitcase-simple:before { content: "\e5b0"; }
+.ph.ph-tag:before { content: "\e478"; }
+.ph.ph-whatsapp-logo:before { content: "\e5d0"; }

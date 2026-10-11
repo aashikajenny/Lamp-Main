@@ -5,3 +5,7 @@ desktop.ini
 .claude/
 .impeccable/
 dist/
+# product pages made for a local preview (node tools/product-pages.mjs .); build.sh makes them in dist/
+/mantra-box.html
+/mini-chanting-box.html
+/night-lamp.html

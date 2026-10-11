@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Cloudflare Pages serves this, with a 404 status, for any address the site doesn't have (without
+       it, every mistyped address would get the home page and look to Google like a copy of it).
+       Its links start with / because it can be served at any depth (/a/b/c). -->
+  <title>Page not found | Aashi Enterprises</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#faf5f0" />
+  <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    html { scroll-snap-type: none; }
+    .lost { min-height: 100svh; display: grid; place-content: center; justify-items: start; gap: 0; padding: 48px var(--gutter); max-width: 720px; margin: 0 auto; }
+    .lost .brand { margin-bottom: clamp(40px, 8vh, 72px); }
+    .lost-code { margin: 0 0 12px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--accent); }
+    .lost h1 { font-size: clamp(40px, 7vw, 72px); line-height: 1.04; letter-spacing: -0.02em; }
+    .lost p.lost-text { margin: 18px 0 32px; max-width: 46ch; color: var(--muted); font: 400 17px/1.6 var(--font-display); }
+    .lost-links { list-style: none; margin: 36px 0 0; padding: 24px 0 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 28px; }
+    .lost-links a { font: 400 16px var(--font-display); color: var(--muted); transition: color 0.25s; }
+    .lost-links a:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <main class="lost">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <p class="lost-code">Page not found</p>
+    <h1>This page isn't here.</h1>
+    <p class="lost-text">The link may be old or mistyped. Everything we make is on the home page.</p>
+    <a class="btn btn-primary" href="/">Go to the home page</a>
+    <ul class="lost-links" aria-label="Our products">
+      <li><a href="/mantra-box">Divine Mantra Box</a></li>
+      <li><a href="/mini-chanting-box">Mini Chanting Box</a></li>
+      <li><a href="/night-lamp">Night Lamps</a></li>
+    </ul>
+  </main>
+</body>
+</html>

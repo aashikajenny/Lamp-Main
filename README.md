@@ -35,6 +35,10 @@ Nothing heavy happens while something is moving:
 - The Mini's curved shell is only cut into small triangles where it actually bends (about half as many points as cutting it evenly, for the same look).
 - Resizing the window (or turning a phone) reallocates the canvases once the size settles, not on every step of the drag.
 
+Nothing is downloaded before it's needed. The lamp's five room photos (about 720 KB) wait until the night lamp is on show and its rooms section is near; on the lamp's own address they are ordinary lazy-loaded images, so Google Images finds them. The filled icon set (the mantra recordings' play buttons) loads only once there are recordings. In October 2026 this took the home page from 1.4 MB to about 0.8 MB on first load.
+
+**Fonts and icons are served with the site** (`fonts/`), so the first paint waits on no other server: before, it waited on three (Google Fonts' stylesheet, then its font files, and two icon stylesheets from unpkg). Jost is one small variable file for every weight, preloaded by the page; Tiro Devanagari (the mantras' Hindi names) downloads only when Devanagari text is shown. The icons are Phosphor, cut down from about 1,500 to the 20 the site uses: 3.5 KB instead of 150 KB, and the filled play and pause icons (0.7 KB) load only with the recordings. **After using a new icon** (`<i class="ph ph-...">`), run `py tools/icons.py` (it needs `py -m pip install fonttools brotli` once) to add it; until then it shows as a blank space. Licences are in `fonts/LICENSES.txt`.
+
 Everything pauses in a background tab.
 
 ## Deploy (Cloudflare Pages)
@@ -47,9 +51,46 @@ The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every 
 
 `build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, the icons, `_headers` (caching and security headers) and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site.
 
+## Product addresses and SEO
+
+**One site, several doors.** Every address shows the same site, best seller first, with the same sections in the same order. Besides the home page, each product has its own address: `/mantra-box`, `/mini-chanting-box` and `/night-lamp`. A product's address changes only two things:
+
+- **Where the site opens:** a visitor arriving there starts at the product showcase ("Three ways to bring the divine home"), with that product in front and its features, designs and FAQ below. The best seller is just above. (A reload or Back keeps their place instead.)
+- **What Google and link previews read:** the title, description, canonical address, picture and product details (schema.org: the product, the business, and a breadcrumb back home). The page's main heading (`h1`) is the product's name in the showcase, and the best seller's headline becomes a section heading.
+
+Switching product anywhere (the nav switcher, the showcase) leaves the page where it is. It only changes the address and the browser tab to that product's, so a copied link opens on the product on show. No new history entry is made.
+
+**One place for the wording.** The product names, showcase lines, titles, descriptions and default designs live in `PAGES` at the top of `script.js`. `build.sh` makes the three pages from `index.html` with `tools/product-pages.mjs` (Node), which reads that block, so the pages never fall out of step with the home page. To preview them locally, run `node tools/product-pages.mjs .`; git ignores the copies it makes.
+
+**Prices.** Each product shows a "From ₹" price, under its name in the showcase and first in the row of perks above the store buttons, and Google is given the same figure. The figure is `price` in `PAGES` (`script.js`), so the page and Google always agree. Set in October 2026 from the Meesho listings:
+
+| Product | Meesho now | Shown |
+|---|---|---|
+| Divine Mantra Box | ₹221 to ₹268 | From ₹249 |
+| Mini Chanting Box | ₹162 to ₹165 | From ₹169 |
+| Night Lamps | ₹145 to ₹168 | From ₹149 |
+
+The rule: never below the lowest price a design actually sells for (a visitor must be able to find one at that price or less), only a little above it, and on a 9-ending (₹149, ₹249), the usual sign of good value in Indian shops. Check it against the stores now and then, and change `price` if the lowest price moves above it.
+
+**Link previews.** Sharing any address (WhatsApp, Facebook, X) shows a 1200 x 630 card: the 3D product, its name, its line and its price, on the site's cream with the logo's petals (`images/share/<page>.jpg`, `home.jpg` for the home page; JPG, which every app shows). Google is given a plain photo of each product (`images/share/<slug>-product.jpg`). They were drawn from the site's own 3D models; remake them if a product's look, default design or price changes.
+
+**Also for search engines:**
+
+- `sitemap.xml` lists all four addresses, and `robots.txt` points to it.
+- The footer links to every product address.
+- The home page tells Google about the business (with the Meesho shop as one of its profiles) and lists the three products by address.
+- `404.html` answers any address the site doesn't have, with a 404 status. Without it, Cloudflare Pages would serve the home page there, and Google would see endless copies of it.
+
+**When the domain changes,** update the address in:
+
+- the canonical link, the `og:` tags and the schema.org block in `index.html`
+- `sitemap.xml` and `robots.txt`
+
+The product pages take the address from the canonical link.
+
 ## Run
 
-Serve the folder through a local web server and open `index.html`. You need an internet connection for the fonts and libraries.
+Run `python tools/serve.py` (the `lamp-site` preview does) and open http://localhost:8080. It serves addresses the way Cloudflare Pages does: `/night-lamp` from `night-lamp.html`, and `404.html` for anything missing. You need an internet connection for the 3D and animation libraries (Three.js and Motion); the fonts and icons are in `fonts/`.
 
 ## Files
 
@@ -60,7 +101,10 @@ Serve the folder through a local web server and open `index.html`. You need an i
 - `script.js`: the products, the picker, the features showcase, the design picker and the page animations
 - `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
 - `build.sh`, `_headers`: the hosting build (see Deploy)
-- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below)
+- `fonts/`: the fonts and icons, with their licences (see Performance)
+- `404.html`: the page for addresses the site doesn't have
+- `sitemap.xml`, `robots.txt`: the addresses for search engines (see "Product addresses and SEO")
+- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server) and `icons.py` (remakes the icon font after a new icon is used)
 - `images/designs/`: the design artwork, as WebP, and `designs.json`
 - `images/generallayout/`: the original room photos; `images/rooms/`: their WebP copies, which the site loads
 
@@ -85,7 +129,7 @@ The short line shown under the buttons for each design is in `NOTES` in `designs
 
 ## Look: from the logo
 
-Colour, type and shapes come from the logo (`images/brand/logo-original.webp`): its cream ground, its blush, nude, dusty-rose and mauve petals, and its thin, widely spaced lettering, set in **Jost** (large headings light, small labels and the nav in spaced capitals, like ENTERPRISES on the logo; buttons in plain words, so they stay easy to read). Buttons, tabs and frames are cut like the logo's leaves: two opposite corners round, two nearly pointed (`--leaf` in `style.css`). Behind the best seller, the logo's six petals (`images/brand/petal-*.webp`) unfurl one by one as the page opens (ribbon and swoosh first, the leg last, about two seconds in all), each coming to rest exactly in its place in the logo; then the logo breathes slowly as one piece, so it always keeps its true shape. (The petal images were cut from the logo with clean, soft edges, with none of the logo's white background left round them, so they sit cleanly on the dark page too.) This is the logo's bloom from the old full-screen intro, moved into the hero so it never holds the page back: the headline and the product can be read from the first moment.
+Colour, type and shapes come from the logo (`images/brand/logo-original.webp`): its cream ground, its blush, nude, dusty-rose and mauve petals, and its thin, widely spaced lettering, set in **Jost** (large headings light, small labels and the nav in spaced capitals, like ENTERPRISES on the logo; buttons in plain words, so they stay easy to read). Buttons, tabs and frames are cut like the logo's leaves: two opposite corners round, two nearly pointed (`--leaf` in `style.css`). Behind the best seller, the logo's six petals (`images/brand/petal-*.svg`) unfurl one by one as the page opens (ribbon and swoosh first, the leg last, about two seconds in all), each coming to rest exactly in its place in the logo; then the logo breathes slowly as one piece, so it always keeps its true shape. **The logo is SVG** (October 2026): the six petals, the mark in the nav and footer (`logo-mark.svg`) and the browser tab's icon (`favicon.svg`, on a cream tile). They were traced from the logo's petal cut-outs (raster images, removed once traced; they are in the git history), so they stay sharp at any size and on high-resolution screens; the hero's bloom used to look soft there. The traced shapes match the cut-outs to within half a pixel, and their colours are the petals' own (one flat tone each, a gentle gradient on the two darker ones, and the top petal's darker underside as its own layer). The home-screen icons (`icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `favicon.ico`) stay PNG/ICO, which phones and older browsers need. This is the logo's bloom from the old full-screen intro, moved into the hero so it never holds the page back: the headline and the product can be read from the first moment.
 
 The page is the logo's own cream, with cocoa-brown text and dusty-rose buttons. (A dark "dusk" version was tried alongside it in October 2026; the light one was chosen and the dusk one removed.)
 

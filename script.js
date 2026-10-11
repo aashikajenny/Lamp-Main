@@ -1,9 +1,10 @@
 /* Aashi Enterprises: page choreography.
-   - The hero shows the best seller, the Divine Mantra Box.
+   - The hero shows the best seller, the Divine Mantra Box, at every address.
    - The product picker below it is a turning stage with all three products. The product in
      front is the one the rest of the page shows: the features, the rooms (for the lamp), the
      design picker, the store links and the FAQ all follow it (anything marked data-for).
-     The switcher in the nav changes it from anywhere, and ?product=mini opens on that product.
+     The switcher in the nav changes it from anywhere. Each product has its own address
+     (/night-lamp; see PAGES), which opens the same site on that product.
    - Scrolling only scrolls the page. Each section that shows a product has its own 3D viewer
      (models3d.js) in its own slot, so it scrolls with that section like any other content.
    - Features: the showcase plays by itself, one feature every few seconds, and the 3D product
@@ -100,26 +101,68 @@
   // the design a visitor picked for each product (each product keeps its own; none until they pick)
   const pickedFor = {};
 
+  /* ---------- Each product's own address ---------- */
+  // Every address shows this same site, best seller first. A product's address (/mantra-box and so
+  // on) opens it on that product, and tells Google that product's title, description and main
+  // heading (name; the picker's line is tag; design is the one it wears until a visitor picks one,
+  // and its picture for Google and link previews). price is the "From ₹" shown with the product and
+  // given to Google: keep it at or a little above the lowest price it sells for in the stores (never
+  // below it, or a visitor would find no design at that price), on a 9-ending. tools/product-pages.mjs makes those pages from
+  // index.html with this block, so it stays plain JSON between its two marks; the page itself uses
+  // it to name the address and the browser tab after the product on show.
+  const PAGES = /* pages */ {
+    "mantra": {
+      "slug": "mantra-box",
+      "name": "Divine Mantra Box",
+      "tag": "Our best seller: 35 divine mantras in one small box, for a home filled with peace.",
+      "title": "35-in-1 Divine Mantra Box | Mantra Chanting Box | Aashi Enterprises",
+      "description": "35 devotional mantras, from the Gayatri to the Mahamrityunjaya, in a small plug-in box with clear sound and a sacred artwork of your choice.",
+      "category": "Mantra chanting box",
+      "design": "khatu-shyam-ji",
+      "price": 249
+    },
+    "mini": {
+      "slug": "mini-chanting-box",
+      "name": "Mini Chanting Box",
+      "tag": "A Vedic 35-in-1 mantra device. Plug in. Chant. Feel the divine.",
+      "title": "Mini Mantra Chanting Box, 35 Vedic Mantras | Aashi Enterprises",
+      "description": "A slim plug-in mantra chanting machine with 35 Vedic mantras, from the Ganesh Mantra to the Gayatri, clear sound and a sacred design on its front.",
+      "category": "Mantra chanting machine",
+      "design": "trishul-om",
+      "price": 169
+    },
+    "lamp": {
+      "slug": "night-lamp",
+      "name": "Night Lamps",
+      "tag": "A sacred artwork, lit from behind. Divine light, peaceful nights.",
+      "title": "God Photo LED Night Lamps for the Puja Room | Aashi Enterprises",
+      "description": "Plug-in LED night lamps with a sacred artwork lit softly from behind: Shiv Ji, Hanuman Ji, Khatu Shyam Ji, Radha Krishna, Guru Ji and more.",
+      "category": "Night lamp",
+      "design": "meditating-shiv-ji",
+      "price": 149
+    }
+  } /* /pages */;
+
   /* ---------- The products ---------- */
   const PRODUCTS = {
     mantra: {
-      name: "Divine Mantra Box", short: "Mantra Box", buyName: "the Divine Mantra Box",
-      tag: "Our best seller: 35 divine mantras in one small box, for a home filled with peace.",
-      design: "khatu-shyam-ji" // the design it wears until a visitor picks one
+      name: PAGES.mantra.name, short: "Mantra Box", buyName: "the Divine Mantra Box",
+      tag: PAGES.mantra.tag, price: `₹${PAGES.mantra.price}`,
+      design: PAGES.mantra.design
     },
     mini: {
-      name: "Mini Chanting Box", short: "Mini Chanting Box", buyName: "the Mini Chanting Box",
-      tag: "A Vedic 35-in-1 mantra device. Plug in. Chant. Feel the divine.",
-      design: "trishul-om"
+      name: PAGES.mini.name, short: "Mini Chanting Box", buyName: "the Mini Chanting Box",
+      tag: PAGES.mini.tag, price: `₹${PAGES.mini.price}`,
+      design: PAGES.mini.design
     },
     lamp: {
       // "Night Lamps" until a visitor picks a design, then named after it ("Khatu Shyam Ji Night Lamp")
-      get name() { const d = Art.DESIGNS[pickedFor.lamp]; return d ? `${d.name} Night Lamp` : "Night Lamps"; },
+      get name() { const d = Art.DESIGNS[pickedFor.lamp]; return d ? `${d.name} Night Lamp` : PAGES.lamp.name; },
       // "Buy our Night Lamps on", then "Buy the Khatu Shyam Ji Night Lamp on" once a design is picked
       get buyName() { return Art.DESIGNS[pickedFor.lamp] ? `the ${this.name}` : "our Night Lamps"; },
       short: "Night Lamp",
-      tag: "A sacred artwork, lit from behind. Divine light, peaceful nights.",
-      design: "meditating-shiv-ji"
+      tag: PAGES.lamp.tag, price: `₹${PAGES.lamp.price}`,
+      design: PAGES.lamp.design
     }
   };
   const ORDER = ["mantra", "mini", "lamp"];
@@ -140,8 +183,16 @@
 
   const hero = $("#hero"), show = $("#features"), orderSec = $("#order"), productsSec = $("#products");
 
-  let product = new URLSearchParams(location.search).get("product");
+  // The product the page opens on: a product's own address says which (<html data-page>, set by
+  // tools/product-pages.mjs; see PAGES), older ?product= links still work, and otherwise the best
+  // seller. The page is the same at every address, best seller first.
+  const page = PRODUCTS[html.dataset.page] ? html.dataset.page : null;
+  let product = new URLSearchParams(location.search).get("product") || page;
   if (!PRODUCTS[product]) product = "mantra";
+  // a product's own address opens at the product showcase, that product in front and the best seller
+  // just above; a reload or Back returns to wherever the visitor was
+  const arrival = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+  const landAtProduct = !!page && !location.hash && (!arrival || arrival.type === "navigate");
 
   /* ---------- Poses ---------- */
   const sideOn = (ry, s) => [
@@ -244,11 +295,17 @@
     fillText();
     if (opts.fromStage !== true) stageTo(ORDER.indexOf(id));
     if (!changed && !opts.force) return;
+    // the address and the browser tab follow the product on show (its own address, so a link copied
+    // now opens on it; no new history entry, so Back still leaves the site). The page itself stays
+    // as it is: same site, same place.
     try {
       const url = new URL(location.href);
-      url.searchParams.set("product", id);
+      // (night-lamp.html while previewing straight from the folder; /night-lamp once hosted)
+      url.pathname = url.pathname.replace(/[^/]*$/, PAGES[id].slug + (url.pathname.endsWith(".html") ? ".html" : ""));
+      url.searchParams.delete("product");
       history.replaceState(null, "", url);
     } catch (e) { /* a page opened from disk can't change its address */ }
+    document.title = PAGES[id].title;
 
     stopSound(); // a design's sound belongs to the product it was played on
     stopClip(); // and a recording to the device it was played for
@@ -308,7 +365,7 @@
 
   /* ---------- The picker: a turning stage of all three ---------- */
   const tabs = $$(".pick-tab");
-  const pickName = $(".pick-name"), pickTag = $(".pick-tag");
+  const pickName = $(".pick-name"), pickTag = $(".pick-tag"), pickPrice = $(".pick-price-amount");
   const pickCopy = $(".pick-copy");
   let stageIndex = ORDER.indexOf(product);
   const orbits = ORDER.map((_, i) => 0);
@@ -362,6 +419,7 @@
     pickCopy.dataset.product = id;
     splitName(pickName, p.name);
     pickTag.textContent = p.tag;
+    pickPrice.textContent = p.price;
     if (animateIn && !reduceMotion) {
       animate($$(".ch", pickName), { opacity: [0, 1], transform: ["translateY(0.5em) rotate(6deg)", "translateY(0em) rotate(0deg)"], filter: ["blur(6px)", "blur(0px)"] },
         { duration: 0.7, delay: stagger(0.022), ease: EASE });
@@ -560,6 +618,11 @@
   }
   const clipAudio = [];
   if (MANTRA_CLIPS.length) {
+    // the filled icons (the play and pause buttons) are only needed here, so they load with the recordings
+    const fill = document.createElement("link");
+    fill.rel = "stylesheet";
+    fill.href = "fonts/icons-fill.css";
+    document.head.appendChild(fill);
     listenSec.hidden = false;
     $$(".nav-listen").forEach((a) => { a.hidden = false; });
     MANTRA_CLIPS.forEach((m) => {
@@ -762,24 +825,25 @@
   Field.level = 1;
   // the rest of the 3D is made while the visitor reads the hero, one step per idle moment, so no
   // single step holds the page up for long; each viewer compiles its shaders as soon as it is made,
-  // long before its section scrolls into view
+  // long before its section scrolls into view (arriving at the showcase, its stage comes first)
+  const makeStage = () => {
+    const stageView = makeView("products", ORDER, { fog: true });
+    if (!stageView) return;
+    poseStage();
+    stageView.units.forEach((u) => u.snap());
+    // the stage rises into view the first time it arrives
+    if (!reduceMotion) {
+      stageView.units.forEach((u, i) => {
+        u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
+        u.snap();
+      });
+      inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
+    }
+  };
   const setup = [
     () => Models.prepare("mini"),
     () => Models.prepare("lamp"),
-    () => {
-      const stageView = makeView("products", ORDER, { fog: true });
-      if (!stageView) return;
-      poseStage();
-      stageView.units.forEach((u) => u.snap());
-      // the stage rises into view the first time it arrives
-      if (!reduceMotion) {
-        stageView.units.forEach((u, i) => {
-          u.setPose(Object.assign({}, i === stageIndex ? P.front : P.back, { orbit: orbits[i], y: -1.2, s: 0.6, ry: -2.4 }));
-          u.snap();
-        });
-        inView(productsSec, () => { poseStage(); }, { amount: 0.3 });
-      }
-    },
+    makeStage,
     () => {
       const f = makeView("features", [product]);
       if (f) { poseFeature(); f.snap(); }
@@ -792,6 +856,7 @@
     () => { if (views.features) views.features.prewarm(ORDER); },
     () => { if (views.order) views.order.prewarm(ORDER); }
   ];
+  if (landAtProduct) setup.unshift(setup.splice(setup.indexOf(makeStage), 1)[0]);
   (function next() {
     const step = setup.shift();
     if (step) idle(() => { step(); setTimeout(next, 120); }); // a breath between steps for the animations
@@ -878,8 +943,9 @@
     return () => { roomsInView = false; playRooms(false); };
   }, { amount: 0.4 });
 
-  // the photos (images/rooms/<room>.webp) are lazy-loaded by the browser, just before the section
-  // arrives; a room keeps its placeholder until its photo is in
+  // the photos (images/rooms/<room>.webp) load just before the section arrives (on the lamp's own
+  // address the browser lazy-loads them; elsewhere they wait in data-src until the lamp is on show and
+  // the section is near, below); a room keeps its placeholder until its photo is in
   rooms.forEach((fig) => {
     const img = $(".room-shot", fig);
     const shown = () => fig.classList.add("has-photo");
@@ -890,6 +956,7 @@
   inView(spacesSec, () => {
     if (photosRequested) return;
     photosRequested = true;
+    $$(".room-shot[data-src]").forEach((img) => { img.src = img.dataset.src; img.removeAttribute("data-src"); });
     if (window.RoomPhotos) Art.ready.then(() => RoomPhotos.show(designFor("lamp")));
   }, { margin: "60% 0px 60% 0px" });
 
@@ -950,6 +1017,7 @@
   //   next click moves on, however soon it comes. A trackpad sends a stream of small events and keeps
   //   sending them, ever smaller, as it coasts to a stop: those are the same swipe and are swallowed,
   //   while a fresh swipe (after a short pause, or a clear new push while still coasting) counts.
+  //   Turning back the other way counts at once, even while the page is still moving.
   // - On very short screens (a phone held sideways) the page doesn't snap at all (style.css), and
   //   the wheel scrolls as usual.
   const SECTIONS = ".hero, .products, .show, .listen, .spaces-sec, .order, .maker, .faq";
@@ -970,25 +1038,61 @@
     stops.push(maxY); // the footer
     return [...new Set(stops.map((y) => Math.round(Math.min(Math.max(y, 0), maxY))))].sort((a, b) => a - b);
   }
-  let stepEnds = 0, lastWheel = 0, lastSize = 0, sameCount = 0;
+  let stepEnds = 0, stepSign = 0, lastWheel = 0, lastSize = 0, lastSign = 0, sameCount = 0, uniform = true;
+  // the swipe on now: how far it has moved since it began and its strongest event so far, whether
+  // its start has been taken, when the last start was, and its last three events
+  let startSum = 0, startMax = 0, started = false, lastStart = 0, recent = [];
   window.addEventListener("wheel", (e) => {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return; // zooming, or sideways
     if (!snapping()) return; // free scrolling on this screen
-    const now = performance.now(), size = Math.abs(e.deltaY), gap = now - lastWheel;
+    // timed by when each event happened, not when it is handled: if the page is busy for a moment,
+    // events wait in line and would seem to come after a pause, splitting one swipe into two
+    const now = e.timeStamp || performance.now();
+    const size = Math.abs(e.deltaY), sign = Math.sign(e.deltaY), gap = now - lastWheel;
     // a mouse wheel: line or page steps, or the same large step again and again (at any zoom or
-    // display scaling); a trackpad's stream changes size from one event to the next
+    // display scaling); its first click after a pause counts as the start of a swipe, below. A
+    // trackpad streams events a frame apart, changing size from one to the next; many report whole
+    // numbers, so a large whole number in the middle of a stream is a trackpad, not a click (taking
+    // it for one counted a long swipe two or three times)
+    // (a trackpad can send the same size twice running too, so it must have been the same size all
+    // along since the scrolling began)
     sameCount = gap < 400 && Math.abs(size - lastSize) < 0.5 ? sameCount + 1 : 0;
-    const wheelClick = e.deltaMode !== 0 || (size >= 40 && (Number.isInteger(size) || sameCount >= 1));
-    const fresh = wheelClick || gap > 140 || size > lastSize * 1.6 + 6;
+    if (gap > 140 || sign !== lastSign) uniform = true;
+    else if (!sameCount) uniform = false;
+    const wheelClick = e.deltaMode !== 0 || (size >= 40 && uniform && sameCount >= 1 && gap > 24);
+    // A fresh swipe (tuned on a recording of a Windows precision touchpad):
+    // - one that begins after a short pause, or in the other direction, counts once it has really
+    //   moved (8px, with one event of at least 4px). A swipe gets there in its first event or two;
+    //   the tail of a coasting swipe, slowing to 1px events with gaps between them, never does (one
+    //   stray tail event after such a gap used to count as a new swipe and move the page on again).
+    // - one that begins while the last is still coasting, with no pause: a sudden jump to three
+    //   times the coasting level, and at least 25px above it. A coasting swipe jitters, but never by
+    //   that much; a swipe's own first moments, speeding up, are not counted (the first quarter
+    //   second after it began).
+    if (gap > 140 || sign !== lastSign) { startSum = startMax = 0; started = false; recent = []; }
+    startSum += size;
+    startMax = Math.max(startMax, size);
+    const begins = !started && startSum >= 8 && startMax >= 4;
+    if (begins) { started = true; lastStart = now; } // a start counts once, even if the page was still moving
+    const level = recent.length === 3 ? recent.slice().sort((a, b) => a - b)[1] : 0;
+    const jump = !begins && level > 0 && now - lastStart > 250 && size >= Math.max(3 * level, level + 25);
+    if (jump) lastStart = now;
+    recent.push(size);
+    if (recent.length > 3) recent.shift();
     lastWheel = now;
     lastSize = size;
+    lastSign = sign;
     e.preventDefault();
-    if (now < stepEnds || !fresh) return; // still moving, or the tail of the same swipe
+    if (!wheelClick && !begins && !jump) return; // the tail of the same swipe
+    // still moving: wait, unless this turns back the other way
+    if (now < stepEnds && sign === stepSign) return;
+    lastStart = now;
     const y = window.scrollY, stops = scrollStops();
-    const to = e.deltaY > 0 ? stops.find((s) => s > y + 2) : stops.reverse().find((s) => s < y - 2);
+    const to = sign > 0 ? stops.find((s) => s > y + 2) : stops.reverse().find((s) => s < y - 2);
     if (to === undefined) return;
     window.scrollTo({ top: to, behavior: reduceMotion ? "auto" : "smooth" });
     stepEnds = now + (reduceMotion ? 0 : 700);
+    stepSign = sign;
   }, { passive: false });
   // the step is over as soon as the page settles, where the browser says so
   window.addEventListener("scrollend", () => { stepEnds = 0; });
@@ -1098,4 +1202,11 @@
   fillText();
   stageTo(stageIndex, false);
   buildShow();
+  // arriving at a product's own address: start at the showcase, at once (the page's smooth scrolling
+  // is set aside for this one jump)
+  if (landAtProduct) {
+    html.style.scrollBehavior = "auto";
+    window.scrollTo(0, productsSec.getBoundingClientRect().top + window.scrollY);
+    html.style.scrollBehavior = "";
+  }
 })();
