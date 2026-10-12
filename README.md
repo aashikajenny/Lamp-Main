@@ -43,7 +43,7 @@ Everything pauses in a background tab.
 
 ## Deploy (Cloudflare Pages)
 
-The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every push to `main` goes live on its own.
+The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every push to `main` goes live on its own. Its address is **https://aashienterprises.store** (bought at GoDaddy, which only renews it; the DNS is at Cloudflare since October 2026). The email, contact@aashienterprises.store, is GoDaddy's Professional Email powered by Titan: its records (MX, SPF, DKIM, DMARC, autodiscover) live in Cloudflare's DNS, DNS only, so any change GoDaddy asks for is made in Cloudflare.
 
 - Build command: `sh build.sh`
 - Build output directory: `dist`
@@ -102,6 +102,7 @@ Run `python tools/serve.py` (the `lamp-site` preview does) and open http://local
 - `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
 - `build.sh`, `_headers`: the hosting build (see Deploy)
 - `fonts/`: the fonts and icons, with their licences (see Performance)
+- `functions/_middleware.js`: sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store
 - `404.html`: the page for addresses the site doesn't have
 - `sitemap.xml`, `robots.txt`: the addresses for search engines (see "Product addresses and SEO")
 - `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server) and `icons.py` (remakes the icon font after a new icon is used)
