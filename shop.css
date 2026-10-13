@@ -434,6 +434,10 @@ html { scroll-snap-type: none; }
 }
 .ob-update input:focus-visible, .ob-update textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
 
+/* Enquiries from /services */
+.order-sum .eq-topic { font-size: 13px; line-height: 1.25; color: var(--muted); }
+.eq-message { margin: 0; font-size: 16px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 /* Shipping with Shiprocket: a band across the order, under its three columns */
 .ob-ship { grid-column: 1 / -1; padding: 18px 20px 20px; border-radius: 22px 6px; background: var(--wash); border: 1px solid var(--line); }
 .ob-ship h3 { margin: 0 0 12px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }

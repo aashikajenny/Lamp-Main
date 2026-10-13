@@ -14,10 +14,13 @@ cp index.html 404.html style.css favicon.ico icon-192.png icon-512.png apple-tou
 # the policies Razorpay asks for, and the files they share (shop.js: prices, delivery, designs)
 cp shop.js cart.js shop-pages.js shop.css admin.js cart.html checkout.html order.html track.html admin.html dist/
 cp contact.html shipping-policy.html refund-policy.html terms.html privacy-policy.html dist/
+# /services: custom designs, bulk orders and websites by Yatharth Saxena, with its own style and script;
+# the screenshots of this site it shows are in images/services (copied below)
+cp services.html services.css services.js dist/
 # which addresses run the functions: the pages and /api, not the images, fonts, scripts and styles
 # (each function run counts against the daily allowance; a flood of requests for files can't use it up)
 cp _routes.json dist/
-cp -r images/designs images/rooms dist/images/
+cp -r images/designs images/rooms images/services dist/images/
 # link previews (WhatsApp, Facebook...) and the product photos Google is given
 cp -r images/share dist/images/
 # the fonts and icons (cut down to the ones the site uses: tools/icons.py), with their licences

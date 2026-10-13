@@ -55,6 +55,7 @@ export async function onRequestGet({ request, env }) {
     if (view === "shipped" && shiprocket) await refreshTracking(env, db);
     const { results } = await db.prepare(`SELECT * FROM orders WHERE ${VIEWS[view]} ORDER BY created_at DESC LIMIT 300`).all();
     const counts = await db.prepare("SELECT status, COUNT(*) AS n FROM orders GROUP BY status").all();
+    const enquiries = await db.prepare("SELECT COUNT(*) AS n FROM enquiries WHERE status = 'new'").first();
     const n = await designNames(env, request);
     const SHOP = globalThis.SHOP;
     const orders = results.map((o) => ({
@@ -75,7 +76,7 @@ export async function onRequestGet({ request, env }) {
       shippedAt: o.shipped_at, deliveredAt: o.delivered_at
     }));
     return json({
-      orders, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])), online: onlineReady(env),
+      orders, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])), newEnquiries: enquiries.n, online: onlineReady(env),
       shiprocket, courierRule: ["cheapest", "fastest"].includes(String(env.SHIPROCKET_COURIER || "").toLowerCase()) ? String(env.SHIPROCKET_COURIER).toLowerCase() : "recommended"
     });
   } catch (e) {

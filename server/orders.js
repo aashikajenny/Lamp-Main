@@ -103,9 +103,9 @@ export function quoteCart(items) {
 // AE- and six letters and digits, leaving out the ones easily misread (0/O, 1/I/L): easy to read out
 // on the phone or type in a WhatsApp message, and not guessable from one order to the next.
 const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-export function newOrderId() {
+export function newOrderId(prefix = "AE-") {
   const b = crypto.getRandomValues(new Uint8Array(6));
-  return "AE-" + Array.from(b, (x) => ALPHA[x % ALPHA.length]).join("");
+  return prefix + Array.from(b, (x) => ALPHA[x % ALPHA.length]).join("");
 }
 export const ORDER_ID = /^AE-[A-Z2-9]{6}$/;
 
@@ -172,7 +172,15 @@ const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS lookups (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
   "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)",
   // small things the server keeps between requests (Shiprocket's login token, encrypted)
-  "CREATE TABLE IF NOT EXISTS kept (key TEXT PRIMARY KEY, value TEXT NOT NULL, until INTEGER NOT NULL)"
+  "CREATE TABLE IF NOT EXISTS kept (key TEXT PRIMARY KEY, value TEXT NOT NULL, until INTEGER NOT NULL)",
+  // enquiries from /services (bulk orders, custom designs, websites): functions/api/enquiry.js.
+  // status: new or done
+  `CREATE TABLE IF NOT EXISTS enquiries (
+    id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, topic TEXT NOT NULL,
+    name TEXT NOT NULL, phone TEXT, email TEXT, city TEXT, message TEXT NOT NULL, status TEXT NOT NULL, note TEXT, visitor TEXT
+  )`,
+  "CREATE INDEX IF NOT EXISTS enquiries_by_time ON enquiries (created_at)",
+  "CREATE INDEX IF NOT EXISTS enquiries_by_visitor ON enquiries (visitor, created_at)"
 ];
 // columns added after the first orders were taken: added to an existing table on first use
 // (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop";

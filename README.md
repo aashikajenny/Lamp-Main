@@ -106,10 +106,11 @@ Run `python tools/serve.py` (the `lamp-site` preview does) and open http://local
 - `shop.js`: the prices, delivery, cash on delivery and which designs each product comes in (read by the pages and the order server)
 - `cart.js`: the cart, kept in the visitor's browser, and the cart button in the nav
 - `cart.html`, `checkout.html`, `order.html`, `track.html`, `shop-pages.js`, `shop.css`: the cart, checkout, order-placed and track-your-order pages (see "The shop")
-- `admin.html`, `admin.js`: the order list, `/admin`
+- `admin.html`, `admin.js`: the order list, `/admin` (orders, shipping through Shiprocket, enquiries)
+- `services.html`, `services.css`, `services.js`, `images/services/`: the services page, `/services` (see "Services")
 - `contact.html`, `shipping-policy.html`, `refund-policy.html`, `terms.html`, `privacy-policy.html`: the contact page and the policies
-- `functions/`: the order server (`api/checkout.js`, `api/verify.js`, `api/track.js`, `api/cancel.js`, `api/razorpay-webhook.js`, `api/courier-updates.js`, `api/admin/orders.js`, `api/admin/ship.js`) and `_middleware.js`, which sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store, and asks for the password on `/admin`
-- `server/`: what the order server shares (`orders.js`: checks, Razorpay, signatures, the database; `admin.js`: the lock on `/admin`; `shiprocket.js`: talking to Shiprocket; `shipping.js`: booking couriers and following parcels)
+- `functions/`: the order server (`api/checkout.js`, `api/verify.js`, `api/track.js`, `api/cancel.js`, `api/razorpay-webhook.js`, `api/courier-updates.js`, `api/enquiry.js`, `api/admin/orders.js`, `api/admin/ship.js`, `api/admin/enquiries.js`) and `_middleware.js`, which sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store, and asks for the password on `/admin`
+- `server/`: what the order server shares (`orders.js`: checks, Razorpay, signatures, the database; `admin.js`: the lock on `/admin`; `shiprocket.js`: talking to Shiprocket; `shipping.js`: booking couriers and following parcels; `enquiries.js`: the checks on enquiries)
 - `build.sh`, `_headers`, `_routes.json`: the hosting build (see Deploy)
 - `fonts/`: the fonts and icons, with their licences (see Performance)
 - `404.html`: the page for addresses the site doesn't have
@@ -215,6 +216,16 @@ Since October 2026 the site sells directly; there are no marketplace links any m
 and a **D1 database** bound as `DB` (Settings > Bindings). Redeploy after changing them.
 
 **Before going live:** live Razorpay keys once Razorpay has approved the site, and one real order of each kind (online and cash on delivery), seen through to `/admin`.
+
+## Services (`/services`)
+
+The nav's **Services** link (it replaced Features) opens `services.html` (with `services.css`, `services.js`). The page opens on **two doors**: "For your home and gifts" and "For your business". Their leaves swing open once as the page loads (CSS); Open goes to that door's run of the page, and a switch under the nav shows which run you are in.
+
+- **For your home and gifts:** the three products with their prices (read from `shop.js`), a design of your own (three steps: send the picture on WhatsApp, we give the price and time, we make and send it), and bulk and gifting orders (more than `SHOP.maxQty` of one design; what to tell us).
+- **For your business:** websites by **Yatharth Saxena**, software developer, who built this site. "This website, taken apart" shows real screenshots of this site (`images/services/`: the home page, the design picker and the checkout on a phone, captured locally with headless Chrome) with pointers; then what a site like this includes, and how the work goes. No prices: a free quote.
+- **One enquiry form** closes the page (topic: bulk, own design, website, other; the buttons that lead there set it). `/api/enquiry` checks every field (`server/enquiries.js`), allows 5 an hour per visitor, keeps it in D1 (`enquiries`) and sends a Telegram message when that is set up. They show in `/admin` under **Enquiries** (new ones first; mark done, keep a note, call, WhatsApp or email back, delete). WhatsApp and call go to the business number; website enquiries say "Website enquiry for Yatharth Saxena".
+- **Credit:** the footer of the home page and the product pages ends "Website by Yatharth Saxena", linking to the business door. To give websites a contact of their own, change the WhatsApp links on `services.html` marked for websites (and `WA.website` in `services.js`).
+- The screenshots in `images/services/` show the site as it was in October 2026; retake them if the home page, the design picker or the checkout change much.
 
 ## Shipping with Shiprocket
 

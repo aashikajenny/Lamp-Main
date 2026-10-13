@@ -10,6 +10,8 @@ import { isAdminPath, adminGate } from "../server/admin.js";
 import { hmacHex, cleanCustomer } from "../server/orders.js";
 import * as adminShip from "../functions/api/admin/ship.js";
 import * as courierUpdates from "../functions/api/courier-updates.js";
+import * as enquiry from "../functions/api/enquiry.js";
+import * as adminEnquiries from "../functions/api/admin/enquiries.js";
 
 const ORIGIN = location.origin;
 const SECRET = "test_secret_abcdefghij";
@@ -788,6 +790,54 @@ test("an unfinished booking is cancelled at Shiprocket when the buyer cancels", 
   const env2 = envWith();
   const r = await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod", { ...CUSTOMER, pincode: "999999" }) }), env2)));
   eq((await shipCall(env2, { action: "couriers", id: r.body.order, pack: PACK })).status, 409, "not serviceable");
+});
+
+/* ---------- enquiries from /services ---------- */
+const ENQUIRY = { topic: "website", name: "Rohan Mehta", phone: "+91 99887 76655", email: "Rohan@Example.com", city: "Pune", message: "I need a website for my sweet shop, with online orders." };
+const ask = (env, body, headers) => enquiry.onRequestPost(ctx(req("/api/enquiry", { body, headers }), env)).then(read);
+
+test("enquiry: saved, the owner told, every field checked", async () => {
+  const env = envWith({ TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "1" });
+  const r = await ask(env, { ...ENQUIRY, message: "Line one\n\n\n\nLine two <script>" });
+  eq(r.status, 200, "sent " + JSON.stringify(r.body));
+  ok(/^EQ-[A-Z2-9]{6}$/.test(r.body.id), "id " + r.body.id);
+  const row = await env.DB.prepare("SELECT * FROM enquiries WHERE id = ?").bind(r.body.id).first();
+  eq([row.topic, row.name, row.phone, row.email, row.city, row.status, row.message], ["website", "Rohan Mehta", "9988776655", "rohan@example.com", "Pune", "new", "Line one\n\nLine two script"], "row");
+  await Promise.all(waits);
+  const tg = rzp.calls.find((c) => c[0] === "telegram");
+  ok(tg && /Website development/.test(tg[1].text) && /9988776655/.test(tg[1].text), "telegram: " + (tg && tg[1].text));
+  const cases = [["topic", { topic: "loans" }], ["topic", { topic: "__proto__" }], ["name", { name: "R2D2" }], ["phone", { phone: "12345" }], ["email", { email: "nope@" }],
+    ["phone", { phone: "", email: "" }], ["message", { message: "hi" }], ["message", { message: "x".repeat(1600) }]];
+  for (const [field, over] of cases) {
+    const b = await ask(env, { ...ENQUIRY, ...over });
+    eq([b.status, b.body.field], [400, field], JSON.stringify(over));
+  }
+  eq((await ask(env, { ...ENQUIRY, phone: "", email: "a@b.in" })).status, 200, "email only is fine");
+  eq((await ask(env, { ...ENQUIRY, phone: "+447700900123", email: "" }, { "cf-connecting-ip": "203.0.113.90" })).status, 200, "a number from abroad is fine");
+  eq((await ask(env, { ...ENQUIRY, website: "http://spam" })).status, 400, "honeypot");
+  eq((await ask(env, ENQUIRY, { origin: "https://evil.example" })).status, 403, "other sites");
+});
+
+test("enquiry: five an hour from one visitor; /admin lists, marks done and deletes", async () => {
+  const env = envWith();
+  for (let i = 0; i < 5; i++) eq((await ask(env, { ...ENQUIRY, topic: i % 2 ? "bulk" : "custom" }, { "cf-connecting-ip": "198.51.100.77" })).status, 200, "enquiry " + i);
+  eq((await ask(env, ENQUIRY, { "cf-connecting-ip": "198.51.100.77" })).status, 429, "sixth");
+  const list = async () => (await read(await adminEnquiries.onRequestGet(ctx(req("/api/admin/enquiries?view=all", { method: "GET" }), env)))).body;
+  let l = await list();
+  eq([l.enquiries.length, l.counts, l.enquiries[0].topicName], [5, { new: 5 }, "A design of your own"], "listed");
+  const orders = (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=open", { method: "GET" }), env)))).body;
+  eq(orders.newEnquiries, 5, "the order list counts new enquiries for the tab");
+  const id = l.enquiries[0].id;
+  const upd = (body) => adminEnquiries.onRequestPost(ctx(req("/api/admin/enquiries", { body }), env)).then(read);
+  eq((await upd({ id, status: "done", note: "Called back" })).status, 200, "done");
+  l = await list();
+  eq([l.counts, l.enquiries.find((e) => e.id === id).note], [{ done: 1, new: 4 }, "Called back"], "marked done");
+  eq((await upd({ id, status: "spam" })).status, 400, "unknown status");
+  eq((await upd({ id: "EQ-NOPE22", status: "done" })).status, 404, "unknown enquiry");
+  eq((await upd({ id, delete: true })).body, { ok: true, deleted: true }, "deleted");
+  eq((await list()).enquiries.length, 4, "gone");
+  eq((await adminEnquiries.onRequestPost(ctx(req("/api/admin/enquiries", { body: { id: l.enquiries[1].id, delete: true }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites can't delete");
+  ok(isAdminPath("/api/admin/enquiries"), "behind the /admin password");
 });
 
 /* ---------- run ---------- */

@@ -197,6 +197,10 @@ main, .footer { position: relative; z-index: 3; }
 }
 .nav-links a:hover::after { transform: scaleX(1); transform-origin: left; }
 .nav-end { display: flex; align-items: center; gap: 8px; }
+/* Services in the nav's end where the nav links are hidden (tablets): a quiet text link */
+.nav-services { display: none; align-items: center; height: 42px; padding: 0 12px; font: var(--label); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); transition: color 0.25s; }
+.nav-services:hover, .nav-services[aria-current="page"] { color: var(--ink); }
+@media (min-width: 600px) and (max-width: 1080px) { .nav-services { display: inline-flex; } }
 /* line icons drawn to match the icon set (1.6 strokes, round ends), where the set has none */
 .ic { display: block; flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* the cart in the nav (cart.js): a round button with the count on a small rose badge; it shows once
@@ -249,6 +253,9 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
 }
 .switch-menu button small { font: var(--label); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
 .switch-menu button:hover { background: var(--wash); }
+.switch-more { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding: 14px 16px 12px; border-top: 1px solid var(--line); border-radius: 0 0 20px 6px; color: var(--ink); font: 400 17px var(--font-display); transition: background 0.2s; }
+.switch-more small { font: var(--label); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.switch-more:hover { background: var(--wash); }
 .switch-menu button[aria-current="true"] { background: var(--accent-soft); }
 .switch-menu button[aria-current="true"] span { color: var(--accent); }
 
@@ -689,6 +696,8 @@ button.store { width: 100%; cursor: pointer; text-align: left; }
 }
 .bulk-number:hover { text-decoration-color: var(--panel-ink); }
 .bulk-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.bulk p a { color: var(--panel-ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--panel-ink) 45%, transparent); text-underline-offset: 3px; }
+.bulk p a:hover { text-decoration-color: var(--panel-ink); }
 .bulk .btn-primary { background: var(--panel-ink); color: var(--panel); box-shadow: 0 10px 22px -12px rgba(0, 0, 0, 0.45); }
 .bulk .btn-primary:hover { background: #fff; }
 .bulk .btn-ghost { color: var(--panel-ink); background: transparent; border-color: color-mix(in srgb, var(--panel-ink) 45%, transparent); }
@@ -744,6 +753,9 @@ details p { padding: 0 0 28px; color: var(--muted); max-width: 56ch; font-size: 
 .footer-policies { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 22px; }
 .footer-policies a { transition: color 0.25s; }
 .footer-policies a:hover { color: var(--ink); }
+/* who made the website: a quiet credit in the fine print, linking to /services */
+.footer-base .credit a { color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent); text-underline-offset: 3px; transition: text-decoration-color 0.25s; }
+.footer-base .credit a:hover { text-decoration-color: var(--ink); }
 
 /* ---------- Tablet ---------- */
 @media (max-width: 1080px) {

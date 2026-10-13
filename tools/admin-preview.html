@@ -64,14 +64,26 @@
     ];
     const VIEW = { open: ["paid", "cod"], unpaid: ["awaiting_payment"], shipped: ["shipped"], delivered: ["delivered"], returned: ["returned"], cancelled: ["cancelled"] };
     const answer = (data, status = 200) => new Promise((r) => setTimeout(() => r(new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } })), 450));
+    const ENQUIRIES = [
+      { id: "EQ-W3B7KP", created: ago(1), topic: "website", topicName: "Website development", name: "Rohan Mehta", phone: "9988776655", email: "rohan@example.com", city: "Pune", message: "I run a sweet shop and want a website like this one, with online orders and cash on delivery.\n\nCan you send me a quote?", status: "new", note: null },
+      { id: "EQ-B8N2QD", created: ago(26), topic: "bulk", topicName: "Bulk or corporate order", name: "Kavita Joshi", phone: "+447700900123", email: null, city: "London", message: "40 night lamps for Diwali gifts, mixed designs, needed in Delhi by 25 October.", status: "new", note: null },
+      { id: "EQ-C4R9TZ", created: ago(80), topic: "custom", topicName: "A design of your own", name: "Amit Verma", phone: null, email: "amit@example.com", city: null, message: "A lamp with our kuldevi's photo, 5 pieces.", status: "done", note: "Sent price on WhatsApp." }
+    ];
     window.fetch = async (url, init = {}) => {
       url = String(url);
+      if (url.startsWith("/api/admin/enquiries")) {
+        if (init.method === "POST") return answer({ ok: true });
+        const counts = {}, orderCounts = {};
+        ENQUIRIES.forEach((e) => { counts[e.status] = (counts[e.status] || 0) + 1; });
+        ORDERS.forEach((o) => { orderCounts[o.status] = (orderCounts[o.status] || 0) + 1; });
+        return answer({ enquiries: ENQUIRIES, counts, orderCounts });
+      }
       if (url.startsWith("/api/admin/orders")) {
         if (init.method === "POST") return answer({ ok: true });
         const view = new URL(url, location.href).searchParams.get("view");
         const counts = {};
         ORDERS.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
-        return answer({ orders: ORDERS.filter((o) => view === "all" || VIEW[view].includes(o.status)), counts, online: true, shiprocket: SR_ON, courierRule: "recommended" });
+        return answer({ orders: ORDERS.filter((o) => view === "all" || VIEW[view].includes(o.status)), counts, newEnquiries: ENQUIRIES.filter((e) => e.status === "new").length, online: true, shiprocket: SR_ON, courierRule: "recommended" });
       }
       if (url === "/api/admin/ship") {
         const b = JSON.parse(init.body);

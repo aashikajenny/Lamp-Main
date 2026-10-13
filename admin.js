@@ -10,7 +10,7 @@
   const SHOP = window.SHOP;
   const $ = (s, el = document) => el.querySelector(s);
   const rupees = SHOP.rupees;
-  const VIEWS = [["open", "To ship"], ["unpaid", "Not paid"], ["shipped", "Shipped"], ["delivered", "Delivered"], ["returned", "Returned"], ["cancelled", "Cancelled"], ["all", "All"]];
+  const VIEWS = [["open", "To ship"], ["unpaid", "Not paid"], ["shipped", "Shipped"], ["delivered", "Delivered"], ["returned", "Returned"], ["cancelled", "Cancelled"], ["all", "All"], ["enquiries", "Enquiries"]];
   const STATUS = {
     awaiting_payment: "Not paid yet", paid: "Paid online, to ship", cod: "Cash on delivery, to ship",
     shipped: "Shipped", delivered: "Delivered", returned: "Returned to you", cancelled: "Cancelled"
@@ -73,13 +73,14 @@
   }
   const ship = (body) => post("/api/admin/ship", body);
 
+  let newEnquiries = 0;
   function drawTabs(counts) {
     tabs.replaceChildren(...VIEWS.map(([k, label]) => {
       const b = button("view-tab");
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", String(k === view));
       b.append(el("span", null, label));
-      const n = COUNTS[k] ? COUNTS[k].reduce((s, st) => s + (counts[st] || 0), 0) : null;
+      const n = k === "enquiries" ? newEnquiries : COUNTS[k] ? COUNTS[k].reduce((s, st) => s + (counts[st] || 0), 0) : null;
       if (n) b.append(el("span", "view-n", String(n)));
       b.addEventListener("click", () => { view = k; picked.clear(); history.replaceState(null, "", "#" + k); showNote(); load(); });
       return b;
@@ -551,32 +552,121 @@
     load();
   }
 
+  /* ---------- Enquiries from /services ---------- */
+  // one enquiry: what it is about, who sent it and how to reply, a note, done or new, delete
+  function enquiryCard(e) {
+    const item = el("div", "order-item");
+    const d = el("details", "order-row");
+    d.dataset.id = e.id;
+    d.dataset.status = e.status;
+    if (open.has(e.id)) d.open = true;
+    d.addEventListener("toggle", () => { if (d.open) open.add(e.id); else open.delete(e.id); });
+    item.append(d);
+    const s = el("summary", "order-sum");
+    const who = el("span", "os-who");
+    who.append(el("span", "os-name", e.name), el("span", "os-place", e.city || e.phone || e.email || ""));
+    s.append(
+      el("span", "os-id", e.id), who,
+      el("span", "os-items", e.message.replace(/\s+/g, " ")),
+      el("span", "os-total eq-topic", e.topicName),
+      el("span", `os-status ${e.status === "new" ? "st-paid" : ""}`, e.status === "new" ? "New" : "Done"),
+      el("span", "os-when", when(e.created))
+    );
+    d.append(s);
+    const body = el("div", "order-body");
+    const what = el("section", "ob-col");
+    what.append(el("h3", null, e.topicName));
+    what.append(el("p", "eq-message", e.message));
+    const reach = el("section", "ob-col");
+    reach.append(el("h3", null, "Reply to"));
+    reach.append(el("pre", "ob-addr", [e.name, e.phone && `Mobile: ${e.phone.startsWith("+") ? e.phone : "+91 " + e.phone}`, e.email, e.city].filter(Boolean).join("\n")));
+    const acts = el("div", "ob-acts");
+    const from = e.topic === "website" ? "Yatharth Saxena, who builds websites (aashienterprises.store)" : "Aashi Enterprises";
+    if (e.phone) {
+      const tel = e.phone.startsWith("+") ? e.phone : "+91" + e.phone;
+      const call = el("a", "btn btn-ghost btn-sm", "Call");
+      call.href = `tel:${tel}`;
+      const wa = link("btn btn-primary btn-sm", "WhatsApp", `https://wa.me/${tel.replace("+", "")}?text=${encodeURIComponent(`Namaste ${e.name}, this is ${from}, about your enquiry (${e.topicName}).`)}`);
+      wa.rel = "noopener";
+      acts.append(call, wa);
+    }
+    if (e.email) {
+      const mail = el("a", "btn btn-ghost btn-sm", "Email");
+      mail.href = `mailto:${e.email}?subject=${encodeURIComponent(`Your enquiry: ${e.topicName}`)}`;
+      acts.append(mail);
+    }
+    reach.append(acts);
+    const upd = el("form", "ob-col ob-update eq-update");
+    upd.append(el("h3", null, "Update"));
+    const nl = el("label", null, "Note (only you see it)");
+    const note = el("textarea");
+    note.maxLength = 600; note.rows = 3; note.value = e.note || "";
+    nl.append(note);
+    upd.append(nl);
+    const btns = el("div", "ob-acts");
+    [[e.status === "new" ? "done" : "new", e.status === "new" ? "Mark done" : "Mark new", "btn btn-primary btn-sm"], [e.status, "Save", "btn btn-ghost btn-sm"], ["delete", "Delete", "btn btn-ghost btn-sm"]]
+      .forEach(([v, label, cls]) => { const b = el("button", cls, label); b.type = "submit"; b.value = v; btns.append(b); });
+    upd.append(btns);
+    upd.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const v = ev.submitter ? ev.submitter.value : e.status;
+      if (v === "delete" && !confirm(`Delete enquiry ${e.id} from ${e.name} for good?`)) return;
+      try {
+        await post("/api/admin/enquiries", v === "delete" ? { id: e.id, delete: true } : { id: e.id, status: v, note: note.value });
+        showAlert("");
+        load();
+      } catch (err) { showAlert(`Couldn't update ${e.id}: ${err.message}`); }
+    });
+    body.append(what, reach, upd);
+    d.append(body);
+    return item;
+  }
+
   async function load() {
     list.setAttribute("aria-busy", "true");
     try {
-      const r = await fetch(`/api/admin/orders?view=${view}`, { headers: { accept: "application/json" }, cache: "no-store" });
+      const enquiries = view === "enquiries";
+      const r = await fetch(enquiries ? "/api/admin/enquiries?view=all" : `/api/admin/orders?view=${view}`, { headers: { accept: "application/json" }, cache: "no-store" });
       const res = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
-      showAlert(res.online ? "" : "Online payment is off: add the Razorpay keys in Cloudflare to switch it on.");
-      shiprocket = !!res.shiprocket;
-      rule = res.courierRule || "recommended";
-      hintBox.hidden = shiprocket || view !== "open";
-      drawTabs(res.counts || {});
-      shown = res.orders;
+      if (enquiries) {
+        newEnquiries = (res.counts || {}).new || 0;
+        hintBox.hidden = true;
+        drawTabs(res.orderCounts || {});
+        // new ones first, each newest first
+        shown = res.enquiries.filter((e) => e.status === "new").concat(res.enquiries.filter((e) => e.status !== "new"));
+      } else {
+        showAlert(res.online ? "" : "Online payment is off: add the Razorpay keys in Cloudflare to switch it on.");
+        shiprocket = !!res.shiprocket;
+        rule = res.courierRule || "recommended";
+        newEnquiries = res.newEnquiries || 0;
+        hintBox.hidden = shiprocket || view !== "open";
+        drawTabs(res.counts || {});
+        shown = res.orders;
+      }
       draw();
     } catch (err) {
-      showAlert(`Couldn't load the orders: ${err.message}`);
+      showAlert(`Couldn't load the ${view === "enquiries" ? "enquiries" : "orders"}: ${err.message}`);
     } finally {
       list.removeAttribute("aria-busy");
     }
   }
   // find an order in the tab on show: by order number, name, mobile number, town or tracking number
-  // (a buyer who lost their order number: look in All by their mobile number)
+  // (a buyer who lost their order number: look in All by their mobile number); an enquiry also by its words
   let shown = [];
   const search = $("#a-search");
   const norm = (s) => String(s || "").toLowerCase().replace(/[\s-]/g, "");
   function draw() {
     const q = norm(search.value).replace(/^(\+?91)(?=\d{10}$)/, "");
+    if (view === "enquiries") {
+      const found = q ? shown.filter((e) => [e.id, e.name, e.phone, e.email, e.city, e.message].some((v) => norm(v).includes(q))) : shown;
+      list.classList.remove("can-pick");
+      list.replaceChildren(...found.map(enquiryCard));
+      drawBulk();
+      emptyBox.hidden = found.length > 0;
+      emptyBox.textContent = q ? "No enquiry matches that." : "No enquiries yet. They arrive from the form on /services.";
+      return;
+    }
     const list2 = q ? shown.filter((o) => [o.id, o.name, o.phone, o.city, o.pincode, o.ship && o.ship.awb].some((v) => norm(v).includes(q))) : shown;
     // ticks only for orders still on show
     const ids = new Set(shown.map((o) => o.id));
@@ -591,7 +681,7 @@
   $("[data-refresh]").addEventListener("click", () => { showNote(); load(); });
   // new orders show up by themselves while the page is open (not while you are in the middle of something)
   setInterval(() => {
-    const working = busy || picked.size || document.activeElement.closest(".ob-update, .ob-ship") || list.querySelector(".ship-couriers:not([hidden])");
+    const working = busy || picked.size || document.activeElement.closest(".ob-update, .ob-ship, .eq-update") || list.querySelector(".ship-couriers:not([hidden])");
     if (!document.hidden && !working) load();
   }, 60000);
   load();

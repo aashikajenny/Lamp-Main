@@ -78,7 +78,7 @@
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#products">Products</a>
-      <a href="#features">Features</a>
+      <a href="/services">Services</a>
       <a href="#order">Designs</a>
       <a href="#faq">FAQ</a>
       <!-- each product's own link sits in one reserved slot at the end, so switching never moves the others -->
@@ -88,6 +88,8 @@
       </span>
     </nav>
     <div class="nav-end">
+      <!-- Services, where the nav links are hidden (tablets; phones reach it from the footer) -->
+      <a class="nav-services" href="/services">Services</a>
       <!-- the product the page is showing; switch it from anywhere -->
       <div class="switcher">
         <button type="button" class="switch-btn" aria-haspopup="true" aria-expanded="false" aria-controls="switch-menu">
@@ -98,6 +100,8 @@
           <button type="button" data-product="mantra"><span>Divine Mantra Box</span><small>Best seller</small></button>
           <button type="button" data-product="mini"><span>Mini Chanting Box</span><small>Plug &amp; play</small></button>
           <button type="button" data-product="lamp"><span>Night Lamps</span><small>Soft night glow</small></button>
+          <!-- the services page, reachable here on phones too (the nav links are hidden there) -->
+          <a class="switch-more" href="/services"><span>Our services</span><small>Your own design, bulk, websites</small></a>
         </div>
       </div>
       <!-- the cart (cart.js): shows once something is in it -->
@@ -396,7 +400,7 @@
           <p class="maker-text reveal">We make devotional products for the home: the 35-in-1 Divine Mantra Box (our best seller), the Mini Chanting Box and our Night Lamps. Each one wears a sacred artwork, from Khatu Shyam Ji and Mahadev to Radha Krishna and the Sacred OM.</p>
           <div class="bulk reveal">
             <h3>A design of your own, or orders in bulk?</h3>
-            <p>We take custom design requests and bulk orders for Diwali gifting, housewarmings, temples and corporate gifts. Call or WhatsApp us and tell us what you have in mind.</p>
+            <p>We take custom design requests and bulk orders for Diwali gifting, housewarmings, temples and corporate gifts. Call or WhatsApp us, or <a href="/services#home">see how it works</a>.</p>
             <a class="bulk-number" href="tel:+918287994052">+91 82879 94052</a>
             <div class="bulk-actions">
               <a class="btn btn-primary" data-whatsapp href="https://wa.me/918287994052" target="_blank" rel="noopener"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp us</a>
@@ -526,6 +530,7 @@
         <div class="footer-col">
           <p class="footer-head">Get in touch</p>
           <ul>
+            <li><a href="/services">Our services</a></li>
             <li><a href="/track">Track your order</a></li>
             <li><a href="tel:+918287994052">+91 82879 94052</a></li>
             <li><a href="https://wa.me/918287994052" target="_blank" rel="noopener">WhatsApp us</a></li>
@@ -542,7 +547,7 @@
           <li><a href="/terms">Terms</a></li>
           <li><a href="/privacy-policy">Privacy</a></li>
         </ul>
-        <p>Made in Bharat</p>
+        <p>Made in Bharat<span class="base-sep" aria-hidden="true"> · </span><span class="credit">Website by <a href="/services#business">Yatharth Saxena</a></span></p>
       </div>
     </div>
   </footer>
