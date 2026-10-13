@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your cart | Aashi Enterprises</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#faf5f0" />
+  <!-- this page loads only the site's own files -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/fonts/icons.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/shop.css" />
+</head>
+<body class="shop-page" data-page="cart">
+  <div class="night" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <div class="nav-end">
+      <a class="btn btn-ghost btn-sm" href="/#order"><i class="ph ph-arrow-left" aria-hidden="true"></i>Keep shopping</a>
+    </div>
+  </header>
+
+  <main class="shop" id="top">
+    <div class="wrap">
+      <h1 class="shop-title">Your cart.</h1>
+
+      <!-- filled by shop-pages.js from the cart (cart.js) -->
+      <div class="cart-grid" hidden>
+        <section class="cart-lines" aria-label="Products in your cart">
+          <ul class="lines"></ul>
+        </section>
+
+        <aside class="summary" aria-labelledby="summary-title">
+          <h2 id="summary-title">Order summary</h2>
+          <dl class="sums">
+            <div><dt>Products (<span data-sum="count">0</span>)</dt><dd data-sum="subtotal">₹0</dd></div>
+            <div><dt>Delivery</dt><dd data-sum="delivery">Free</dd></div>
+            <div class="sum-total"><dt>Total</dt><dd data-sum="total">₹0</dd></div>
+          </dl>
+          <p class="free-note" data-sum="free"></p>
+          <a class="btn btn-primary summary-go" href="/checkout">Checkout <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          <ul class="assure">
+            <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7"/></svg>Pay online securely through Razorpay: UPI, cards, net banking</li>
+            <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="18" height="11" rx="2.2"/><circle cx="12" cy="12" r="2.6"/></svg>Or pay cash when it arrives</li>
+          </ul>
+        </aside>
+
+        <!-- phones: the total and Checkout stay at hand at the foot of the screen until the summary is in view -->
+        <div class="cart-bar" aria-hidden="true">
+          <p><span>Total</span> <strong data-sum="total">₹0</strong></p>
+          <a class="btn btn-primary" href="/checkout" tabindex="-1">Checkout <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <section class="empty" hidden>
+        <p class="empty-text">Nothing here yet. Choose a design and add it to your cart.</p>
+        <div class="empty-actions">
+          <a class="btn btn-primary" href="/#order">Choose a design <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+        </div>
+        <ul class="empty-products" aria-label="Our products">
+          <li><a href="/mantra-box">Divine Mantra Box</a></li>
+          <li><a href="/mini-chanting-box">Mini Chanting Box</a></li>
+          <li><a href="/night-lamp">Night Lamps</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="shop-foot">
+    <div class="wrap">
+      <ul class="foot-links" aria-label="Help">
+        <li><a href="/contact">Contact us</a></li>
+        <li><a href="/shipping-policy">Shipping</a></li>
+        <li><a href="/refund-policy">Returns &amp; refunds</a></li>
+        <li><a href="/terms">Terms</a></li>
+        <li><a href="/privacy-policy">Privacy</a></li>
+      </ul>
+      <p>&copy; 2026 Aashi Enterprises. Made in Bharat.</p>
+    </div>
+  </footer>
+
+  <script src="/shop.js"></script>
+  <script src="/cart.js"></script>
+  <script src="/shop-pages.js"></script>
+</body>
+</html>

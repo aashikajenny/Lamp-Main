@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order placed | Aashi Enterprises</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#faf5f0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/fonts/icons.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/shop.css" />
+</head>
+<body class="shop-page" data-page="order">
+  <div class="night" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <div class="nav-end">
+      <a class="btn btn-ghost btn-sm" href="/">Home</a>
+    </div>
+  </header>
+
+  <main class="shop" id="top">
+    <div class="wrap">
+      <!-- filled by shop-pages.js from the order just placed (kept in this tab only) -->
+      <div class="placed" hidden>
+        <div class="placed-head">
+          <h1 class="shop-title placed-title">Thank you<span data-o="first"></span>.</h1>
+          <p class="placed-lead" data-o="lead"></p>
+        </div>
+
+        <div class="placed-grid">
+          <section class="ticket" aria-label="Your order">
+            <p class="ticket-label">Order number</p>
+            <p class="ticket-id" data-o="id"></p>
+            <p class="ticket-how" data-o="how"></p>
+            <ul class="mini-lines"></ul>
+            <dl class="sums">
+              <div><dt>Products</dt><dd data-o="subtotal"></dd></div>
+              <div><dt>Delivery</dt><dd data-o="delivery"></dd></div>
+              <div class="sum-total"><dt data-o="totalLabel">Total</dt><dd data-o="total"></dd></div>
+            </dl>
+          </section>
+
+          <section class="next" aria-labelledby="next-title">
+            <h2 id="next-title">What happens next</h2>
+            <ol class="next-steps"></ol>
+            <div class="deliver-to">
+              <p class="deliver-label">Delivering to</p>
+              <p data-o="address"></p>
+            </div>
+            <div class="next-actions">
+              <a class="btn btn-primary" data-o="whatsapp" target="_blank" rel="noopener"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> <span data-o="whatsappLabel">WhatsApp us</span></a>
+              <a class="btn btn-ghost" href="/">Back to the home page</a>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section class="empty" hidden>
+        <h1 class="shop-title">No recent order here.</h1>
+        <p class="empty-text">Order details show on this page right after you order, in the same tab. Questions about an order? Call or WhatsApp us on <a href="tel:+918287994052">+91 82879 94052</a>.</p>
+        <div class="empty-actions">
+          <a class="btn btn-primary" href="/">Go to the home page</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="shop-foot">
+    <div class="wrap">
+      <ul class="foot-links" aria-label="Help">
+        <li><a href="/contact">Contact us</a></li>
+        <li><a href="/shipping-policy">Shipping</a></li>
+        <li><a href="/refund-policy">Returns &amp; refunds</a></li>
+        <li><a href="/terms">Terms</a></li>
+        <li><a href="/privacy-policy">Privacy</a></li>
+      </ul>
+      <p>&copy; 2026 Aashi Enterprises. Made in Bharat.</p>
+    </div>
+  </footer>
+
+  <script src="/shop.js"></script>
+  <script src="/cart.js"></script>
+  <script src="/shop-pages.js"></script>
+</body>
+</html>

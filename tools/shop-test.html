@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shop server tests</title>
+  <!-- Runs the order server's own code (functions/, server/) in the browser, against a real SQLite
+       database (sql.js) standing in for D1 and a pretend Razorpay. Open it on the local preview:
+       http://localhost:5551/tools/shop-test.html  (tools/ is never published) -->
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 24px; background: #faf5f0; color: #3f2724; }
+    li.pass::marker { content: "✓  "; color: #2f7a3a; }
+    li.fail { color: #a2433a; } li.fail::marker { content: "✗  "; }
+    pre { white-space: pre-wrap; font-size: 12px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+</head>
+<body>
+  <h1>Shop server tests</h1>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <script type="module" src="shop-test.mjs"></script>
+</body>
+</html>

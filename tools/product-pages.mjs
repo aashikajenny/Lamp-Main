@@ -15,13 +15,16 @@
 // canonical link in index.html.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = process.argv[2] || ".";
 const src = readFileSync(join(dir, "index.html"), "utf8");
 const SITE = (src.match(/<link rel="canonical" href="(https:\/\/[^"]+?)\/?"/) || [])[1];
 if (!SITE) throw new Error("index.html has no canonical link to take the site's address from");
 const script = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "script.js"), "utf8");
+// the prices: shop.js, the same file the pages and the order server read (it sets globalThis.SHOP)
+await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), "..", "shop.js")).href);
+const SHOP = globalThis.SHOP;
 const block = script.match(/\/\* pages \*\/([\s\S]*?)\/\* \/pages \*\//);
 if (!block) throw new Error("script.js has no PAGES block (between /* pages */ and /* /pages */)");
 const PAGES = JSON.parse(block[1]);
@@ -37,8 +40,10 @@ function swap(html, pattern, to, what) {
 
 for (const [id, p] of Object.entries(PAGES)) {
   const url = `${SITE}/${p.slug}`;
+  const price = SHOP.products[id].price;
   // the link preview: a card with the product, its name and price; and a plain photo of it for Google
-  const card = `${SITE}/images/share/${p.slug}.jpg`;
+  // ?v=: bump it when the cards are remade, so WhatsApp and Facebook fetch them afresh (v2: new prices)
+  const card = `${SITE}/images/share/${p.slug}.jpg?v=2`;
   const photo = `${SITE}/images/share/${p.slug}-product.jpg`;
   let html = src;
   html = swap(html, /<html lang="en" data-product="[a-z]+">/, `<html lang="en" data-product="${id}" data-page="${id}">`, "<html> tag");
@@ -60,8 +65,8 @@ for (const [id, p] of Object.entries(PAGES)) {
         "@type": "Product", "@id": `${url}#product`, "name": p.name, "description": p.description, "category": p.category,
         "brand": { "@type": "Brand", "name": "Aashi Enterprises" }, "manufacturer": { "@id": `${SITE}/#org` },
         "image": photo, "url": url,
-        // the "From ₹" the page shows with the product (sold through the stores the page links to)
-        "offers": { "@type": "AggregateOffer", "lowPrice": p.price, "priceCurrency": "INR", "availability": "https://schema.org/InStock" }
+        // the price the page shows, which the shop charges (shop.js), sold on this site
+        "offers": { "@type": "Offer", "price": price, "priceCurrency": "INR", "availability": "https://schema.org/InStock", "url": url, "seller": { "@id": `${SITE}/#org` } }
       },
       {
         "@type": "BreadcrumbList", "itemListElement": [
@@ -79,7 +84,7 @@ for (const [id, p] of Object.entries(PAGES)) {
   html = swap(html, /<h1 class="hero-title">([\s\S]*?)<\/h1>/, '<h2 class="hero-title">$1</h2>', "hero headline");
   html = swap(html, /<h3 class="pick-name"([^>]*)>[^<]*<\/h3>/, `<h1 class="pick-name"$1>${esc(p.name)}</h1>`, "showcase name");
   html = swap(html, /<p class="pick-tag">[^<]*<\/p>/, `<p class="pick-tag">${esc(p.tag)}</p>`, "showcase line");
-  html = swap(html, /<span class="pick-price-amount">[^<]*<\/span>/, `<span class="pick-price-amount">₹${p.price}</span>`, "showcase price");
+  html = swap(html, /<span class="pick-price-amount">[^<]*<\/span>/, `<span class="pick-price-amount">₹${price}</span>`, "showcase price");
 
   // the lamp's own address: its room photos are plain (lazy-loaded) images, so Google Images finds
   // them with their descriptions; elsewhere they wait until the lamp is on show (script.js)

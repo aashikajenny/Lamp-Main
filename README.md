@@ -5,11 +5,12 @@ A single-page site for Aashi Enterprises' three devotional products: the **35-in
 - **Hero: the best seller.** The claim is the heading itself, "Our best seller.", with the product's full name, "35-in-1 Divine Mantra Box", beneath it in rose; then its four key features, Explore and Buy now. The picker's line for the Mantra Box, the nav switcher and the "Made by" text say it too, so the claim runs through the page without a sticker on the product. (A real number, such as homes served or a marketplace rating, would make it stronger; add one only once the owner confirms it.) The 3D Mantra Box stands on a lit pedestal facing you, swaying gently to show its side; a glint of light sweeps across its glass cover every few seconds.
 - **Controls:** a soft pool of light follows the pointer across buttons, tabs and chips, and a press sinks the control in and sends an echo of its outline outward, like the rings of sound. Nav links draw a fine rose line in on hover; design prints lift when you point at them.
 - **The product picker.** A turning stage with all three products in 3D under a beam of light. The product in front is the one the rest of the page shows. Turn it with the arrows, the dots, a swipe, the arrow keys, or a tap on a product at the side; "Explore" (or a tap on the product in front) goes to its features. The switcher in the nav changes the product from anywhere, and `?product=mantra|mini|lamp` opens the page on one.
-- **Everything below follows the product.** The features showcase, the room photos (the lamp), the buy section with its design picker and store links, the FAQ and the footer line. Content for one product is marked in `index.html` with `data-for="mantra"`, `data-for="mini lamp"` and so on, and is hidden while another product is showing; the product's name fills any `data-p="name"` or `data-p="short"`.
+- **Everything below follows the product.** The features showcase, the room photos (the lamp), the buy section with its design picker and buy buttons, the FAQ and the footer line.
+- **Orders are taken on the site** (October 2026; before, the buy buttons led to Amazon, Flipkart and Meesho): Buy now and Add to cart under the designs, a cart, a checkout that takes UPI, cards, net banking and wallets through Razorpay or cash on delivery, an order-placed page, and a password-locked order list for the business. See "The shop" below. Content for one product is marked in `index.html` with `data-for="mantra"`, `data-for="mini lamp"` and so on, and is hidden while another product is showing; the product's name fills any `data-p="name"` or `data-p="short"`.
 - **Features showcase:** four features per product, each shown by the 3D product itself (for the Mantra Box and the Mini: the artwork, the sound, the red mantra button being pressed and the dial turning up, and the two-pin plug on the back). It plays by itself; the step buttons, the Next button or a tap jump ahead.
 - **Hear the mantras** (the two chanting devices): short recordings of the device playing its mantras, set like a track list: tap a mantra to listen, tap again to pause; one plays at a time, with a rose line along the row showing how far it has played. **It stays hidden (with its "Listen" link in the nav) until recordings are added**, so the page never shows a play button that plays nothing, and nothing ever plays until it is tapped. To switch it on: put the files (MP3, 15 to 30 seconds each) in `audio/mantras/` and list them in `MANTRA_CLIPS` at the top of `script.js`, with the English and Devanagari name of each. `build.sh` publishes the `audio/` folder. (The old mantras section, a ring of names that looked like play buttons but played nothing, was taken out in October 2026; the first feature names the best-known mantras, and the FAQ lists them.)
 - **Scrolling moves a section at a time.** Each section fills the screen, and the page always comes to rest at the start of one (CSS scroll snapping, in `style.css`). The mouse wheel and trackpad are handled in `script.js` ("Scrolling"), because on its own the browser springs a small turn of the wheel back: one click of a wheel moves on to the next section, at any zoom or display scaling, and a trackpad swipe moves one section however long it coasts. Touch and the keyboard (arrows, space, Page Up/Down, Home/End) use the browser's own snapping.
-- **Every section fits the screen, at any size.** On tablets, laptops and desktops the headings, spacing, buttons and design prints are capped by the window's height as well as its width, so they step down together on a short window (a 1080p laptop at 125% shows only about 730px, a 768p one about 650px). The design prints are a grid at every width above a phone (eight to a row, six on an upright tablet, sized to the window's height so all three rows and the store buttons fit), always with a clear gap under the heading. Phones (480px wide or less) have their own fitted layouts (the best seller's buttons side by side, the designs in one row swiped sideways, compact FAQ rows), with extra steps for phones under 700px and 640px tall. Where not every FAQ question fits, the last ones fold behind a "More questions" button (measured by `script.js`, afresh when the window or the product changes). If a section is ever taller than the screen (an FAQ answer open), the wheel steps through it and always shows its bottom before the next section. On very short screens (under 520px tall: a phone held sideways, a tiny window) the page scrolls freely instead of snapping. Checked at 2560x1305, 1920x955, 1600x789, 1536x730, 1440x789, 1366x657, 1280x720, 1280x577, 1180x760, 1024x690, 1024x600, 800x600, 820x1100, 768x954, 430x740, 412x760, 390x664, 375x812, 360x640, 360x580, 375x548, 844x340, and between phone and laptop at 500x700, 540x720, 600x800, 640x560, 700x540, 720x600 and 760x650. The phone and laptop breakpoints are 480.98px and 767.98px, so a window whose width comes out fractional (display scaling) never falls between them.
+- **Every section fits the screen, at any size.** On tablets, laptops and desktops the headings, spacing, buttons and design prints are capped by the window's height as well as its width, so they step down together on a short window (a 1080p laptop at 125% shows only about 730px, a 768p one about 650px). The design prints are a grid at every width above a phone (eight to a row, six on an upright tablet, sized to the window's height so all three rows and the buy buttons fit), always with a clear gap under the heading. Phones (480px wide or less) have their own fitted layouts (the best seller's buttons side by side, the designs in one row swiped sideways, compact FAQ rows), with extra steps for phones under 700px and 640px tall. Where not every FAQ question fits, the last ones fold behind a "More questions" button (measured by `script.js`, afresh when the window or the product changes). If a section is ever taller than the screen (an FAQ answer open), the wheel steps through it and always shows its bottom before the next section. On very short screens (under 520px tall: a phone held sideways, a tiny window) the page scrolls freely instead of snapping. Checked at 2560x1305, 1920x955, 1600x789, 1536x730, 1440x789, 1366x657, 1280x720, 1280x577, 1180x760, 1024x690, 1024x600, 800x600, 820x1100, 768x954, 430x740, 412x760, 390x664, 375x812, 360x640, 360x580, 375x548, 844x340, and between phone and laptop at 500x700, 540x720, 600x800, 640x560, 700x540, 720x600 and 760x650. The phone and laptop breakpoints are 480.98px and 767.98px, so a window whose width comes out fractional (display scaling) never falls between them.
 - **No empty box while the 3D loads.** The hero shows a still of the Mantra Box in its default design at once (`.hero-poster` in `index.html`); it fades out under the 3D box once that is drawn wearing its artwork.
 - **Interactive background:** rings of light around the product on screen, plus drifting motes. The pointer brightens the rings and pushes the motes aside; a click or tap sends out a ripple. The lamp sends a slow ripple of its own; the chanting devices send one every couple of seconds, like the beat of a chant.
 
@@ -49,7 +50,9 @@ The site is hosted on Cloudflare Pages, connected to this GitHub repo, so every 
 - Build output directory: `dist`
 - Framework preset: None
 
-`build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, the icons, `_headers` (caching and security headers) and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site.
+`build.sh` copies only what the page loads into `dist/`: the HTML, CSS and scripts, the icons, `_headers` (caching and security headers), `_routes.json` and the WebP images. README.md, PRODUCT.md, `tools/` and the original room photos stay out of the live site. Cloudflare builds the order server (`functions/`, `server/`) from the project folder by itself. `_routes.json` keeps the images and fonts from running it, so they don't count against the daily allowance of function runs.
+
+Pushing a branch other than `main` makes a preview at `<branch>.aashienterprises.pages.dev` (the move to aashienterprises.store leaves previews alone), which is how the shop was tried out with Razorpay's test keys before going live.
 
 ## Product addresses and SEO
 
@@ -62,23 +65,23 @@ Switching product anywhere (the nav switcher, the showcase) leaves the page wher
 
 **One place for the wording.** The product names, showcase lines, titles, descriptions and default designs live in `PAGES` at the top of `script.js`. `build.sh` makes the three pages from `index.html` with `tools/product-pages.mjs` (Node), which reads that block, so the pages never fall out of step with the home page. To preview them locally, run `node tools/product-pages.mjs .`; git ignores the copies it makes.
 
-**Prices.** Each product shows a "From ₹" price, under its name in the showcase and first in the row of perks above the store buttons, and Google is given the same figure. The figure is `price` in `PAGES` (`script.js`), so the page and Google always agree. Set in October 2026 from the Meesho listings:
+**Prices.** Each product shows its price under its name in the showcase and first in the row of perks above the buy buttons, and Google is given the same figure (as an offer sold on this site). Every design of a product costs the same. The prices live in `shop.js`, the one file the pages, the product addresses (`tools/product-pages.mjs`) and the order server all read, so what a visitor sees, what Google is told and what Razorpay charges can't drift apart. Set by the owner on 13 October 2026:
 
-| Product | Meesho now | Shown |
-|---|---|---|
-| Divine Mantra Box | ₹221 to ₹268 | From ₹249 |
-| Mini Chanting Box | ₹162 to ₹165 | From ₹169 |
-| Night Lamps | ₹145 to ₹168 | From ₹149 |
+| Product | Price |
+|---|---|
+| Divine Mantra Box | ₹349 |
+| Mini Chanting Box | ₹249 |
+| Night Lamp | ₹199 |
 
-The rule: never below the lowest price a design actually sells for (a visitor must be able to find one at that price or less), only a little above it, and on a 9-ending (₹149, ₹249), the usual sign of good value in Indian shops. Check it against the stores now and then, and change `price` if the lowest price moves above it.
+Delivery is ₹49 an order, free when the products come to ₹499 or more (`delivery` in `shop.js`). Cash on delivery costs nothing extra.
 
-**Link previews.** Sharing any address (WhatsApp, Facebook, X) shows a 1200 x 630 card: the 3D product, its name, its line and its price, on the site's cream with the logo's petals (`images/share/<page>.jpg`, `home.jpg` for the home page; JPG, which every app shows). Google is given a plain photo of each product (`images/share/<slug>-product.jpg`). They were drawn from the site's own 3D models; remake them if a product's look, default design or price changes.
+**Link previews.** Sharing any address (WhatsApp, Facebook, X) shows a 1200 x 630 card: the 3D product, its name, its line and its price, on the site's cream with the logo's petals (`images/share/<page>.jpg`, `home.jpg` for the home page; JPG, which every app shows). Google is given a plain photo of each product (`images/share/<slug>-product.jpg`). They were drawn from the site's own 3D models; remake them if a product's look, default design or price changes. (On 13 October 2026 only the price line was repainted, in the same Jost, for the new prices.) The cards' addresses end in `?v=2`: raise the number when they change (in `index.html` and `tools/product-pages.mjs`), or WhatsApp and Facebook keep showing the old ones.
 
 **Also for search engines:**
 
 - `sitemap.xml` lists all four addresses, and `robots.txt` points to it.
 - The footer links to every product address.
-- The home page tells Google about the business (with the Meesho shop as one of its profiles) and lists the three products by address.
+- The home page tells Google about the business (its phone and email) and lists the three products by address.
 - `404.html` answers any address the site doesn't have, with a 404 status. Without it, Cloudflare Pages would serve the home page there, and Google would see endless copies of it.
 
 **When the domain changes,** update the address in:
@@ -98,20 +101,26 @@ Run `python tools/serve.py` (the `lamp-site` preview does) and open http://local
 - `designs.js`: the design list (from `images/designs/designs.json`), the artwork files, and the light each one casts
 - `models3d.js`: the three 3D products. Each `.model-slot` (hero, picker, features, buy) has its own viewer; the picker's viewer holds all three products on one stage. They share one animation loop, and a viewer only draws while it's on screen
 - `bg.js`: the interactive light field behind the page
-- `script.js`: the products, the picker, the features showcase, the design picker and the page animations
+- `script.js`: the products, the picker, the features showcase, the design picker, the buy buttons and the page animations
 - `rooms.js`: the lamp's room photos, with the chosen design laid over the lamp in each
-- `build.sh`, `_headers`: the hosting build (see Deploy)
+- `shop.js`: the prices, delivery, cash on delivery and which designs each product comes in (read by the pages and the order server)
+- `cart.js`: the cart, kept in the visitor's browser, and the cart button in the nav
+- `cart.html`, `checkout.html`, `order.html`, `shop-pages.js`, `shop.css`: the cart, checkout and order-placed pages (see "The shop")
+- `admin.html`, `admin.js`: the order list, `/admin`
+- `contact.html`, `shipping-policy.html`, `refund-policy.html`, `terms.html`, `privacy-policy.html`: the contact page and the policies
+- `functions/`: the order server (`api/checkout.js`, `api/verify.js`, `api/razorpay-webhook.js`, `api/admin/orders.js`) and `_middleware.js`, which sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store, and asks for the password on `/admin`
+- `server/`: what the order server shares (`orders.js`: checks, Razorpay, signatures, the database; `admin.js`: the lock on `/admin`)
+- `build.sh`, `_headers`, `_routes.json`: the hosting build (see Deploy)
 - `fonts/`: the fonts and icons, with their licences (see Performance)
-- `functions/_middleware.js`: sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store
 - `404.html`: the page for addresses the site doesn't have
 - `sitemap.xml`, `robots.txt`: the addresses for search engines (see "Product addresses and SEO")
-- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server) and `icons.py` (remakes the icon font after a new icon is used)
+- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server), `icons.py` (remakes the icon font after a new icon is used) and `shop-test.html` (the order server's tests)
 - `images/designs/`: the design artwork, as WebP, and `designs.json`
 - `images/generallayout/`: the original room photos; `images/rooms/`: their WebP copies, which the site loads
 
 ## Designs
 
-Each product offers the designs listed for it in `DESIGNS_FOR` in `script.js`. The buy section ("Choose your design. Bring it home.") lets visitors pick the artwork for the product they're looking at, then buy: the 3D product turns once and comes back round wearing the chosen design, above the Amazon, Flipkart and Meesho buttons. Until someone picks, the section shows each design in turn.
+Each product offers the designs listed for it in `shop.js` (`designs`, by design id; only these can be ordered). The buy section ("Choose your design. Bring it home.") lets visitors pick the artwork for the product they're looking at, then buy: the 3D product turns once and comes back round wearing the chosen design, above the Buy now and Add to cart buttons. Until someone picks, the section shows each design in turn; buying a design it is only showing makes that design the pick.
 
 The designs are whatever artwork is in `images/designs/`. Each file is one design, and its file name becomes the button label: `Veer Hanuman.jpeg` shows as "Veer Hanuman", and `om.png` is the Sacred OM. Until a visitor picks a design, each product wears its own default (`design` in `PRODUCTS` in `script.js`: the Sacred OM on the Mantra Box, Trishul Om on the Mini, Meditating Shiv Ji on the lamp). Their pick then appears on every 3D product and room photo on the page. Meditating Shiv Ji (`DEFAULT` in `designs.js`) is listed first in the picker.
 
@@ -165,11 +174,44 @@ The original photos are in `images/generallayout/` (1430 x 1100 PNG). The site l
 
 To replace a photo: put the new one in `images/generallayout/` under the same name, run the WebP converter, then update that room's four panel corners in `PANELS` at the top of `rooms.js`. They are the corners of the printed artwork (not the lamp's white frame), in the photo's pixels: top-left, top-right, bottom-right, bottom-left. Photos should be 1430 x 1100 like these, or change `PHOTO_W` and the `.room-stage` size in `style.css` to match. Until a room has a photo, it shows a lit placeholder.
 
-## Before going live
+## The shop: orders on the website
 
-In `script.js`, paste each product's Amazon, Flipkart and Meesho listing URLs into `STORES` (one set per product). While a link is empty, its button shows a "listing coming soon" note.
+Since October 2026 the site sells directly; there are no marketplace links any more.
 
-A store can instead list one link per design (by design id), plus `"*"` for designs with no listing of their own. The store button then follows the design shown in the buy section. Meesho is set up this way (October 2026). Each Meesho listing is one product in one design, and designs without a listing for that product open the shop page (Pingaksch Aura). The Meesho shop page shows one card per catalog, so a card marked "+4 More" hides four more listings; open the listing to see the rest. Not linked: the rainbow OM box and lamp, the Premanand Ji box with folded hands, the Radha Krishna box under a tree, the two combos and the orange Hanuman Chalisa box, since the site has no matching design or product. Hanuman Ji, Bhakti Hanuman, Veer Hanuman, Radhe Radhe and Shiv Ji have no Meesho listing yet.
+**What a buyer sees**
+
+- **The buy section** (home page and product addresses): pick a design, then **Buy now** (straight to the checkout, with just that product) or **Add to cart** (the button then reads "Go to cart", and the cart appears in the nav with a count; on small phones it takes Buy now's place there). The line above says "Free delivery from ₹499 · Cash on delivery" (COD on phones and tablets, so it stays on one line).
+- **`/cart`** (`cart.html`): each product as a small picture of itself in its design (`.face` in `shop.css`: the box, the Mini with its grille, the lamp's frame), how many (a petal stepper; 1 to 10), remove, and the rose order summary with delivery and the total. On phones the total and Checkout also ride in a pill at the foot of the screen until the summary itself comes into view. The cart is kept in the visitor's browser (`localStorage`, `cart.js`) and is checked against `shop.js` every time it is read, so a design taken off the site simply drops out.
+- **`/checkout`** (`checkout.html`): the delivery address (name, mobile, optional email, house, street, landmark, PIN code, town, state), checked as they type and again on the server; then **Pay online** (Razorpay's own window: UPI, cards, net banking, wallets) or **Cash on delivery**. A way to pay that the server hasn't switched on shows greyed with a note.
+- **`/order`** (`order.html`): "Thank you, <name>.", the order number (AE- and six letters and digits), what was ordered, what happens next, the address, and a WhatsApp button (for cash on delivery: "Confirm on WhatsApp", with the order in the message).
+- **Policies**, which Razorpay asks every site to have: `/contact`, `/shipping-policy`, `/refund-policy` (replacements and refunds), `/terms`, `/privacy-policy`. Linked from the footer of every page.
+
+**What the business sees: `/admin`** (`admin.html`, `admin.js`). The order list, behind a user name and password the browser asks for: tabs for To ship, Not paid, Shipped, Delivered, Cancelled and All. Open an order to see what to pack, copy the address for the courier, call or WhatsApp the buyer (with a ready message: for cash on delivery, a request to confirm), and mark it shipped (with the tracking link or AWB number), delivered or cancelled. Online orders still waiting for payment are checked with Razorpay each time the list opens, in case a buyer paid and closed the page. A cancelled order that was paid online must be refunded in the Razorpay dashboard. Paid orders also show in the Razorpay dashboard, with the buyer's details in each order's notes.
+
+**How it works**
+
+- **Cloudflare Pages Functions** (`functions/`, with shared code in `server/`): `/api/checkout` places an order, `/api/verify` confirms an online payment, `/api/razorpay-webhook` hears about payments from Razorpay directly, `/api/admin/orders` serves the order list. `functions/_middleware.js` also asks for the password on `/admin` and `/api/admin`. Cloudflare builds these itself from the project folder; nothing in `functions/` or `server/` is ever published as a file.
+- **One price list:** `shop.js`. The browser sends only which product, which design and how many; the server prices the order from `shop.js` and makes the Razorpay order for that amount, so nobody can change what they pay.
+- **Online payment:** the server makes a Razorpay order; Razorpay's window takes the payment; the server then checks Razorpay's signature with the secret key (in constant time) and asks Razorpay that the payment is captured, for this order and the full amount, before the order counts as paid. If the account captures payments by hand, the server captures it. The key secret never leaves the server.
+- **Orders are kept** in a Cloudflare D1 database (binding `DB`; its tables are made on first use): every order, cash on delivery or online, with its status. Without the database, online payments still work (the Razorpay dashboard is then the order book), but cash on delivery and `/admin` are off.
+- **Security:** order requests are accepted only from the site's own pages (the browser's Origin), as JSON, at most 8 KB; a hidden field catches form-filling robots; one visitor can place at most 8 orders an hour; every field is checked and cleaned on the server; the pages show orders as text, never as HTML. The shop pages have a Content Security Policy that lets in only the site's own files and Razorpay. `/admin` locks out an address after 10 wrong passwords in 15 minutes, and is never cached or indexed. Visitors' internet addresses are kept only as a keyed hash.
+- **Tests:** `tools/shop-test.html` runs the server's own code in the browser (on the local preview, `http://localhost:5551/tools/shop-test.html`) against a real SQLite database and a pretend Razorpay: prices, delivery, refused designs and quantities, address checks, forged and mismatched payments, the webhook, the rate limit, the admin lock and lock-out, the order list. Run it after changing anything in `functions/`, `server/` or `shop.js`.
+
+**Settings** (Cloudflare: Workers & Pages > aashienterprises > Settings > Variables and secrets, for Production and Preview; mark the keys and passwords as secrets):
+
+| Name | What |
+|---|---|
+| `RAZORPAY_KEY_ID` | `rzp_live_...` (`rzp_test_...` for testing). Online payment stays off without it. |
+| `RAZORPAY_KEY_SECRET` | its secret, from the same Razorpay page (Settings > API Keys) |
+| `RAZORPAY_WEBHOOK_SECRET` | optional: the secret you give the webhook in Razorpay (Settings > Webhooks: URL `https://aashienterprises.store/api/razorpay-webhook`, event `order.paid`) |
+| `ADMIN_PASSWORD` | the password for `/admin`, 12 characters or more (the user name is `aashi`, or set `ADMIN_USER`) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | optional: a Telegram message for every new order |
+
+and a **D1 database** bound as `DB` (Settings > Bindings). Redeploy after changing them.
+
+**Before going live:** the business address on `/contact` (it reads ADDRESS TO BE ADDED until then), live Razorpay keys once Razorpay has approved the site, and one real order of each kind (online and cash on delivery), seen through to `/admin`.
+
+**Courier:** orders are packed and sent by hand for now (copy the address from `/admin`). The shipping policy promises dispatch in 1 to 3 working days and delivery in about 3 to 7 more; change `shipping-policy.html`, the FAQ and the order page (`shop-pages.js`) together if that changes.
 
 ## WebP converter
 

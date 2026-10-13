@@ -16,7 +16,7 @@
   <meta property="og:title" content="Aashi Enterprises | Divine Mantra Box, Mini Chanting Box, Night Lamps" />
   <meta property="og:description" content="Devotional products for the home: the 35-in-1 Divine Mantra Box, the Mini Chanting Box and our Night Lamps, each with a sacred artwork of your choice." />
   <meta property="og:url" content="https://aashienterprises.store/" />
-  <meta property="og:image" content="https://aashienterprises.store/images/share/home.jpg" />
+  <meta property="og:image" content="https://aashienterprises.store/images/share/home.jpg?v=2" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="The Divine Mantra Box, the Mini Chanting Box and a Sacred Night Lamp from Aashi Enterprises" />
@@ -43,7 +43,7 @@
         "url": "https://aashienterprises.store/",
         "logo": "https://aashienterprises.store/icon-512.png",
         "telephone": "+91-82879-94052",
-        "sameAs": ["https://www.meesho.com/PingakschAura"],
+        "email": "contact@aashienterprises.store",
         "contactPoint": { "@type": "ContactPoint", "telephone": "+91-82879-94052", "contactType": "sales", "areaServed": "IN", "availableLanguage": ["en", "hi"] }
       },
       {
@@ -99,6 +99,11 @@
           <button type="button" data-product="lamp"><span>Night Lamps</span><small>Soft night glow</small></button>
         </div>
       </div>
+      <!-- the cart (cart.js): shows once something is in it -->
+      <a class="cart-link" href="/cart" data-cart data-empty aria-label="Your cart, empty">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.6 8.5h12.8l-1 11.1a1.6 1.6 0 0 1-1.6 1.4H8.2a1.6 1.6 0 0 1-1.6-1.4z"/><path d="M9 8.5V7.2a3 3 0 0 1 6 0v1.3"/></svg>
+        <span class="cart-count" data-cart-count>0</span>
+      </a>
       <a class="btn btn-primary btn-sm nav-buy" href="#order">Buy now</a>
     </div>
   </header>
@@ -164,7 +169,7 @@
         <button type="button" class="pick-arrow" data-step="-1" aria-label="Previous product"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
         <div class="pick-copy">
           <h3 class="pick-name" aria-live="polite">Divine Mantra Box</h3>
-          <p class="pick-price"><span class="pick-price-from">From</span> <span class="pick-price-amount">₹249</span></p>
+          <p class="pick-price"><span class="pick-price-amount">₹349</span></p>
           <p class="pick-tag">Our best seller: 35 divine mantras in one small box, for a home filled with peace.</p>
           <button type="button" class="btn btn-primary pick-go">Explore <i class="ph ph-arrow-down" aria-hidden="true"></i></button>
           <!-- which of the three is in front: a petal each, the one in front opens out -->
@@ -347,31 +352,33 @@
           </div>
           <p class="design-note reveal" aria-live="polite"></p>
 
-          <!-- the price comes first ("From ₹", PAGES in script.js keeps it), then what the product is like -->
+          <!-- the price comes first (shop.js keeps it; script.js fills it in), then what the product is like -->
           <ul class="perks reveal" data-for="mantra">
-            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹249</span></li>
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i><span data-p="price">₹349</span></li>
             <li><i class="ph ph-speaker-high" aria-hidden="true"></i>Clear audio</li>
             <li><i class="ph ph-gear-six" aria-hidden="true"></i>Easy to use</li>
             <li><i class="ph ph-plug" aria-hidden="true"></i>Plugs into any socket</li>
           </ul>
           <ul class="perks reveal" data-for="mini">
-            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹169</span></li>
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i><span data-p="price">₹249</span></li>
             <li><i class="ph ph-lightning" aria-hidden="true"></i>Energy efficient</li>
             <li><i class="ph ph-shield-check" aria-hidden="true"></i>Durable and safe</li>
             <li><i class="ph ph-flower-lotus" aria-hidden="true"></i>Made in Bharat</li>
           </ul>
           <ul class="perks reveal" data-for="lamp">
-            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i>From <span data-p="price">₹149</span></li>
+            <li class="perk-price"><i class="ph ph-tag" aria-hidden="true"></i><span data-p="price">₹199</span></li>
             <li><i class="ph ph-moon-stars" aria-hidden="true"></i>Soft warm glow</li>
             <li><i class="ph ph-plug" aria-hidden="true"></i>Plugs into the wall</li>
             <li><i class="ph ph-gift" aria-hidden="true"></i>A thoughtful gift</li>
           </ul>
 
-          <p class="buy-label reveal" id="buy-label">Buy <span data-p="buyName">the Divine Mantra Box</span> on</p>
-          <div class="stores" role="group" aria-labelledby="buy-label">
-            <a class="store reveal" data-store="amazon" href="#order"><span>Amazon</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="store reveal" data-store="flipkart" href="#order"><span>Flipkart</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
-            <a class="store reveal" data-store="meesho" href="#order"><span>Meesho</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+          <!-- buy here: the design on show, straight to checkout or into the cart (script.js, cart.js) -->
+          <p class="buy-label reveal">Free delivery from <span data-shop="freeFrom">₹499</span> · <span class="cod-long">Cash on delivery</span><abbr class="cod-short" title="Cash on delivery">COD</abbr></p>
+          <div class="stores buy-actions" role="group" aria-label="Buy the Divine Mantra Box">
+            <button type="button" class="store store-primary reveal" data-buy-now><span>Buy now</span><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+            <!-- once added, it becomes "Go to cart" (until another design or product is chosen) -->
+            <button type="button" class="store reveal" data-add-cart><span class="add-label">Add to cart</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.6 8.5h12.8l-1 11.1a1.6 1.6 0 0 1-1.6 1.4H8.2a1.6 1.6 0 0 1-1.6-1.4z"/><path d="M9 8.5V7.2a3 3 0 0 1 6 0v1.3"/></svg><i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+            <span class="sr-only" role="status" aria-live="polite" data-buy-status></span>
           </div>
           <p class="buy-note" role="status" aria-live="polite"></p>
         </div>
@@ -426,15 +433,19 @@
           </details>
           <details class="reveal">
             <summary>Where can I buy it?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-            <p>On Amazon, Flipkart and Meesho. Tap the store you prefer, under "Choose your design", to open our listing there; you order and pay there, the way you usually shop.</p>
+            <p>Right here. Under "Choose your design", pick a design, then tap Buy now, or Add to cart to choose a few. You order straight from us, Aashi Enterprises.</p>
+          </details>
+          <details class="reveal">
+            <summary>How can I pay?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+            <p>Online with UPI, a debit or credit card, net banking or a wallet, through Razorpay's secure checkout (we never see your card or UPI details), or in cash when it arrives, at no extra charge.</p>
           </details>
           <details class="reveal">
             <summary>How does delivery work?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-            <p>The store you order from delivers it. Its listing shows the delivery date and any charges for your pin code before you pay, and you can track the order in your account there.</p>
+            <p>We deliver across India through trusted courier partners. Orders leave us within 1 to 3 working days and usually arrive 3 to 7 working days later, and we send you the tracking details once yours ships. Delivery is ₹49, and free on orders of ₹499 or more. <a href="/shipping-policy">Shipping policy</a></p>
           </details>
           <details class="reveal">
-            <summary>Can I return or exchange it?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-            <p>Returns and exchanges follow the policy of the store you bought from. You will find it on the product listing and in your order details.</p>
+            <summary>What if it arrives damaged?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+            <p>If it arrives damaged or doesn't work, we replace it free. Tell us within 7 days of delivery, with an unboxing video, on <a href="tel:+918287994052">+91 82879 94052</a> (call or WhatsApp). We don't take returns for a change of mind. <a href="/refund-policy">Replacement policy</a></p>
           </details>
           <details class="reveal">
             <summary>How do I choose a design?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -508,12 +519,19 @@
           <ul>
             <li><a href="tel:+918287994052">+91 82879 94052</a></li>
             <li><a href="https://wa.me/918287994052" target="_blank" rel="noopener">WhatsApp us</a></li>
-            <li><a href="https://www.meesho.com/PingakschAura" target="_blank" rel="noopener">Our Meesho shop</a></li>
+            <li><a href="/contact">Contact us</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-base">
         <p>&copy; 2026 Aashi Enterprises.<span class="base-more"> All rights reserved.</span></p>
+        <!-- the shop's policies (Razorpay asks for them to be on the site) -->
+        <ul class="footer-policies" aria-label="Policies">
+          <li><a href="/shipping-policy">Shipping</a></li>
+          <li><a href="/refund-policy">Returns &amp; refunds</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/privacy-policy">Privacy</a></li>
+        </ul>
         <p>Made in Bharat</p>
       </div>
     </div>
@@ -522,6 +540,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/motion@14.0.0/dist/motion.js"></script>
   <script src="perf.js"></script>
+  <script src="shop.js"></script>
+  <script src="cart.js"></script>
   <script src="designs.js"></script>
   <script src="models3d.js"></script>
   <script src="bg.js"></script>

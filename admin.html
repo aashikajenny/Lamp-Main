@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- The order list, for Aashi Enterprises only. The server asks for the password before it sends
+       this page or any order (server/admin.js); it is never cached or indexed. -->
+  <title>Orders | Aashi Enterprises</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#faf5f0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/fonts/icons.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/shop.css" />
+</head>
+<body class="shop-page admin-page" data-page="admin">
+  <div class="night" aria-hidden="true"></div>
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <div class="nav-end">
+      <button type="button" class="btn btn-ghost btn-sm" data-refresh>Refresh</button>
+    </div>
+  </header>
+
+  <main class="shop" id="top">
+    <div class="wrap">
+      <h1 class="shop-title">Orders.</h1>
+      <div class="views" role="tablist" aria-label="Which orders"></div>
+      <p class="admin-alert" role="alert" hidden></p>
+      <p class="admin-empty" hidden></p>
+      <div class="orders"></div>
+    </div>
+  </main>
+
+  <script src="/shop.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

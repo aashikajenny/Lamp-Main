@@ -2,68 +2,20 @@
    - The hero shows the best seller, the Divine Mantra Box, at every address.
    - The product picker below it is a turning stage with all three products. The product in
      front is the one the rest of the page shows: the features, the rooms (for the lamp), the
-     design picker, the store links and the FAQ all follow it (anything marked data-for).
+     design picker, the buy buttons and the FAQ all follow it (anything marked data-for).
      The switcher in the nav changes it from anywhere. Each product has its own address
      (/night-lamp; see PAGES), which opens the same site on that product.
    - Scrolling only scrolls the page. Each section that shows a product has its own 3D viewer
      (models3d.js) in its own slot, so it scrolls with that section like any other content.
    - Features: the showcase plays by itself, one feature every few seconds, and the 3D product
      demonstrates each one. The step buttons, the Next button or a tap jump ahead.
-   - Buy: pick a design and the product there turns to show it. */
+   - Buy: pick a design and the product there turns to show it, then Buy now (straight to the
+     checkout page) or Add to cart. Prices, delivery and which designs each product comes in are in
+     shop.js, which the server reads too. */
 (function () {
   "use strict";
 
-  /* ---------- Store settings: fill these in before going live ---------- */
-  // Marketplace listings for each product: paste each full product URL here before going live.
-  // A store can have one link for the whole product, or one per design (by design id, the design's
-  // file name in images/designs without .webp), with "*" for designs that have no listing of their
-  // own; the store button then follows the design on show in the buy section.
-  // While a link is empty, its button shows a short "coming soon" note instead.
-  const MEESHO = "https://www.meesho.com/";
-  const MEESHO_SHOP = MEESHO + "PingakschAura";
-  const STORES = {
-    mantra: {
-      amazon: "", flipkart: "",
-      meesho: {
-        "om": MEESHO + "om-35-in-1-led-gayatri-mantra-chanting-box-mantra-chanting-device-of-hindu-god-om-mantra-chant-for-peace-prosperity-meditation-spiritual-mantra-chanting-machine-pack-1/p/if8kdb",
-        "anant-om-eternal-harmony": MEESHO + "om-chanting-box-35-in-1/p/ik2zya",
-        "mahadev": MEESHO + "35-in-1-mantra-chanting-box-with-led-illumination-divine-spiritual-audio-device-for-puja-meditation-home/p/ik5h8c",
-        "meditating-shiv-ji": MEESHO + "meditating-shiv-ji-led-mantra-chanting-device-35-in-1/p/ik4zj3",
-        "trishul-om": MEESHO + "35-in-1-mantra-chanting-box-with-led-illumination-divine-spiritual-audio-device-for-puja-meditation-home/p/ik8clt",
-        "shri-premanand-maharaj-ji-radha-kripa": MEESHO + "premanand-ji-maharaj-sound-with-lighting-photo/p/if8ysy",
-        "khatu-shyam-ji": MEESHO + "khatu-shyam-ji-led-mantra-chanting-device-35-in-1/p/iiah69",
-        "radha-krishna": MEESHO + "radha-krishna-continuous-mantra-bell-with-specific-radhe-krishna-mantras-and-glowing-image/p/iiah6c",
-        "*": MEESHO_SHOP
-      }
-    },
-    mini: {
-      amazon: "", flipkart: "",
-      meesho: {
-        "ganesh-ji": MEESHO + "35-in-one-mini-mantra/p/ig69eu",
-        "guru-nanak-dev-ji": MEESHO + "satnam-nanak-dev-ji-mantra-chanting-bell/p/ig8gvn",
-        "*": MEESHO_SHOP
-      }
-    },
-    lamp: {
-      amazon: "", flipkart: "",
-      meesho: {
-        "om": MEESHO + "om-led-night-lamp/p/ibzuim",
-        "krishna-om": MEESHO + "om-krishna-led-night-lamp/p/igfkpy",
-        "3d-hanuman-ji": MEESHO + "hanumanji-3d-led-night-lamp/p/ihm5pa",
-        "ram-bhakt-hanuman": MEESHO + "hanumanji-led-night-lamp/p/ic3dit",
-        "jai-guru-ji-anant-kripa": MEESHO + "guruji-led-night-lamp/p/ibxhy5",
-        "sikh-gurus-darshan-suvarna-guru-parampara": MEESHO + "sikh-gurus-led-night-lamp/p/igudyt",
-        "premanand-ji-maharaj-with-lord-krishna": MEESHO + "premanand-ji-led-night-lamp/p/ihrf9p",
-        "shri-premanand-maharaj-ji-radha-kripa": MEESHO + "led-night-lamp/p/iaxlcp",
-        "shiv-parvati-divya-darshan-kailash-ki-jyoti": MEESHO + "shiv-parvati-led-night-lamp/p/ibv867",
-        "shri-siddhivinayak-suvarna-divya-darshan": MEESHO + "shri-ganesh-led-night-lamp/p/ibcf0n",
-        "shri-ram-darbar-suvarna-divya-darshan": MEESHO + "ramdurbar-night-lamp/p/ibakjr",
-        "neem-karoli-baba": MEESHO + "neem-karoli-baba-led-night-lamp/p/igfdds",
-        "meditating-shiv-ji": MEESHO + "lord-shiva-led-night-lamp/p/iadod7",
-        "*": MEESHO_SHOP
-      }
-    }
-  };
+  const SHOP = window.SHOP, Cart = window.Cart;
 
   /* ---------- Design sounds: what plays when someone taps a design ---------- */
   // Put the audio files in audio/ and list them here by design id (the design's file name in
@@ -83,20 +35,12 @@
   const MANTRA_CLIPS = [
   ];
   /* ---------- Which designs each product offers ---------- */
-  // By design id (the design's file name in images/designs, without .webp). Only these show in a
-  // product's picker. A product left out of this list offers every design.
-  // the Divine Mantra Box and the night lamp offer the same designs
-  const SHARED_DESIGNS = [
-    "khatu-shyam-ji", "radha-krishna", "mahadev", "ram-bhakt-hanuman", "hanuman-ji",
-    "om", "3d-hanuman-ji", "bhakti-hanuman", "krishna-om", "meditating-shiv-ji", "neem-karoli-baba", "radhe-radhe", "shiv-ji", "trishul-om", "veer-hanuman",
-    "anant-om-eternal-harmony", "premanand-ji-maharaj-with-lord-krishna", "shiv-parvati-divya-darshan-kailash-ki-jyoti",
-    "shri-premanand-maharaj-ji-radha-kripa", "shri-ram-darbar-suvarna-divya-darshan",
-    "shri-siddhivinayak-suvarna-divya-darshan", "sikh-gurus-darshan-suvarna-guru-parampara", "jai-guru-ji-anant-kripa"
-  ];
+  // By design id (the design's file name in images/designs, without .webp), in the order the
+  // picker shows them. They are listed in shop.js, since only these can be ordered.
   const DESIGNS_FOR = {
-    mantra: SHARED_DESIGNS,
-    mini: ["ganesh-ji", "guru-nanak-dev-ji", "radhe-radhe", "trishul-om", "om", "krishna-om"],
-    lamp: SHARED_DESIGNS
+    mantra: SHOP.products.mantra.designs,
+    mini: SHOP.products.mini.designs,
+    lamp: SHOP.products.lamp.designs
   };
   // the design a visitor picked for each product (each product keeps its own; none until they pick)
   const pickedFor = {};
@@ -105,11 +49,10 @@
   // Every address shows this same site, best seller first. A product's address (/mantra-box and so
   // on) opens it on that product, and tells Google that product's title, description and main
   // heading (name; the picker's line is tag; design is the one it wears until a visitor picks one,
-  // and its picture for Google and link previews). price is the "From ₹" shown with the product and
-  // given to Google: keep it at or a little above the lowest price it sells for in the stores (never
-  // below it, or a visitor would find no design at that price), on a 9-ending. tools/product-pages.mjs makes those pages from
-  // index.html with this block, so it stays plain JSON between its two marks; the page itself uses
-  // it to name the address and the browser tab after the product on show.
+  // and its picture for Google and link previews). The price shown with the product, and given to
+  // Google, comes from shop.js. tools/product-pages.mjs makes those pages from index.html with this
+  // block, so it stays plain JSON between its two marks; the page itself uses it to name the address
+  // and the browser tab after the product on show.
   const PAGES = /* pages */ {
     "mantra": {
       "slug": "mantra-box",
@@ -118,8 +61,7 @@
       "title": "35-in-1 Divine Mantra Box | Mantra Chanting Box | Aashi Enterprises",
       "description": "35 devotional mantras, from the Gayatri to the Mahamrityunjaya, in a small plug-in box with clear sound and a sacred artwork of your choice.",
       "category": "Mantra chanting box",
-      "design": "khatu-shyam-ji",
-      "price": 249
+      "design": "khatu-shyam-ji"
     },
     "mini": {
       "slug": "mini-chanting-box",
@@ -128,8 +70,7 @@
       "title": "Mini Mantra Chanting Box, 35 Vedic Mantras | Aashi Enterprises",
       "description": "A slim plug-in mantra chanting machine with 35 Vedic mantras, from the Ganesh Mantra to the Gayatri, clear sound and a sacred design on its front.",
       "category": "Mantra chanting machine",
-      "design": "trishul-om",
-      "price": 169
+      "design": "trishul-om"
     },
     "lamp": {
       "slug": "night-lamp",
@@ -138,8 +79,7 @@
       "title": "God Photo LED Night Lamps for the Puja Room | Aashi Enterprises",
       "description": "Plug-in LED night lamps with a sacred artwork lit softly from behind: Shiv Ji, Hanuman Ji, Khatu Shyam Ji, Radha Krishna, Guru Ji and more.",
       "category": "Night lamp",
-      "design": "meditating-shiv-ji",
-      "price": 149
+      "design": "meditating-shiv-ji"
     }
   } /* /pages */;
 
@@ -147,21 +87,21 @@
   const PRODUCTS = {
     mantra: {
       name: PAGES.mantra.name, short: "Mantra Box", buyName: "the Divine Mantra Box",
-      tag: PAGES.mantra.tag, price: `₹${PAGES.mantra.price}`,
+      tag: PAGES.mantra.tag, price: SHOP.rupees(SHOP.products.mantra.price),
       design: PAGES.mantra.design
     },
     mini: {
       name: PAGES.mini.name, short: "Mini Chanting Box", buyName: "the Mini Chanting Box",
-      tag: PAGES.mini.tag, price: `₹${PAGES.mini.price}`,
+      tag: PAGES.mini.tag, price: SHOP.rupees(SHOP.products.mini.price),
       design: PAGES.mini.design
     },
     lamp: {
       // "Night Lamps" until a visitor picks a design, then named after it ("Khatu Shyam Ji Night Lamp")
       get name() { const d = Art.DESIGNS[pickedFor.lamp]; return d ? `${d.name} Night Lamp` : PAGES.lamp.name; },
-      // "Buy our Night Lamps on", then "Buy the Khatu Shyam Ji Night Lamp on" once a design is picked
+      // "our Night Lamps", then "the Khatu Shyam Ji Night Lamp" once a design is picked (the buy buttons say it)
       get buyName() { return Art.DESIGNS[pickedFor.lamp] ? `the ${this.name}` : "our Night Lamps"; },
       short: "Night Lamp",
-      tag: PAGES.lamp.tag, price: `₹${PAGES.lamp.price}`,
+      tag: PAGES.lamp.tag, price: SHOP.rupees(SHOP.products.lamp.price),
       design: PAGES.lamp.design
     }
   };
@@ -357,7 +297,7 @@
     requestAnimationFrame(() => requestAnimationFrame(() => show.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" })));
   }
   $$("[data-choose]").forEach((b) => b.addEventListener("click", () => explore(b.dataset.choose)));
-  // "Buy now" on the best seller: show it, then go straight to its design picker and stores
+  // "Buy now" on the best seller: show it, then go straight to its design picker and buy buttons
   $$("[data-buy]").forEach((b) => b.addEventListener("click", () => {
     setProduct(b.dataset.buy);
     orderSec.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
@@ -694,7 +634,7 @@
     const d = Art.DESIGNS[id];
     designNote.textContent = d ? d.note || d.name : "";
     if (views.order) views.order.setArt(id, true);
-    setStores(); // a store with a listing per design links the one on show
+    setStores(); // the buy buttons name the design on show
     // on a phone the designs are one row swiped sideways: bring the one chosen into view
     // (sideways only, so the page itself never moves)
     const b = picks.find((p) => p.dataset.design === id);
@@ -880,7 +820,7 @@
   if (!reduceMotion) {
     // A section's pieces lift in together, one after another, as the section comes on screen.
     // (Each piece used to wait for itself to pass a line a tenth of the way up the screen, but the
-    // page comes to rest with each section filling the screen, and the store buttons sit at the very
+    // page comes to rest with each section filling the screen, and the buy buttons sit at the very
     // foot of theirs: arriving straight there, or coming back to the page, they never passed the
     // line and stayed hidden.)
     const groups = new Map();
@@ -1153,50 +1093,63 @@
     if (first) first.focus({ preventScroll: true });
   });
 
-  /* ---------- Buy: each product's marketplace listings ---------- */
-  const STORE_NAMES = { amazon: "Amazon", flipkart: "Flipkart", meesho: "Meesho" };
+  /* ---------- Buy: the design on show, straight to the checkout page or into the cart ---------- */
+  // (the cart lives in cart.js; the cart, checkout and order pages in shop-pages.js)
   const buyNote = $(".buy-note");
-  // a store's link for the product on show: its listing in the design on show when the store has
-  // one per design (design: true), the store's fallback when that design has none (shop: true)
-  function storeUrl(store) {
-    const s = STORES[product][store];
-    if (!s || typeof s === "string") return { url: s || "" };
-    if (s[shownDesign]) return { url: s[shownDesign], design: true };
-    return { url: s["*"] || "", shop: true };
+  const buyGroup = $(".buy-actions");
+  $$('[data-shop="freeFrom"]').forEach((e) => { e.textContent = SHOP.rupees(SHOP.delivery.freeFrom); });
+  // what the buttons order: the product on show in the design on show
+  const buyDesign = () => {
+    const d = shownDesign || designFor(product);
+    return SHOP.line({ product, design: d, qty: 1 }) ? d : null;
+  };
+  // the product's name with its design ("the Khatu Shyam Ji Night Lamp": a lamp is named after it)
+  function buyWhat(design) {
+    const d = Art.DESIGNS[design];
+    if (!d) return PRODUCTS[product].buyName;
+    return product === "lamp" ? `the ${d.name} Night Lamp` : `${PRODUCTS[product].buyName} in the ${d.name} design`;
   }
+  const addBtn = $("[data-add-cart]"), addLabel = $(".add-label", addBtn), buyStatus = $("[data-buy-status]");
   function setStores() {
-    buyNote.textContent = "";
-    const d = Art.DESIGNS[shownDesign];
-    // the product's name, with the design when a link is for that design and the name doesn't say it
-    // already (a lamp picked in a design is named after it)
-    const what = (design) => {
-      const n = PRODUCTS[product].buyName;
-      return design && !n.includes(design.name) ? `${n} in the ${design.name} design` : n;
-    };
-    $$(".store").forEach((a) => {
-      const { url, design, shop } = storeUrl(a.dataset.store);
-      const name = STORE_NAMES[a.dataset.store];
-      if (url) {
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.setAttribute("aria-label", shop
-          ? `See our shop on ${name} (opens in a new tab)`
-          : `Buy ${what(design && d)} on ${name} (opens in a new tab)`);
-        a.dataset.soon = "";
-      } else {
-        a.href = "#order";
-        a.removeAttribute("target");
-        a.setAttribute("aria-label", `Buy ${PRODUCTS[product].buyName} on ${name} (listing coming soon)`);
-        a.dataset.soon = "1";
-      }
-    });
+    buyNote.replaceChildren();
+    buyGroup.setAttribute("aria-label", `Buy ${buyWhat(buyDesign())}`);
+    // another design or product: Add to cart again
+    delete addBtn.dataset.added;
+    addLabel.textContent = "Add to cart";
   }
-  $$(".store").forEach((a) => a.addEventListener("click", (e) => {
-    if (!a.dataset.soon) return;
-    e.preventDefault();
-    buyNote.textContent = `Our ${STORE_NAMES[a.dataset.store]} listing for ${PRODUCTS[product].buyName} is coming soon. Please check back shortly.`;
-  }));
+  // buying a design the section was only showing by itself makes it the visitor's pick, so the
+  // slideshow stops on it and every product on the page wears it (as a tap on the design would)
+  function keepPick(design) {
+    if (pickedFor[product] === design) return;
+    const b = picks.find((p) => p.dataset.design === design);
+    if (b) b.click();
+    else pickedFor[product] = design;
+  }
+  // Added, the button becomes "Go to cart" in place (nothing on the page moves), the cart in the nav
+  // shows the count, and a screen reader hears what was added
+  addBtn.addEventListener("click", () => {
+    if (addBtn.dataset.added) { location.href = "/cart"; return; }
+    const design = buyDesign();
+    if (!design) return;
+    keepPick(design);
+    const line = Cart.add(product, design);
+    if (!line) {
+      buyNote.textContent = `Your cart is full. Check out first, or call or WhatsApp us on ${SHOP.phone} for a bigger order.`;
+      return;
+    }
+    const d = Art.DESIGNS[design];
+    addBtn.dataset.added = "1";
+    addLabel.textContent = "Go to cart";
+    buyStatus.textContent = `Added to your cart: ${SHOP.products[product].name}, ${d ? d.name : design}. ${line.qty} in your cart.`;
+    const cart = $(".nav [data-cart]");
+    if (cart && !reduceMotion) animate(cart, { scale: [1, 1.18, 1] }, { duration: 0.5, ease: EASE });
+  });
+  $("[data-buy-now]").addEventListener("click", () => {
+    const design = buyDesign();
+    if (!design) return;
+    keepPick(design);
+    location.href = "/checkout?buy=" + encodeURIComponent(`${product}.${design}`);
+  });
 
   /* ---------- First paint ---------- */
   fillText();

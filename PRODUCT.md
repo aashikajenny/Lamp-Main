@@ -20,7 +20,7 @@ Aashi Enterprises sells three devotional products, all wearing the same range of
 - **Mini Chanting Box** (Vedic 35-in-1 mantra device): a slim white plug-in device with a curved speaker grille above the artwork, a red mantra-changing button and a white volume knob on its right side, and a two-pin plug on the back (240 V AC only; fits any socket). Seller's features: clear sound, direct plug and play, slim and lightweight, perfect for puja and home, Vedic mantras, high-quality sound, energy efficient, easy to use, durable and safe, made in Bharat. Mantras listed: Ganesh, Shiv, Vishnu, Mahamrityunjaya, Gayatri, Durga, Lakshmi, Saraswati, Hanuman, Krishna, Shani, Surya, Sai, Navgraha, Santoshi Mata and more. Ideal for home, puja room, office, meditation, yoga. Taglines: "Plug in. Chant. Feel the divine.", "One device. Countless blessings.", "Spiritual. Simple. Powerful.", "Feel the power. Hear the blessings."
 - **OM Night Lamp**: a compact plug-in night lamp with a printed, backlit artwork. It brings a calm, warm, devotional glow into a room without any installation.
 
-The website exists to present the products clearly and beautifully, build enough trust and desire to buy, and send visitors to a marketplace listing to purchase. It opens on the best seller, then a product picker; the rest of the page follows the product picked. Success means visitors understand what each product is and how it is used, and click through to buy.
+The website exists to present the products clearly and beautifully, build enough trust and desire to buy, and sell them directly: since October 2026 visitors order on the site itself (cart, checkout, Razorpay or cash on delivery), not through marketplaces. It opens on the best seller, then a product picker; the rest of the page follows the product picked. Success means visitors understand what each product is and how it is used, and place an order.
 
 ## Positioning
 
@@ -30,16 +30,19 @@ A night light that is also a devotional object: the sacred OM artwork is the lit
 
 - Used at home, mostly at night: puja rooms, bedsides, meditation corners, living rooms, offices, temples.
 - Plugs directly into a standard Indian wall socket (two round pins on the back). Use is: plug in, switch the socket on.
-- Bought online through marketplaces, not on this website.
+- Bought on this website (the owner asked, 13 October 2026, for no Amazon, Flipkart or Meesho links: orders are taken here). Many buyers come from Meesho habits: cash on delivery and free delivery matter to them.
 
 ## Capabilities and Constraints
 
 - Confirmed features (from the seller's product description): sacred OM artwork, soft warm glow, vibrant print, plug-in design, compact and elegant body, suitable for home, office, temple or meditation space, ideal spiritual gift.
 - Physical form (from the seller's product photo): white rounded rectangular body, printed artwork on the front, stepped back with a square plug module and two metal pins.
-- Sales channels: Amazon, Flipkart and Meesho. The site's purchase action should lead to these listings. Listing URLs are not yet provided.
-- Contact (confirmed by the owner): retail orders, delivery and returns go through the marketplaces. Custom designs (a lamp made with the buyer's own design) and bulk orders: +91 82879 94052, by phone or WhatsApp (shown in the "Made by Aashi Enterprises" section, the FAQ and the footer).
+- Sales channel: this website. Payments through Razorpay (UPI, cards, net banking, wallets), or cash on delivery at no extra charge.
+- Prices (set by the owner, 13 October 2026; the same for every design): Divine Mantra Box ₹349, Mini Chanting Box ₹249, Night Lamp ₹199. Delivery ₹49 an order, free from ₹499.
+- Shipping (owner: "a general one for dispatching facilities like Shiprocket", no courier set up yet): dispatched within 1 to 3 working days, delivered in about 3 to 7 more, tracking shared on WhatsApp/SMS/email.
+- Replacements (owner's choice): free replacement if it arrives damaged or doesn't work, reported within 7 days of delivery with an unboxing video; no returns for a change of mind.
+- Contact (confirmed by the owner): +91 82879 94052, by phone or WhatsApp, and contact@aashienterprises.store, for orders, delivery, replacements, custom designs (a lamp made with the buyer's own design) and bulk orders. The business address for the contact page is still to come from the owner.
 - Range: ten devotional designs are live (Meditating Shiv Ji, the default; Sacred OM; 3D Hanuman Ji; Bhakti Hanuman; Krishna Om; Neem Karoli Baba; Radhe Radhe; Shiv Ji; Trishul Om; Veer Hanuman). More will be added; the site builds its design picker from whatever artwork is in images/designs.
-- Undecided / not provided: price, wattage and electrical specs, dimensions, warranty, care instructions beyond basic cleaning.
+- Undecided / not provided: wattage and electrical specs, dimensions, warranty, care instructions beyond basic cleaning.
 
 ## Brand Commitments
 
@@ -61,7 +64,7 @@ A night light that is also a devotional object: the sacred OM artwork is the lit
 1. The sacred symbol leads. The OM artwork is the hero of every presentation of the product; treat it with reverence.
 2. Light is the story. The product's value is a soft, warm, peaceful glow; show it rather than describe it.
 3. Honest and simple. Only state facts the seller has confirmed; no invented specs, reviews or urgency.
-4. One clear next step. Every path ends at a marketplace listing where the visitor can buy.
+4. One clear next step. Every path ends at Buy now or the cart on this site, and checkout asks only what delivery needs.
 5. Built to grow into a series. Structure should accommodate more devotional designs without a rebuild.
 
 ## Accessibility & Inclusion
