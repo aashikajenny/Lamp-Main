@@ -267,6 +267,19 @@ html { scroll-snap-type: none; }
 .track-parcel .btn:hover { background: #fff; }
 .track-parcel p { margin-top: 10px; font-size: 15.5px; font-variant-numeric: tabular-nums; }
 .track-place { margin-top: 16px; font-size: 15px; }
+/* cancelling, on the ticket: a quiet link first, then a plain two-button question */
+.track-cancel { margin: -6px 0 22px; }
+.cancel-ask { padding: 6px 0; background: none; border: 0; cursor: pointer; color: var(--panel-ink); font: 400 15px var(--font-display); text-decoration: underline; text-underline-offset: 0.22em; text-decoration-color: color-mix(in srgb, var(--panel-ink) 45%, transparent); }
+.cancel-ask:hover { text-decoration-color: var(--panel-ink); }
+.cancel-ask:focus-visible, .cancel-acts .btn:focus-visible { outline: 2px solid var(--panel-ink); outline-offset: 3px; }
+.cancel-confirm { padding: 16px; border-radius: 22px 6px; background: rgba(255, 246, 241, 0.12); border: 1px solid rgba(255, 246, 241, 0.3); }
+.cancel-q { font-size: 15.5px; line-height: 1.5; margin-bottom: 14px; }
+.cancel-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cancel-yes { background: var(--panel-ink); color: var(--panel); gap: 10px; }
+.cancel-yes:hover { background: #fff; }
+.cancel-yes:disabled, .cancel-no:disabled { opacity: 0.7; cursor: progress; }
+.cancel-no { background: transparent; color: var(--panel-ink); border-color: rgba(255, 246, 241, 0.5); }
+.cancel-no:hover { border-color: var(--panel-ink); }
 .track-result[data-status="cancelled"] .track-status, .track-result[data-status="awaiting_payment"] .track-status { opacity: 0.9; }
 @media (max-width: 960px) {
   .track-grid { grid-template-columns: minmax(0, 1fr); }
@@ -399,6 +412,8 @@ html { scroll-snap-type: none; }
 .ob-qty { font-weight: 600; color: var(--accent); }
 .ob-amt { font-variant-numeric: tabular-nums; }
 .ob-sums, .ob-pay, .ob-email { margin-top: 12px; color: var(--muted); font-size: 14.5px; }
+.ob-cancel { margin-top: 8px; font-size: 14.5px; color: var(--ink); }
+.ob-warn { color: #a2433a; font-weight: 500; }
 .ob-addr { margin: 0 0 14px; font: 400 16px/1.5 var(--font-display); white-space: pre-wrap; }
 .ob-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 .ob-update label { display: grid; gap: 6px; margin-bottom: 12px; font: 500 14px var(--font-display); }

@@ -167,11 +167,24 @@ const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS lookups (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
   "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)"
 ];
+// columns added after the first orders were taken: added to an existing table on first use
+// (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop")
+const LATER_COLUMNS = { refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT" };
+async function prepare(db) {
+  await db.batch(SCHEMA.map((s) => db.prepare(s)));
+  const { results } = await db.prepare("PRAGMA table_info(orders)").all();
+  const have = new Set(results.map((c) => c.name));
+  const missing = Object.entries(LATER_COLUMNS).filter(([c]) => !have.has(c));
+  for (const [c, type] of missing) {
+    try { await db.prepare(`ALTER TABLE orders ADD COLUMN ${c} ${type}`).run(); }
+    catch (e) { if (!/duplicate column/i.test(String(e && e.message))) throw e; } // another instance added it first
+  }
+}
 const made = new WeakMap(); // the tables are made once per database, per server instance
 export async function database(env) {
   const db = env.DB;
   if (!db) return null;
-  if (!made.has(db)) made.set(db, db.batch(SCHEMA.map((s) => db.prepare(s))).catch((e) => { made.delete(db); throw e; }));
+  if (!made.has(db)) made.set(db, prepare(db).catch((e) => { made.delete(db); throw e; }));
   await made.get(db);
   return db;
 }
@@ -195,6 +208,93 @@ export async function settle(env, db, row) {
     console.error("settle", row.id, e);
     return row.status;
   }
+}
+
+/* ---------- Cancelling and refunding ---------- */
+// An order can be cancelled until it is marked shipped. A paid one is refunded in full, at once,
+// through Razorpay, to the account it was paid from.
+export const CANCELLABLE = ["paid", "cod", "awaiting_payment"];
+const reread = (db, id) => db.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first();
+
+// The whole amount back to the buyer. Razorpay refuses to refund more than was paid, so asking
+// twice can never pay out twice.
+export async function refundOrder(env, db, row) {
+  try {
+    if (!row.rzp_payment_id || !onlineReady(env)) throw new Error("no payment to refund");
+    const r = await razorpay(env, "POST", `/payments/${row.rzp_payment_id}/refund`, {
+      amount: row.total * 100, speed: "normal", receipt: row.id, notes: { order: row.id }
+    });
+    await db.prepare("UPDATE orders SET refund_id = ?, refund_status = ?, refund_amount = ?, updated_at = ? WHERE id = ?")
+      .bind(r.id, r.status === "processed" ? "processed" : r.status === "failed" ? "failed" : "pending", row.total, now(), row.id).run();
+    return r.status !== "failed";
+  } catch (e) {
+    console.error("refund", row.id, e);
+    await db.prepare("UPDATE orders SET refund_status = 'failed', updated_at = ? WHERE id = ?").bind(now(), row.id).run();
+    return false;
+  }
+}
+
+// Cancel an order that hasn't left yet; by is "buyer" or "shop". Returns { ok, row } with the order
+// as it is now (ok: false when it had already been shipped, delivered or cancelled).
+export async function cancelOrder(env, db, row, by) {
+  // a payment the site never heard about is caught first, so that money comes back too
+  if (row.status === "awaiting_payment" && (await settle(env, db, row)) !== row.status) row = await reread(db, row.id);
+  if (!CANCELLABLE.includes(row.status)) return { ok: false, row };
+  const t = now();
+  const done = await db.prepare(`UPDATE orders SET status = 'cancelled', cancelled_by = ?, cancelled_at = ?, updated_at = ?, refund_status = ?
+      WHERE id = ? AND status = ?`)
+    .bind(by, t, t, row.status === "paid" ? "pending" : null, row.id, row.status).run();
+  // shipped (or cancelled) a moment ago by someone else: leave it as it is
+  if (!(done.meta && done.meta.changes)) return { ok: false, row: await reread(db, row.id) };
+  if (row.status === "paid") await refundOrder(env, db, row);
+  return { ok: true, row: await reread(db, row.id) };
+}
+
+/* ---------- A buyer finding their own order (/track, cancelling there) ---------- */
+// The order number and the mobile number given at checkout, both of which must match. A wrong one
+// gets the same answer as an order that doesn't exist, and one visitor can look up 15 times in 10
+// minutes, so neither can be found by guessing.
+const LOOKUPS = 15, LOOKUP_MS = 10 * 60e3;
+export const NOT_FOUND = "We couldn't find an order with that order number and mobile number. Please check both (the order number starts with AE-), or WhatsApp us and we'll look it up.";
+export async function buyersOrder(request, env, body) {
+  // AE-7K3P9X, typed any way: lower case, spaces, without the dash or without "AE"
+  const raw = String(body.order || "").toUpperCase().replace(/[\s-]/g, "").replace(/^AE/, "");
+  if (!/^[A-Z2-9]{6}$/.test(raw)) throw new HttpError(400, "Please enter your order number: AE- and six letters and numbers.", "order");
+  const id = "AE-" + raw;
+  const phone = String(body.phone || "").replace(/[\s()-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, "");
+  if (!/^[6-9]\d{9}$/.test(phone)) throw new HttpError(400, "Please enter the 10-digit mobile number you gave with the order.", "phone");
+  const db = await database(env);
+  if (!db) throw new HttpError(503, "This isn't available just now. Please WhatsApp us your order number.");
+  const visitor = await visitorKey(request, env);
+  const { n } = await db.prepare("SELECT COUNT(*) AS n FROM lookups WHERE visitor = ? AND at > ?").bind(visitor, Date.now() - LOOKUP_MS).first();
+  if (n >= LOOKUPS) throw new HttpError(429, "Too many tries in a short time. Please try again in 10 minutes, or WhatsApp us.");
+  await db.batch([
+    db.prepare("INSERT INTO lookups (visitor, at) VALUES (?, ?)").bind(visitor, Date.now()),
+    db.prepare("DELETE FROM lookups WHERE at < ?").bind(Date.now() - 86400e3)
+  ]);
+  const row = await reread(db, id);
+  if (!row || row.phone !== phone) throw new HttpError(404, NOT_FOUND);
+  return { db, row };
+}
+// What the buyer sees of their order: never the full address, name, phone or email
+export function buyersView(row, names) {
+  const SHOP = globalThis.SHOP;
+  const t = (row.tracking || "").trim();
+  // the courier's tracking: a link (only an https or http address) or a tracking number
+  const tracking = !t ? null : /^https?:\/\/[^\s<>"]+$/i.test(t) ? { url: t } : { number: t };
+  return {
+    order: row.id, created: row.created_at, updated: row.updated_at, status: row.status, payment: row.payment,
+    subtotal: row.subtotal, delivery: row.delivery, total: row.total,
+    items: JSON.parse(row.items).map((l) => ({
+      product: l.product, design: l.design, qty: l.qty, amount: l.price * l.qty,
+      name: (SHOP.products[l.product] || {}).name || l.product, designName: names[l.design] || l.design
+    })),
+    place: `${row.city}, ${row.state} ${row.pincode}`,
+    tracking,
+    cancellable: CANCELLABLE.includes(row.status),
+    cancelled: row.status === "cancelled" ? { by: row.cancelled_by || "shop", at: row.cancelled_at || row.updated_at } : null,
+    refund: row.refund_status ? { status: row.refund_status, amount: row.refund_amount || row.total } : null
+  };
 }
 
 /* ---------- Design names ---------- */

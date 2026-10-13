@@ -81,6 +81,17 @@
             <a class="btn btn-primary" data-t="trackLink" target="_blank" rel="noopener noreferrer">Track the parcel <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
             <p data-t="trackNumber"></p>
           </div>
+          <!-- until it is marked shipped, the buyer can cancel it here (a paid order is refunded at once) -->
+          <div class="track-cancel" hidden>
+            <button type="button" class="cancel-ask">Cancel this order</button>
+            <div class="cancel-confirm" hidden>
+              <p class="cancel-q" data-t="cancelQ"></p>
+              <div class="cancel-acts">
+                <button type="button" class="btn btn-sm cancel-yes"><span class="go-label">Yes, cancel it</span><span class="spinner" aria-hidden="true"></span></button>
+                <button type="button" class="btn btn-sm cancel-no">Keep my order</button>
+              </div>
+            </div>
+          </div>
           <ul class="mini-lines"></ul>
           <dl class="sums">
             <div><dt>Products</dt><dd data-t="subtotal"></dd></div>

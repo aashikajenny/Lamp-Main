@@ -59,7 +59,7 @@
       el("span", "os-id", o.id), who,
       el("span", "os-items", o.items.map((l) => `${l.qty} × ${l.designName}`).join(", ")),
       el("span", "os-total", rupees(o.total)),
-      el("span", `os-status st-${o.status}`, STATUS[o.status] || o.status),
+      el("span", `os-status st-${o.status}`, o.status === "cancelled" && o.cancelledBy === "buyer" ? "Cancelled by buyer" : STATUS[o.status] || o.status),
       el("span", "os-when", when(o.created))
     );
     d.append(s);
@@ -80,6 +80,17 @@
     pack.append(el("p", "ob-pay", o.payment === "cod"
       ? `Cash on delivery: the courier collects ${rupees(o.total)}.`
       : o.paymentId ? `Paid online. Razorpay payment ${o.paymentId}.` : "Paying online: not paid yet. Don't ship until it shows as paid."));
+    // cancelled: by whom and when, and what happened to the money
+    if (o.status === "cancelled") {
+      const who = o.cancelledBy === "buyer" ? "by the buyer, on Track your order" : "by you";
+      pack.append(el("p", "ob-cancel", `Cancelled ${who}${o.cancelledAt ? `, ${when(o.cancelledAt)}` : ""}.`));
+      const rf = o.refund;
+      const refundText = !o.paymentId ? "" : !rf ? "Not refunded. Press Refund below to return the money."
+        : rf.status === "processed" ? `Refunded ${rupees(rf.amount)} (Razorpay ${rf.id}). The buyer's bank shows it in 5 to 7 working days.`
+        : rf.status === "pending" ? `Refund of ${rupees(rf.amount)} on its way (Razorpay ${rf.id || "refund"}).`
+        : `The refund failed (often too little balance in Razorpay). Press Refund again, or refund payment ${o.paymentId} in the Razorpay dashboard.`;
+      if (refundText) pack.append(el("p", rf && rf.status === "failed" || (!rf && o.paymentId) ? "ob-cancel ob-warn" : "ob-cancel", refundText));
+    }
 
     // where to send it
     const send = el("section", "ob-col");
@@ -124,11 +135,17 @@
     upd.append(tl, nl);
     // the status it has now, as the server names it ("open": still to ship, or not paid yet)
     const current = ["paid", "cod", "awaiting_payment"].includes(o.status) ? "open" : o.status;
+    const refunded = o.refund && (o.refund.status === "processed" || o.refund.status === "pending");
+    const canRefund = o.status === "cancelled" && o.paymentId && !refunded;
     const next = {
       open: o.status === "awaiting_payment" ? [["open", "Save"], ["cancelled", "Cancel order"]] : [["shipped", "Mark shipped"], ["open", "Save"], ["cancelled", "Cancel order"]],
       shipped: [["delivered", "Mark delivered"], ["shipped", "Save"], ["open", "Back to to-ship"], ["cancelled", "Cancel order"]],
       delivered: [["delivered", "Save"], ["open", "Back to to-ship"]],
-      cancelled: [["cancelled", "Save"], ["open", "Back to to-ship"]]
+      cancelled: [
+        ...(canRefund ? [["refund", `Refund ${rupees(o.total)}`]] : []),
+        ["cancelled", "Save"],
+        ...(refunded ? [] : [["open", "Back to to-ship"]])
+      ]
     }[current] || [];
     const btns = el("div", "ob-acts");
     next.forEach(([status, label], i) => {
@@ -141,7 +158,13 @@
     upd.addEventListener("submit", async (e) => {
       e.preventDefault();
       const status = e.submitter ? e.submitter.value : current;
-      if (status === "cancelled" && current !== "cancelled" && !confirm(`Cancel order ${o.id}?${o.paymentId ? " It was paid online, so refund it in the Razorpay dashboard too." : ""}`)) return;
+      if (status === "cancelled" && current !== "cancelled") {
+        const money = !o.paymentId ? ""
+          : current === "open" ? ` It was paid online: ${rupees(o.total)} is refunded to the buyer automatically.`
+          : ` It was paid online and has already shipped, so the money is NOT refunded automatically: press Refund afterwards if you are refunding it.`;
+        if (!confirm(`Cancel order ${o.id}?${money}`)) return;
+      }
+      if (status === "refund" && !confirm(`Refund ${rupees(o.total)} to the buyer of ${o.id}, back to the account they paid from?`)) return;
       try {
         const r = await fetch("/api/admin/orders", {
           method: "POST", headers: { "content-type": "application/json", accept: "application/json" },

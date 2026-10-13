@@ -10,11 +10,20 @@
 #   subdomains (no includeSubDomains): email.aashienterprises.store is GoDaddy's webmail login.
 # - X-Frame-Options / frame-ancestors: no other site can show these pages inside its own
 #   (a trick for fake "click here" pages).
-# - Permissions-Policy: the site never asks for the camera, microphone, location or payments.
+# - Content-Security-Policy: a page may only run scripts from this site, the two libraries it uses
+#   (Three.js from cdnjs, Motion from jsdelivr) and Razorpay's checkout; it may only send data to
+#   this site and Razorpay; no plug-ins; forms only post here or to Razorpay. Even if someone found a
+#   way to slip text into a page, it couldn't run a script from anywhere else or send data away.
+#   (The shop pages carry their own, stricter policy too, in their <meta>; both apply.)
+# - Cross-Origin-Opener-Policy: other sites' windows can't reach into these pages (Razorpay's own
+#   pop-ups, opened by the checkout, still work).
+# - Permissions-Policy: the site never asks for the camera, microphone or location; payments only
+#   for Razorpay's frames on the checkout page (functions/_middleware.js sets that one).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.razorpay.com; font-src 'self'; connect-src 'self' https://*.razorpay.com; frame-src https://api.razorpay.com https://*.razorpay.com; media-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com; frame-ancestors 'self'; upgrade-insecure-requests
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

@@ -4,6 +4,7 @@ import * as verify from "../functions/api/verify.js";
 import * as webhook from "../functions/api/razorpay-webhook.js";
 import * as adminOrders from "../functions/api/admin/orders.js";
 import * as track from "../functions/api/track.js";
+import * as cancel from "../functions/api/cancel.js";
 import { onRequest as middleware } from "../functions/_middleware.js";
 import { isAdminPath, adminGate } from "../server/admin.js";
 import { hmacHex, cleanCustomer } from "../server/orders.js";
@@ -35,7 +36,7 @@ function makeD1() {
 
 // a pretend Razorpay: orders and payments it "knows", and every call it was sent
 let rzp;
-function resetRazorpay() { rzp = { orders: {}, payments: {}, calls: [], n: 0 }; }
+function resetRazorpay() { rzp = { orders: {}, payments: {}, refunds: {}, calls: [], n: 0, failRefunds: false }; }
 const realFetch = window.fetch.bind(window);
 window.fetch = async (url, init = {}) => {
   url = String(url);
@@ -57,6 +58,16 @@ window.fetch = async (url, init = {}) => {
   if ((m = path.match(/^\/orders\/(order_\w+)$/))) return rzp.orders[m[1]] ? ok(rzp.orders[m[1]]) : nf();
   if ((m = path.match(/^\/orders\/(order_\w+)\/payments$/))) return ok({ items: Object.values(rzp.payments).filter((p) => p.order_id === m[1]) });
   if ((m = path.match(/^\/payments\/(pay_\w+)$/))) return rzp.payments[m[1]] ? ok(rzp.payments[m[1]]) : nf();
+  if ((m = path.match(/^\/payments\/(pay_\w+)\/refund$/)) && method === "POST") {
+    const p = rzp.payments[m[1]], b = JSON.parse(init.body);
+    if (!p || rzp.failRefunds) return new Response(JSON.stringify({ error: { description: "insufficient balance" } }), { status: 400 });
+    p.refunded = (p.refunded || 0) + b.amount;
+    if (p.refunded > p.amount) { p.refunded -= b.amount; return new Response(JSON.stringify({ error: { description: "refund exceeds payment" } }), { status: 400 }); }
+    const id = "rfnd_TEST" + String(++rzp.n).padStart(6, "0");
+    rzp.refunds[id] = { id, payment_id: p.id, amount: b.amount, status: "processed" };
+    return ok(rzp.refunds[id]);
+  }
+  if ((m = path.match(/^\/refunds\/(rfnd_\w+)$/))) return rzp.refunds[m[1]] ? ok(rzp.refunds[m[1]]) : nf();
   if ((m = path.match(/^\/payments\/(pay_\w+)\/capture$/)) && method === "POST") {
     const p = rzp.payments[m[1]]; if (!p) return nf();
     p.status = "captured"; return ok(p);
@@ -343,6 +354,77 @@ test("track: a paid order the page never heard about shows as paid", async () =>
   pay(b.razorpay.order_id);
   eq((await look()).body.status, "paid", "caught up with Razorpay");
   eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(b.order).first()).status, "paid", "saved");
+});
+
+test("buyer cancels: cash on delivery just cancels; a paid order is refunded in full at once", async () => {
+  const env = envWith();
+  const cod = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MANTRA], "cod") }), env)))).body;
+  const paid = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MANTRA, LAMP], "online"), headers: { "cf-connecting-ip": "198.51.100.3" } }), env)))).body;
+  const pid = pay(paid.razorpay.order_id);
+  await verify.onRequestPost(ctx(req("/api/verify", { body: { order: paid.order, razorpay_order_id: paid.razorpay.order_id, razorpay_payment_id: pid, razorpay_signature: await hmacHex(SECRET, `${paid.razorpay.order_id}|${pid}`) } }), env));
+  const can = (o, phone = "9876543210", ip = "192.0.2.60") => cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: o, phone }, headers: { "cf-connecting-ip": ip } }), env)).then(read);
+
+  eq((await can(cod.order, "9876543211")).status, 404, "wrong phone can't cancel");
+  eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(cod.order).first()).status, "cod", "still open");
+  const c1 = await can(cod.order);
+  eq([c1.status, c1.body.status, c1.body.cancellable, c1.body.cancelled.by, c1.body.refund], [200, "cancelled", false, "buyer", null], "COD cancelled, nothing to refund");
+  ok(!rzp.calls.some((c) => /refund/.test(c[1] || "")), "no refund for COD");
+
+  const c2 = await can(paid.order);
+  eq([c2.status, c2.body.status, c2.body.refund], [200, "cancelled", { status: "processed", amount: 548 }], "paid cancelled and refunded");
+  const call = rzp.calls.find((c) => c[0] === "POST" && c[1] === `/payments/${pid}/refund`);
+  eq(call[2].amount, 54800, "the whole amount, in paise");
+  ok(!JSON.stringify(c2.body).includes("Shanti") && !JSON.stringify(c2.body).includes("9876543210"), "no address or phone in the answer");
+  // again: no second refund, just the cancelled order
+  const c3 = await can(paid.order);
+  eq([c3.status, rzp.calls.filter((c) => /refund$/.test(c[1] || "")).length], [200, 1], "cancelling twice refunds once");
+});
+
+test("buyer can't cancel once shipped; the shop shipping and the buyer cancelling can't both win", async () => {
+  const env = envWith();
+  const a = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod") }), env)))).body;
+  await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id: a.order, status: "shipped", tracking: "AWB1" } }), env));
+  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: a.order, phone: "9876543210" } }), env)));
+  eq([r.status, /already left us/.test(r.body.error)], [409, true], "refused after shipping");
+  eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(a.order).first()).status, "shipped", "still shipped");
+  const t = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9876543210" } }), env)));
+  eq(t.body.cancellable, false, "track says it can't be cancelled");
+});
+
+test("shop cancels a paid order: refunded automatically; a failed refund can be retried; refunded can't reopen", async () => {
+  const env = envWith();
+  const p = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MINI], "online") }), env)))).body;
+  const pid = pay(p.razorpay.order_id);
+  await verify.onRequestPost(ctx(req("/api/verify", { body: { order: p.order, razorpay_order_id: p.razorpay.order_id, razorpay_payment_id: pid, razorpay_signature: await hmacHex(SECRET, `${p.razorpay.order_id}|${pid}`) } }), env));
+  const upd = (body) => adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body }), env)).then(read);
+  rzp.failRefunds = true; // e.g. not enough balance in Razorpay yet
+  const u1 = await upd({ id: p.order, status: "cancelled" });
+  eq([u1.status, u1.body.status, u1.body.refund], [200, "cancelled", "failed"], "cancelled, refund failed");
+  const list = (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=cancelled", { method: "GET" }), env)))).body;
+  eq([list.orders[0].cancelledBy, list.orders[0].refund.status], ["shop", "failed"], "the list shows it");
+  rzp.failRefunds = false;
+  const u2 = await upd({ id: p.order, status: "refund" });
+  eq(u2.body.refund, "processed", "retry worked");
+  eq((await upd({ id: p.order, status: "refund" })).status, 409, "no second refund");
+  eq((await upd({ id: p.order, status: "open" })).status, 409, "a refunded order can't go back to to-ship");
+  eq(rzp.calls.filter((c) => /refund$/.test(c[1] || "")).length, 2, "one failed try, one refund");
+  // a COD order can't be "refunded"
+  const c = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod") }), env)))).body;
+  await upd({ id: c.order, status: "cancelled" });
+  eq((await upd({ id: c.order, status: "refund" })).status, 400, "nothing to refund for COD");
+  eq((await upd({ id: c.order, status: "open" })).body.status, "cod", "a cancelled COD order can be reopened");
+});
+
+test("an order table from before cancelling existed gets its new columns", async () => {
+  const env = envWith();
+  env.DB.raw.run(`CREATE TABLE orders (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, status TEXT NOT NULL, payment TEXT NOT NULL,
+    subtotal INTEGER NOT NULL, delivery INTEGER NOT NULL, total INTEGER NOT NULL, items TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
+    address TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL, pincode TEXT NOT NULL, rzp_order_id TEXT, rzp_payment_id TEXT, tracking TEXT, note TEXT, visitor TEXT)`);
+  env.DB.raw.run("INSERT INTO orders VALUES ('AE-OLD222','2026-10-13','2026-10-13','cod','cod',199,49,248,'[{\"product\":\"lamp\",\"design\":\"om\",\"qty\":1,\"price\":199}]','Old Buyer','9876543210',NULL,'1 Road','Delhi','Delhi','110001',NULL,NULL,NULL,NULL,NULL)");
+  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: "AE-OLD222", phone: "9876543210" } }), env)));
+  eq([r.status, r.body.status, r.body.cancelled.by], [200, "cancelled", "buyer"], "the old order cancels");
+  const cols = env.DB.raw.exec("PRAGMA table_info(orders)")[0].values.map((v) => v[1]);
+  ok(["refund_id", "refund_status", "refund_amount", "cancelled_by", "cancelled_at"].every((c) => cols.includes(c)), "columns added: " + cols.join(","));
 });
 
 /* ---------- run ---------- */

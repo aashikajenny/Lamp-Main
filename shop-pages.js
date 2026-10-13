@@ -638,6 +638,7 @@
           throw new Error((res && res.error) || `Order tracking isn't working just now (error ${r.status}). Please WhatsApp us your order number.`);
         }
         fields.order.value = res.order;
+        who = { order: res.order, phone };
         showOrder(res);
       } catch (err) {
         result.hidden = true;
@@ -647,9 +648,51 @@
       }
     });
 
+    // the order on show, and the two numbers that found it (cancelling asks for them again)
+    let who = null, shownOrder = null;
+    const cancelBox = $(".track-cancel", result), ask = $(".cancel-ask", cancelBox), confirmBox = $(".cancel-confirm", cancelBox);
+    const yes = $(".cancel-yes", cancelBox), yesLabel = $(".go-label", yes), no = $(".cancel-no", cancelBox);
+    ask.addEventListener("click", () => {
+      const o = shownOrder;
+      $('[data-t="cancelQ"]', cancelBox).textContent = o.payment === "online" && o.status === "paid"
+        ? `Cancel order ${o.order}? ${rupees(o.total)} goes back to the account you paid from, usually within 5 to 7 working days.`
+        : `Cancel order ${o.order}? Nothing will be sent, and there is nothing to pay.`;
+      ask.hidden = true;
+      confirmBox.hidden = false;
+      no.focus();
+    });
+    no.addEventListener("click", () => { confirmBox.hidden = true; ask.hidden = false; ask.focus(); });
+    yes.addEventListener("click", async () => {
+      if (!who) return;
+      yes.disabled = no.disabled = true; yes.classList.add("is-busy"); yesLabel.textContent = "Cancelling";
+      showAlert("");
+      try {
+        let r;
+        try {
+          r = await fetch("/api/cancel", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(who) });
+        } catch (err) { throw new Error("We couldn't reach our server. Please check your internet connection and try again."); }
+        const res = await r.json().catch(() => null);
+        if (!r.ok || !res) throw new Error((res && res.error) || `Cancelling isn't working just now (error ${r.status}). Please WhatsApp us your order number.`);
+        showOrder(res);
+      } catch (err) {
+        showAlert(err.message);
+        alertBox.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      } finally {
+        yes.disabled = no.disabled = false; yes.classList.remove("is-busy"); yesLabel.textContent = "Yes, cancel it";
+      }
+    });
+
     function showOrder(o) {
+      shownOrder = o;
       const set = (k, v) => $$(`[data-t="${k}"]`, result).forEach((e) => { e.textContent = v; });
-      const [title, text, at] = STATUS[o.status] || [o.status, "", 0];
+      let [title, text, at] = STATUS[o.status] || [o.status, "", 0];
+      if (o.status === "cancelled") {
+        const by = o.cancelled && o.cancelled.by === "buyer" ? "You cancelled this order." : "This order was cancelled.";
+        const rf = o.refund;
+        text = !rf ? `${by} Nothing will be sent${o.payment === "cod" ? ", and there is nothing to pay" : ""}.`
+          : rf.status === "failed" ? `${by} Your refund of ${rupees(rf.amount)} is being sent back by hand; if it hasn't reached you in 7 working days, please WhatsApp us.`
+          : `${by} ${rupees(rf.amount)} ${rf.status === "processed" ? "has been refunded" : "is being refunded"} to the account you paid from. Banks usually show it within 5 to 7 working days.`;
+      }
       const day = (iso) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
       set("id", o.order);
       set("status", title);
@@ -677,9 +720,15 @@
       fillStills($(".mini-lines", result));
       set("subtotal", rupees(o.subtotal));
       set("delivery", o.delivery ? rupees(o.delivery) : "Free");
-      set("totalLabel", o.payment === "cod" ? (o.status === "delivered" ? "Paid on delivery" : "To pay on delivery") : o.status === "awaiting_payment" ? "Not paid" : "Paid");
+      set("totalLabel", o.status === "cancelled" ? (o.refund ? (o.refund.status === "processed" ? "Refunded" : "Being refunded") : "Cancelled")
+        : o.payment === "cod" ? (o.status === "delivered" ? "Paid on delivery" : "To pay on delivery") : o.status === "awaiting_payment" ? "Not paid" : "Paid");
+      // cancelling: offered until it is marked shipped
+      cancelBox.hidden = !o.cancellable;
+      confirmBox.hidden = true;
+      ask.hidden = false;
       set("total", rupees(o.total));
       set("place", o.place);
+      $(".track-place", result).hidden = o.status === "cancelled";
       $('[data-t="whatsapp"]', result).href = `https://wa.me/${SHOP.whatsapp}?text=${encodeURIComponent(`Namaste, I have a question about my order ${o.order}.`)}`;
       result.hidden = false;
       rememberOrder(o.order);
