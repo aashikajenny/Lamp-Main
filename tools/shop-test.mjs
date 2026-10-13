@@ -3,6 +3,7 @@ import * as checkout from "../functions/api/checkout.js";
 import * as verify from "../functions/api/verify.js";
 import * as webhook from "../functions/api/razorpay-webhook.js";
 import * as adminOrders from "../functions/api/admin/orders.js";
+import * as track from "../functions/api/track.js";
 import { onRequest as middleware } from "../functions/_middleware.js";
 import { isAdminPath, adminGate } from "../server/admin.js";
 import { hmacHex, cleanCustomer } from "../server/orders.js";
@@ -300,6 +301,48 @@ test("admin list and updates (and catching up on payments the page never heard a
   eq((await upd({ id: a.order, status: "paid" })).status, 400, "can't mark paid by hand");
   eq((await upd({ id: "AE-NOPE22", status: "shipped" })).status, 404, "unknown order");
   eq((await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id: a.order, status: "cancelled" }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites can't change orders");
+});
+
+test("track: order number + mobile number finds it; anything else gets the same 'not found'", async () => {
+  const env = envWith();
+  const a = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([{ ...MANTRA, qty: 2 }], "cod") }), env)))).body;
+  const look = (body, ip = "192.0.2.50") => track.onRequestPost(ctx(req("/api/track", { body, headers: { "cf-connecting-ip": ip } }), env)).then(read);
+  const ok1 = await look({ order: a.order, phone: "98765 43210" });
+  eq(ok1.status, 200, "found");
+  eq([ok1.body.order, ok1.body.status, ok1.body.total, ok1.body.place, ok1.body.tracking], [a.order, "cod", 698, "Gurugram, Haryana 122001", null], "what it shows");
+  eq(ok1.body.items[0].designName, "Khatu Shyam Ji", "design name");
+  ok(!JSON.stringify(ok1.body).includes("Shanti Apartments") && !JSON.stringify(ok1.body).includes("Priya") && !JSON.stringify(ok1.body).includes("9876543210"), "no address, name or phone in the answer");
+  // typed loosely: lower case, no dash, without AE
+  eq((await look({ order: a.order.toLowerCase().replace("-", ""), phone: "+919876543210" })).status, 200, "loose typing");
+  eq((await look({ order: a.order.slice(3), phone: "09876543210" })).status, 200, "without AE");
+  const wrongPhone = await look({ order: a.order, phone: "9876543211" });
+  const noOrder = await look({ order: "AE-ZZZZZZ", phone: "9876543210" });
+  eq([wrongPhone.status, noOrder.status, wrongPhone.body.error === noOrder.body.error], [404, 404, true], "wrong phone and unknown order look the same");
+  eq((await look({ order: "XYZ", phone: "9876543210" })).body.field, "order", "bad order number");
+  eq((await look({ order: a.order, phone: "123" })).body.field, "phone", "bad phone");
+  eq((await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9876543210" }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites");
+  // shipped with a link: the link comes back; a tracking number comes back as a number; a javascript: link never as a link
+  const upd = (body) => adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body }), env));
+  await upd({ id: a.order, status: "shipped", tracking: "https://track.example/AWB123" });
+  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { url: "https://track.example/AWB123" }, "link");
+  await upd({ id: a.order, status: "shipped", tracking: "AWB 123456789" });
+  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { number: "AWB 123456789" }, "number");
+  await upd({ id: a.order, status: "shipped", tracking: "javascript:alert(1)" });
+  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { number: "javascript:alert(1)" }, "never a script link");
+  // guessing is slowed down: 15 look-ups per 10 minutes per visitor (8 counted so far: the refused-as-unreadable ones never reach the database)
+  for (let i = 0; i < 7; i++) await look({ order: "AE-ZZZZZZ", phone: "9876543210" });
+  eq((await look({ order: a.order, phone: "9876543210" })).status, 429, "16th look-up refused");
+  eq((await look({ order: a.order, phone: "9876543210" }, "192.0.2.99")).status, 200, "another visitor still fine");
+});
+
+test("track: a paid order the page never heard about shows as paid", async () => {
+  const env = envWith();
+  const b = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "online") }), env)))).body;
+  const look = () => track.onRequestPost(ctx(req("/api/track", { body: { order: b.order, phone: "9876543210" } }), env)).then(read);
+  eq((await look()).body.status, "awaiting_payment", "not paid yet");
+  pay(b.razorpay.order_id);
+  eq((await look()).body.status, "paid", "caught up with Razorpay");
+  eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(b.order).first()).status, "paid", "saved");
 });
 
 /* ---------- run ---------- */

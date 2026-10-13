@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#faf5f0" />
   <!-- the site's own files, plus Razorpay's checkout (its script, its payment frame and its calls home) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://*.razorpay.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; frame-src https://api.razorpay.com https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://*.razorpay.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com https://checkout.razorpay.com https://*.razorpay.com; frame-src https://api.razorpay.com https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com" />
   <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -161,6 +161,7 @@
   <footer class="shop-foot">
     <div class="wrap">
       <ul class="foot-links" aria-label="Help">
+        <li><a href="/track">Track your order</a></li>
         <li><a href="/contact">Contact us</a></li>
         <li><a href="/shipping-policy">Shipping</a></li>
         <li><a href="/refund-policy">Returns &amp; refunds</a></li>

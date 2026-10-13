@@ -162,7 +162,10 @@ const SCHEMA = [
   "CREATE INDEX IF NOT EXISTS orders_by_rzp ON orders (rzp_order_id)",
   "CREATE INDEX IF NOT EXISTS orders_by_visitor ON orders (visitor, created_at)",
   "CREATE TABLE IF NOT EXISTS admin_fails (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
-  "CREATE INDEX IF NOT EXISTS admin_fails_by_visitor ON admin_fails (visitor, at)"
+  "CREATE INDEX IF NOT EXISTS admin_fails_by_visitor ON admin_fails (visitor, at)",
+  // order look-ups on /track, to slow down anyone guessing order numbers or mobile numbers
+  "CREATE TABLE IF NOT EXISTS lookups (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)"
 ];
 const made = new WeakMap(); // the tables are made once per database, per server instance
 export async function database(env) {
@@ -173,6 +176,26 @@ export async function database(env) {
   return db;
 }
 export const now = () => new Date().toISOString();
+
+// An online order still waiting for payment: ask Razorpay whether it was paid after all (the buyer
+// may have paid and closed the page before the site heard back). Marks it paid if so; returns the
+// order's status now.
+export async function settle(env, db, row) {
+  if (row.status !== "awaiting_payment" || !row.rzp_order_id || !onlineReady(env)) return row.status;
+  try {
+    const r = await razorpay(env, "GET", `/orders/${row.rzp_order_id}`);
+    if (r.status !== "paid" || r.amount_paid !== row.total * 100) return row.status;
+    const pays = await razorpay(env, "GET", `/orders/${row.rzp_order_id}/payments`);
+    const p = (pays.items || []).find((x) => x.status === "captured");
+    if (!p) return row.status;
+    await db.prepare("UPDATE orders SET status = 'paid', rzp_payment_id = ?, updated_at = ? WHERE id = ? AND status = 'awaiting_payment'")
+      .bind(p.id, now(), row.id).run();
+    return "paid";
+  } catch (e) {
+    console.error("settle", row.id, e);
+    return row.status;
+  }
+}
 
 /* ---------- Design names ---------- */
 // The names come from the site's own design list, so an order reads "Khatu Shyam Ji", not its id.

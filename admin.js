@@ -95,11 +95,13 @@
     });
     const call = el("a", "btn btn-ghost btn-sm", "Call");
     call.href = `tel:+91${o.phone}`;
+    // the buyer's own page for this order (they add their mobile number there)
+    const trackPage = `${location.origin}/track?order=${o.id}`;
     const msg = o.status === "cod"
       ? `Namaste ${o.name}, this is Aashi Enterprises. We have your order ${o.id} for ${rupees(o.total)}, cash on delivery. Please reply YES to confirm it, and we'll send it out.`
-      : o.status === "shipped" && o.tracking
-        ? `Namaste ${o.name}, your Aashi Enterprises order ${o.id} is on its way. Track it here: ${o.tracking}`
-        : `Namaste ${o.name}, this is Aashi Enterprises, about your order ${o.id}.`;
+      : o.status === "shipped"
+        ? `Namaste ${o.name}, your Aashi Enterprises order ${o.id} is on its way.${o.tracking ? ` Courier tracking: ${o.tracking}` : ""} You can also follow it here: ${trackPage}`
+        : `Namaste ${o.name}, this is Aashi Enterprises, about your order ${o.id}. You can follow it here: ${trackPage}`;
     const wa = el("a", "btn btn-primary btn-sm", "WhatsApp");
     wa.href = waLink(o, msg);
     wa.target = "_blank";
@@ -165,15 +167,27 @@
       if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
       showAlert(res.online ? "" : "Online payment is off: add the Razorpay keys in Cloudflare to switch it on.");
       drawTabs(res.counts || {});
-      list.replaceChildren(...res.orders.map(card));
-      emptyBox.hidden = res.orders.length > 0;
-      emptyBox.textContent = view === "open" ? "Nothing to ship right now." : "No orders here.";
+      shown = res.orders;
+      draw();
     } catch (err) {
       showAlert(`Couldn't load the orders: ${err.message}`);
     } finally {
       list.removeAttribute("aria-busy");
     }
   }
+  // find an order in the tab on show: by order number, name, mobile number or town (a buyer who lost
+  // their order number: look in All by their mobile number)
+  let shown = [];
+  const search = $("#a-search");
+  const norm = (s) => String(s || "").toLowerCase().replace(/[\s-]/g, "");
+  function draw() {
+    const q = norm(search.value).replace(/^(\+?91)(?=\d{10}$)/, "");
+    const list2 = q ? shown.filter((o) => [o.id, o.name, o.phone, o.city, o.pincode].some((v) => norm(v).includes(q))) : shown;
+    list.replaceChildren(...list2.map(card));
+    emptyBox.hidden = list2.length > 0;
+    emptyBox.textContent = q ? "No order matches that here. Try the All tab." : view === "open" ? "Nothing to ship right now." : "No orders here.";
+  }
+  search.addEventListener("input", draw);
   $("[data-refresh]").addEventListener("click", load);
   // new orders show up by themselves while the page is open
   setInterval(() => { if (!document.hidden && !document.activeElement.closest(".ob-update")) load(); }, 60000);

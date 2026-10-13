@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Track your order | Aashi Enterprises</title>
+  <meta name="description" content="Check on your Aashi Enterprises order with your order number and mobile number: whether it has shipped, its tracking, and when it was delivered." />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#faf5f0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="48x48" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/fonts/icons.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/shop.css" />
+</head>
+<body class="shop-page" data-page="track">
+  <div class="night" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <div class="nav-end">
+      <a class="cart-link" href="/cart" data-cart data-empty aria-label="Your cart, empty">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.6 8.5h12.8l-1 11.1a1.6 1.6 0 0 1-1.6 1.4H8.2a1.6 1.6 0 0 1-1.6-1.4z"/><path d="M9 8.5V7.2a3 3 0 0 1 6 0v1.3"/></svg>
+        <span class="cart-count" data-cart-count>0</span>
+      </a>
+      <a class="btn btn-primary btn-sm" href="/#order">Shop</a>
+    </div>
+  </header>
+
+  <main class="shop" id="top">
+    <div class="wrap track-grid">
+      <section class="track-ask" aria-labelledby="track-title">
+        <h1 class="shop-title" id="track-title">Track your order.</h1>
+        <p class="track-lead">Enter your order number and the mobile number you ordered with. No account needed.</p>
+
+        <form class="track-form checkout-form" novalidate>
+          <p class="form-alert" role="alert" hidden></p>
+          <div class="fields">
+            <div class="field f-full">
+              <label for="t-order">Order number</label>
+              <input id="t-order" name="order" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="AE-" required aria-describedby="h-order" />
+              <p class="field-hint" id="h-order">It starts with AE-. It's on the page you saw after ordering, and in our WhatsApp messages.</p>
+              <p class="field-error" id="e-order"></p>
+            </div>
+            <div class="field f-full">
+              <label for="t-phone">Mobile number</label>
+              <div class="phone-box">
+                <span class="phone-cc" aria-hidden="true">+91</span>
+                <input id="t-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14" required />
+              </div>
+              <p class="field-error" id="e-phone"></p>
+            </div>
+          </div>
+          <button class="btn btn-primary track-go" type="submit"><span class="go-label">Find my order</span><span class="spinner" aria-hidden="true"></span></button>
+          <!-- orders placed in this browser, to fill in with a tap (their numbers only) -->
+          <div class="recent" hidden>
+            <p class="recent-label">Ordered on this device</p>
+            <div class="recent-list"></div>
+          </div>
+        </form>
+      </section>
+
+      <!-- the order, once found (shop-pages.js) -->
+      <section class="track-result" aria-live="polite" hidden>
+        <div class="ticket">
+          <p class="ticket-label">Order <span data-t="id"></span></p>
+          <p class="track-status" data-t="status"></p>
+          <p class="track-text" data-t="text"></p>
+          <ol class="steps" aria-label="Order progress">
+            <li data-step="placed"><span>Placed</span><small data-t="placed"></small></li>
+            <li data-step="shipped"><span>Shipped</span></li>
+            <li data-step="delivered"><span>Delivered</span></li>
+          </ol>
+          <div class="track-parcel" hidden>
+            <a class="btn btn-primary" data-t="trackLink" target="_blank" rel="noopener noreferrer">Track the parcel <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+            <p data-t="trackNumber"></p>
+          </div>
+          <ul class="mini-lines"></ul>
+          <dl class="sums">
+            <div><dt>Products</dt><dd data-t="subtotal"></dd></div>
+            <div><dt>Delivery</dt><dd data-t="delivery"></dd></div>
+            <div class="sum-total"><dt data-t="totalLabel">Total</dt><dd data-t="total"></dd></div>
+          </dl>
+          <p class="track-place">Going to <span data-t="place"></span></p>
+        </div>
+        <div class="next-actions track-actions">
+          <a class="btn btn-ghost" data-t="whatsapp" target="_blank" rel="noopener"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> Questions? WhatsApp us</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="shop-foot">
+    <div class="wrap">
+      <ul class="foot-links" aria-label="Help">
+        <li><a href="/track" aria-current="page">Track your order</a></li>
+        <li><a href="/contact">Contact us</a></li>
+        <li><a href="/shipping-policy">Shipping</a></li>
+        <li><a href="/refund-policy">Returns &amp; refunds</a></li>
+        <li><a href="/terms">Terms</a></li>
+        <li><a href="/privacy-policy">Privacy</a></li>
+      </ul>
+      <p>&copy; 2026 Aashi Enterprises. Made in Bharat.</p>
+    </div>
+  </footer>
+
+  <script src="/shop.js"></script>
+  <script src="/cart.js"></script>
+  <script src="/shop-pages.js"></script>
+</body>
+</html>

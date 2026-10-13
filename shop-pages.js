@@ -44,19 +44,92 @@
   const designName = (id) => names[id] || id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const productName = (p) => SHOP.products[p].name;
 
-  // the product's face, small: the white body with the chosen artwork in it, shaped like the product
-  function face(product, design) {
-    const f = el("span", "face");
-    f.dataset.product = product;
-    f.setAttribute("aria-hidden", "true");
+  /* ---------- The product, small, in its chosen design ----------
+     Drawn by the site's own 3D models (models3d.js, Models.still): the same box, Mini and lamp as on
+     the home page and in the product photos, wearing the design ordered. The 3D code loads after the
+     page shows (it is usually in the browser's cache from the home page already), each picture is
+     drawn once and kept for the rest of the visit (this tab), and until it is ready its place holds
+     a soft blank. Without 3D (an old phone, a blocked script) the artwork shows in a plain frame. */
+  const THREE_JS = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+  const STILL_PX = 320;
+  const stillKey = (p, d) => `aashi-still-v2:${p}:${d}`;
+  const stills = new Map(); // key -> data URL, or a promise of one
+  function cachedStill(p, d) {
+    const k = stillKey(p, d), m = stills.get(k);
+    if (typeof m === "string") return m;
+    try {
+      const s = sessionStorage.getItem(k);
+      if (s) { stills.set(k, s); return s; }
+    } catch (e) { /* no storage: draw it again */ }
+    return null;
+  }
+  let models = null;
+  function loadModels() {
+    if (models) return models;
+    const load = (src) => new Promise((ok, no) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = ok;
+      s.onerror = no;
+      document.head.append(s);
+    });
+    models = (window.THREE ? Promise.resolve() : load(THREE_JS))
+      .then(() => (window.LampArt ? null : load("/designs.js")))
+      .then(() => (window.Models ? null : load("/models3d.js")))
+      .then(() => { if (!window.Models || !window.Models.still) throw new Error("no 3D"); });
+    return models;
+  }
+  function stillOf(p, d) {
+    const hit = cachedStill(p, d);
+    if (hit) return Promise.resolve(hit);
+    const k = stillKey(p, d);
+    if (!stills.has(k)) {
+      stills.set(k, loadModels().then(() => window.Models.still(p, d, STILL_PX)).then((url) => {
+        stills.set(k, url);
+        try { sessionStorage.setItem(k, url); } catch (e) { /* kept in memory only */ }
+        return url;
+      }, (e) => { stills.delete(k); throw e; }));
+    }
+    return stills.get(k);
+  }
+  function showStill(f, url) {
+    const img = new Image();
+    img.alt = "";
+    img.className = "face-still";
+    img.src = url;
+    f.replaceChildren(img);
+    delete f.dataset.wait;
+  }
+  // without 3D: the artwork in a plain white frame
+  function showFlat(f) {
+    f.classList.add("is-flat");
     const art = el("span", "face-art");
     const img = new Image();
     img.alt = "";
     img.decoding = "async";
-    img.src = `/images/designs/${encodeURIComponent(design)}.webp`;
+    img.src = `/images/designs/${encodeURIComponent(f.dataset.design)}.webp`;
     art.append(img);
-    f.append(art);
+    f.replaceChildren(art);
+    delete f.dataset.wait;
+  }
+  function face(product, design) {
+    const f = el("span", "face");
+    f.dataset.product = product;
+    f.dataset.design = design;
+    f.setAttribute("aria-hidden", "true");
+    const hit = cachedStill(product, design);
+    if (hit) showStill(f, hit);
+    else f.dataset.wait = "";
     return f;
+  }
+  // draw the pictures still missing in a part of the page (after it has been drawn)
+  function fillStills(root) {
+    $$(".face[data-wait]", root).forEach((f) => {
+      stillOf(f.dataset.product, f.dataset.design).then(
+        (url) => { if (f.isConnected) showStill(f, url); },
+        () => { if (f.isConnected) showFlat(f); }
+      );
+    });
   }
 
   function fillSums(root, q) {
@@ -115,6 +188,7 @@
         return li;
       }));
       fillSums(grid, q);
+      fillStills(list);
       if (keep) {
         const again = $(`[data-key="${keep[0]}"] [data-act="${keep[1]}"]`, list);
         if (again && !again.disabled) again.focus();
@@ -208,6 +282,7 @@
         return li;
       }));
       fillSums(grid, q);
+      fillStills($(".mini-lines"));
       const brief = $(".checkout-brief");
       fillSums(brief, q);
       $("[data-brief=items]", brief).textContent = q.count === 1 ? "product" : "products";
@@ -464,17 +539,21 @@
       li.append(face(l.product, l.design), t, el("p", "mini-amount", rupees(l.amount)));
       return li;
     }));
+    fillStills($(".mini-lines"));
 
     const steps = cod ? [
       `We call or WhatsApp you on ${c.phone} to confirm your order.`,
-      "We pack it and hand it to our courier within 1 to 3 working days, and send you the tracking details.",
+      "We pack it and hand it to our courier within 1 to 3 working days, and send you the tracking details on WhatsApp.",
       `It reaches you in about 3 to 7 working days. Please keep ${rupees(o.total)} in cash ready.`
     ] : [
       "We pack your order and hand it to our courier within 1 to 3 working days.",
-      `We send you the tracking details on WhatsApp${c.hasEmail ? " and email" : ""}.`,
+      "We send you the tracking details on WhatsApp.",
       "It reaches you in about 3 to 7 working days."
     ];
     $(".next-steps").replaceChildren(...steps.map((s) => el("li", null, s)));
+    // follow it any time on /track (this browser remembers the order number, nothing else)
+    rememberOrder(o.id);
+    $('[data-o="track"]').href = "/track?order=" + encodeURIComponent(o.id);
 
     const msg = cod
       ? `Namaste, I've placed order ${o.id} on aashienterprises.store (cash on delivery, ${rupees(o.total)}). Please confirm it.`
@@ -484,7 +563,132 @@
     set("whatsappLabel", cod ? "Confirm on WhatsApp" : "Message us on WhatsApp");
   }
 
+  /* ---------- Order numbers this browser has placed (for /track; numbers and dates only) ---------- */
+  const MINE = "aashi-orders";
+  function myOrders() {
+    try {
+      const list = JSON.parse(localStorage.getItem(MINE) || "[]");
+      return Array.isArray(list) ? list.filter((o) => o && /^AE-[A-Z2-9]{6}$/.test(o.id)) : [];
+    } catch (e) { return []; }
+  }
+  function rememberOrder(id) {
+    const list = myOrders().filter((o) => o.id !== id);
+    list.unshift({ id, at: new Date().toISOString() });
+    try { localStorage.setItem(MINE, JSON.stringify(list.slice(0, 6))); } catch (e) { /* not kept */ }
+  }
+
+  /* ---------- /track ---------- */
+  const STATUS = {
+    awaiting_payment: ["Payment not completed", "This order wasn't paid, so it won't be sent. If money left your account, WhatsApp us this order number and we'll sort it out.", -1],
+    paid: ["Confirmed", "Paid online. We're packing it; it leaves us within 1 to 3 working days.", 0],
+    cod: ["Placed", "Cash on delivery. We'll call or WhatsApp you to confirm it, then send it within 1 to 3 working days.", 0],
+    shipped: ["On its way", "It has left us with our courier. It usually reaches you within 3 to 7 working days.", 1],
+    delivered: ["Delivered", "It has reached you. If anything arrived damaged or doesn't work, tell us within 7 days of delivery, with an unboxing video, and we'll replace it.", 2],
+    cancelled: ["Cancelled", "This order was cancelled. If you paid online, the refund goes back to the account you paid from, usually within 5 to 7 working days.", -1]
+  };
+  function trackPage() {
+    const form = $(".track-form"), alertBox = $(".form-alert", form), go = $(".track-go"), goLabel = $(".go-label", go);
+    const result = $(".track-result");
+    const fields = { order: form.elements.order, phone: form.elements.phone };
+    const showError = (name, msg) => {
+      $("#e-" + name).textContent = msg || "";
+      if (msg) fields[name].setAttribute("aria-invalid", "true"); else fields[name].removeAttribute("aria-invalid");
+    };
+    const showAlert = (msg) => { alertBox.textContent = msg || ""; alertBox.hidden = !msg; };
+    const orderOf = (v) => {
+      const raw = v.toUpperCase().replace(/[\s-]/g, "").replace(/^AE/, "");
+      return /^[A-Z2-9]{6}$/.test(raw) ? "AE-" + raw : null;
+    };
+
+    // an order number in the address (from the order page or a WhatsApp message) fills itself in
+    const given = orderOf(new URLSearchParams(location.search).get("order") || "");
+    if (given) fields.order.value = given;
+    const mine = myOrders();
+    if (mine.length) {
+      const box = $(".recent");
+      box.hidden = false;
+      $(".recent-list", box).replaceChildren(...mine.map((o) => {
+        const b = el("button", "recent-chip", o.id);
+        b.type = "button";
+        b.addEventListener("click", () => { fields.order.value = o.id; showError("order", ""); fields.phone.focus(); });
+        return b;
+      }));
+      if (!given) fields.order.value = mine[0].id;
+    }
+    (fields.order.value ? fields.phone : fields.order).focus({ preventScroll: true });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showAlert("");
+      const order = orderOf(fields.order.value);
+      const phone = phoneOf(squash(fields.phone.value));
+      showError("order", order ? "" : "Please enter your order number: AE- and six letters and numbers.");
+      showError("phone", /^[6-9]\d{9}$/.test(phone) ? "" : "Please enter the 10-digit mobile number you gave with the order.");
+      if (!order) { fields.order.focus(); return; }
+      if (!/^[6-9]\d{9}$/.test(phone)) { fields.phone.focus(); return; }
+      go.disabled = true; go.classList.add("is-busy"); goLabel.textContent = "Finding your order";
+      try {
+        let r;
+        try {
+          r = await fetch("/api/track", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ order, phone }) });
+        } catch (err) { throw new Error("We couldn't reach our server. Please check your internet connection and try again."); }
+        const res = await r.json().catch(() => null);
+        if (!r.ok || !res) {
+          if (res && res.field && fields[res.field]) { showError(res.field, res.error); fields[res.field].focus(); return; }
+          throw new Error((res && res.error) || `Order tracking isn't working just now (error ${r.status}). Please WhatsApp us your order number.`);
+        }
+        fields.order.value = res.order;
+        showOrder(res);
+      } catch (err) {
+        result.hidden = true;
+        showAlert(err.message);
+      } finally {
+        go.disabled = false; go.classList.remove("is-busy"); goLabel.textContent = "Find my order";
+      }
+    });
+
+    function showOrder(o) {
+      const set = (k, v) => $$(`[data-t="${k}"]`, result).forEach((e) => { e.textContent = v; });
+      const [title, text, at] = STATUS[o.status] || [o.status, "", 0];
+      const day = (iso) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+      set("id", o.order);
+      set("status", title);
+      set("text", text);
+      set("placed", day(o.created));
+      result.dataset.status = o.status;
+      $$(".steps li", result).forEach((li, i) => {
+        li.classList.toggle("is-done", at >= i);
+        li.classList.toggle("is-now", at === i);
+        if (at === i) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+      });
+      $(".steps", result).hidden = at < 0;
+      const parcel = $(".track-parcel", result), link = $('[data-t="trackLink"]', result);
+      parcel.hidden = !o.tracking || o.status === "cancelled";
+      link.hidden = !(o.tracking && o.tracking.url);
+      if (o.tracking && o.tracking.url) link.href = o.tracking.url;
+      set("trackNumber", o.tracking && o.tracking.number ? `Tracking number: ${o.tracking.number}` : "");
+      $(".mini-lines", result).replaceChildren(...o.items.map((l) => {
+        const li = el("li", "mini-line");
+        const t = el("div", "mini-text");
+        t.append(el("p", "mini-name", l.name), el("p", "mini-design", `${l.designName}${l.qty > 1 ? `, ${l.qty} pieces` : ""}`));
+        li.append(face(l.product, l.design), t, el("p", "mini-amount", rupees(l.amount)));
+        return li;
+      }));
+      fillStills($(".mini-lines", result));
+      set("subtotal", rupees(o.subtotal));
+      set("delivery", o.delivery ? rupees(o.delivery) : "Free");
+      set("totalLabel", o.payment === "cod" ? (o.status === "delivered" ? "Paid on delivery" : "To pay on delivery") : o.status === "awaiting_payment" ? "Not paid" : "Paid");
+      set("total", rupees(o.total));
+      set("place", o.place);
+      $('[data-t="whatsapp"]', result).href = `https://wa.me/${SHOP.whatsapp}?text=${encodeURIComponent(`Namaste, I have a question about my order ${o.order}.`)}`;
+      result.hidden = false;
+      rememberOrder(o.order);
+      if (window.matchMedia("(max-width: 960px)").matches) result.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    }
+  }
+
   if (page === "cart") cartPage();
   else if (page === "checkout") checkoutPage();
   else if (page === "order") orderPage();
+  else if (page === "track") trackPage();
 })();

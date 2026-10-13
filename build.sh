@@ -12,7 +12,7 @@ mkdir -p dist/images
 cp index.html 404.html style.css favicon.ico icon-192.png icon-512.png apple-touch-icon.png _headers robots.txt sitemap.xml perf.js designs.js models3d.js bg.js rooms.js script.js dist/
 # the shop: the cart, checkout and order-placed pages, the order list (/admin, behind a password),
 # the policies Razorpay asks for, and the files they share (shop.js: prices, delivery, designs)
-cp shop.js cart.js shop-pages.js shop.css admin.js cart.html checkout.html order.html admin.html dist/
+cp shop.js cart.js shop-pages.js shop.css admin.js cart.html checkout.html order.html track.html admin.html dist/
 cp contact.html shipping-policy.html refund-policy.html terms.html privacy-policy.html dist/
 # which addresses run the functions: everything but the images and fonts (fewer function runs)
 cp _routes.json dist/

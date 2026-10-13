@@ -908,9 +908,14 @@
       room() { return cur.room; },
       listReady() { wantArt = Art.DESIGNS[wantArt] ? wantArt : Art.main; applyArt(wantArt); },
       frame(dt, t, room) {
-        const ease = reduceMotion ? 1 : null;
+        // a still (Models.still) holds its pose exactly: no sway, bob, flicker or sweep of light
+        const calm = reduceMotion || viewer.still;
+        const ease = calm ? 1 : null;
         for (const p in target) cur[p] += (target[p] - cur[p]) * (ease || 1 - Math.exp(-dt * RATE[p]));
-        const motion = reduceMotion ? 0 : 1;
+        const motion = calm ? 0 : 1;
+        // and has no halo or shadow on a page: the picture is the product alone, so it sits cleanly
+        // on the cream page and on the rose panel alike
+        halo.visible = shadow.visible = !viewer.still;
         turn = (turn + cur.spin * dt * motion) % TAU;
         if (flipFrom !== null && Math.abs(cur.ry + turn - flipFrom) > Math.PI / 2) swapNow();
 
@@ -941,7 +946,7 @@
         shadow.scale.set(2 * shown * SHADOW_FIT, 2 * H * SHADOW_FIT, 1);
         shadow.material.opacity = SHADOW_K * (kind === "lamp" ? 1 - 0.45 * Math.min(1, glow) : 1);
         if (kind === "lamp") {
-          const flicker = reduceMotion ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
+          const flicker = calm ? 1 : 1 + Math.sin(t * 2.3) * 0.015 + Math.sin(t * 5.1) * 0.01;
           m.art.emissiveIntensity = Math.min(1.12, glow * 1.05) * flicker;
           m.plastic.emissiveIntensity = glow * 0.5;
           halo.material.opacity = Math.min(1, glow * 0.95) * flicker * (0.35 + 0.65 * facing) * HALO_K;
@@ -951,7 +956,7 @@
           // rings of sound leave the speaker, stronger as the dial turns up; each chant also sends a
           // breath of light in the print's colour out from the device, in step with the first ring
           const strength = cur.sound * on * (0.35 + 0.65 * cur.knob) * (0.3 + 0.7 * facing);
-          const beat = reduceMotion ? 0 : Math.pow(1 - ((t * 0.42) % 1), 2.5);
+          const beat = calm ? 0 : Math.pow(1 - ((t * 0.42) % 1), 2.5);
           // a printed panel in a white case: lit by the room, not from behind
           m.art.emissiveIntensity = (Math.min(0.95, 0.5 + glow * 0.4) * Math.max(0.35, room + 0.25) + strength * beat * 0.12) * unit.power;
           halo.material.opacity = (Math.min(0.5, glow * 0.4) + strength * beat * 0.5) * (0.4 + 0.6 * facing) * HALO_K;
@@ -961,12 +966,12 @@
           // the glint on the Mantra Box's glass: a quick sweep every few seconds, nudged by the turn
           // of the box, as light catches real glass
           if (model.glint) {
-            const p = reduceMotion ? 1 : ((t + phase) % 5.5) / 5.5;
+            const p = calm ? 1 : ((t + phase) % 5.5) / 5.5;
             const k = Math.min(1, p / 0.18), sweep = 1 - Math.pow(1 - k, 3);
             model.glint.offset.x = 0.9 - 1.8 * sweep + Math.sin(ry) * 0.18;
           }
           model.waves.forEach((w, i) => {
-            const k = reduceMotion ? 0.35 + i * 0.25 : (t * 0.42 + i / 3) % 1;
+            const k = calm ? 0.35 + i * 0.25 : (t * 0.42 + i / 3) % 1;
             w.scale.setScalar(0.3 + k * 1.9);
             w.material.opacity = Math.min(1, Math.pow(1 - k, 1.6) * strength * 0.45 * WAVE_K);
             w.visible = strength > 0.005;
@@ -1106,15 +1111,22 @@
         const room = Math.max(ROOM_MIN, Math.min(1, f ? f.room() : 1));
         hemi.intensity = 0.35 * room; key.intensity = KEY * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
-        const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 2.5);
+        const k = reduceMotion || viewer.still ? 1 : 1 - Math.exp(-dt * 2.5);
         rim.color.lerp(rimTo, k); fill.color.lerp(fillTo, k);
         viewer.units.forEach((u) => u.frame(dt, t, room));
         if (warmTimer) { clearTimeout(warmTimer); compileAll(); }
-        if (!compiled()) return; // still compiling: keep the last frame on screen for now
+        if (!compiled()) return false; // still compiling: keep the last frame on screen for now
         renderer.render(scene, camera);
         if (!drawn) { drawn = true; onDrawn(); }
+        return true;
       }
     };
+    // a still is drawn at exactly the size asked for, whatever the screen
+    viewer.still = !!opts.still;
+    if (viewer.still) {
+      renderer.setPixelRatio(1);
+      viewer.quality = () => {};
+    }
 
     const kinds = opts.kinds || ["lamp"];
     kinds.forEach((k, i) => {
@@ -1182,8 +1194,59 @@
     wake();
   });
 
+  /* ---------- Stills: a product in a design, drawn once into a picture ---------- */
+  // For the shop's cart, checkout and order pages: the same models, lighting and artwork as on the
+  // home page, turned a little to show the side with the button and the dial (as in the product
+  // photos), drawn once into a picture instead of a live canvas. One hidden viewer draws them all,
+  // one after another.
+  const STILL = {
+    mantra: { s: 1.62, rx: -0.06, ry: -0.42, glow: 1, room: 1, on: 1, knob: 0.6, sound: 0 },
+    mini: { s: 1.66, rx: -0.06, ry: -0.42, glow: 1, room: 1, on: 1, knob: 0.6, sound: 0 },
+    lamp: { s: 1.5, rx: -0.04, ry: -0.34, glow: 1, room: 0.9 }
+  };
+  let stillViewer = null, stillQueue = Promise.resolve();
+  const nextFrame = () => new Promise((res) => {
+    // a hidden tab gets no animation frames; a short timer keeps the queue moving there
+    const t = setTimeout(res, 50);
+    requestAnimationFrame(() => { clearTimeout(t); res(); });
+  });
+  async function drawStill(kind, id, px) {
+    await Art.ready;
+    if (!BUILD[kind] || !Art.DESIGNS[id]) throw new Error(`no ${kind} in ${id}`);
+    if (!stillViewer) {
+      stillViewer = create(document.createElement("canvas"), { kinds: [kind], still: true });
+      if (!stillViewer) throw new Error("no WebGL");
+    }
+    const v = stillViewer;
+    v.resize(px, px, true);
+    v.setKind(kind);
+    v.setArt(id);
+    v.setPose(STILL[kind]);
+    v.snap();
+    // the artwork itself and the light it casts, before drawing
+    await Promise.all([Art.file(id), Art.light(id)]);
+    for (let i = 0; i < 400; i++) {
+      await nextFrame();
+      if (v.art !== id || v.kind !== kind) continue;
+      // read straight after drawing, while the picture is still in the canvas
+      if (v.frame(0, 0)) {
+        const out = document.createElement("canvas");
+        out.width = out.height = px;
+        out.getContext("2d").drawImage(v.canvas, 0, 0, px, px);
+        return out.toDataURL("image/webp", 0.9);
+      }
+    }
+    throw new Error("the 3D took too long");
+  }
+
   window.Models = {
     create,
+    // a picture (data URL, square, px wide) of a product ("mantra" | "mini" | "lamp") in a design
+    still(kind, id, px = 320) {
+      const job = stillQueue.then(() => drawStill(kind, id, px));
+      stillQueue = job.catch(() => {});
+      return job;
+    },
     // build a product's shapes now (the slowest part of making a viewer), so the viewer that needs
     // them later is made in a much shorter pause
     prepare(kind) { if (BUILD[kind]) geometry(kind); },

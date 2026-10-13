@@ -3,7 +3,7 @@
 //   POST { id, status: "open"|"shipped"|"delivered"|"cancelled", tracking, note }   update one
 // Before listing, online orders still waiting for payment are checked with Razorpay, in case a
 // buyer paid but closed the page before the site heard back (and no webhook is set up).
-import { HttpError, json, fail, readJson, ORDER_ID, onlineReady, razorpay, database, now, designNames } from "../../../server/orders.js";
+import { HttpError, json, fail, readJson, ORDER_ID, onlineReady, database, now, designNames, settle } from "../../../server/orders.js";
 
 const VIEWS = {
   open: "status IN ('paid', 'cod')",
@@ -17,18 +17,9 @@ const VIEWS = {
 async function catchUp(env, db) {
   if (!onlineReady(env)) return;
   const since = new Date(Date.now() - 3 * 86400e3).toISOString();
-  const { results } = await db.prepare("SELECT id, rzp_order_id, total FROM orders WHERE status = 'awaiting_payment' AND rzp_order_id IS NOT NULL AND created_at > ? ORDER BY created_at DESC LIMIT 8")
+  const { results } = await db.prepare("SELECT id, status, rzp_order_id, total FROM orders WHERE status = 'awaiting_payment' AND rzp_order_id IS NOT NULL AND created_at > ? ORDER BY created_at DESC LIMIT 8")
     .bind(since).all();
-  await Promise.all(results.map(async (o) => {
-    try {
-      const r = await razorpay(env, "GET", `/orders/${o.rzp_order_id}`);
-      if (r.status !== "paid" || r.amount_paid !== o.total * 100) return;
-      const pays = await razorpay(env, "GET", `/orders/${o.rzp_order_id}/payments`);
-      const p = (pays.items || []).find((x) => x.status === "captured");
-      await db.prepare("UPDATE orders SET status = 'paid', rzp_payment_id = ?, updated_at = ? WHERE id = ? AND status = 'awaiting_payment'")
-        .bind(p ? p.id : null, now(), o.id).run();
-    } catch (e) { console.error("catch-up", o.id, e); }
-  }));
+  await Promise.all(results.map((o) => settle(env, db, o)));
 }
 
 export async function onRequestGet({ request, env }) {
