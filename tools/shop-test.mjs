@@ -125,6 +125,8 @@ test("shop.js: prices, delivery under and over ₹499, merged lines", () => {
   eq(SHOP.quote([{ ...LAMP, qty: 2 }, MINI]).delivery, 0, "two lamps and a mini: ₹647, free delivery");
   eq(SHOP.quote([{ ...LAMP, qty: 2 }]).delivery, 49, "two lamps: ₹398, delivery ₹49");
   eq(SHOP.quote([{ ...MINI, qty: 2 }]).total, 498 + 49, "₹498 is just under free delivery");
+  eq(SHOP.quote([{ ...LAMP, qty: 6 }, { ...LAMP, qty: 6 }]).dropped, 1, "the same design twice may not pass 10 together");
+  eq(SHOP.quote([{ ...LAMP, qty: 6 }, { ...LAMP, qty: 4 }]).lines[0].qty, 10, "exactly 10 together is fine");
 });
 
 test("GET /api/checkout says which ways to pay are on", async () => {

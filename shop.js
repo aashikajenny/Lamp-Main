@@ -64,7 +64,9 @@
       if (!l) { dropped++; return; }
       const same = lines.find((x) => x.product === l.product && x.design === l.design);
       if (same) {
-        same.qty = Math.min(SHOP.maxQty, same.qty + l.qty);
+        // together they may not go past maxQty either: a line that would is refused, not shrunk
+        if (same.qty + l.qty > SHOP.maxQty) { dropped++; return; }
+        same.qty += l.qty;
         same.amount = same.price * same.qty;
       } else lines.push(l);
     });
