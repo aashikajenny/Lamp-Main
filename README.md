@@ -211,7 +211,7 @@ Since October 2026 the site sells directly; there are no marketplace links any m
 
 and a **D1 database** bound as `DB` (Settings > Bindings). Redeploy after changing them.
 
-**Before going live:** the business address on `/contact` (it reads ADDRESS TO BE ADDED until then), live Razorpay keys once Razorpay has approved the site, and one real order of each kind (online and cash on delivery), seen through to `/admin`.
+**Before going live:** live Razorpay keys once Razorpay has approved the site, and one real order of each kind (online and cash on delivery), seen through to `/admin`.
 
 **Courier:** orders are packed and sent by hand for now (copy the address from `/admin`). The shipping policy promises dispatch in 1 to 3 working days and delivery in about 3 to 7 more; change `shipping-policy.html`, the FAQ and the order page (`shop-pages.js`) together if that changes.
 

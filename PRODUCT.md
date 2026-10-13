@@ -40,7 +40,7 @@ A night light that is also a devotional object: the sacred OM artwork is the lit
 - Prices (set by the owner, 13 October 2026; the same for every design): Divine Mantra Box ₹349, Mini Chanting Box ₹249, Night Lamp ₹199. Delivery ₹49 an order, free from ₹499.
 - Shipping (owner: "a general one for dispatching facilities like Shiprocket", no courier set up yet): dispatched within 1 to 3 working days, delivered in about 3 to 7 more, tracking shared on WhatsApp/SMS/email.
 - Replacements (owner's choice): free replacement if it arrives damaged or doesn't work, reported within 7 days of delivery with an unboxing video; no returns for a change of mind.
-- Contact (confirmed by the owner): +91 82879 94052, by phone or WhatsApp, and contact@aashienterprises.store, for orders, delivery, replacements, custom designs (a lamp made with the buyer's own design) and bulk orders. The business address for the contact page is still to come from the owner.
+- Contact (confirmed by the owner): +91 82879 94052, by phone or WhatsApp, and contact@aashienterprises.store, for orders, delivery, replacements, custom designs (a lamp made with the buyer's own design) and bulk orders. Business address (owner, 13 October 2026): RZ-40, Narsingh Garden, Khyala, New Delhi 110018.
 - Range: ten devotional designs are live (Meditating Shiv Ji, the default; Sacred OM; 3D Hanuman Ji; Bhakti Hanuman; Krishna Om; Neem Karoli Baba; Radhe Radhe; Shiv Ji; Trishul Om; Veer Hanuman). More will be added; the site builds its design picker from whatever artwork is in images/designs.
 - Undecided / not provided: wattage and electrical specs, dimensions, warranty, care instructions beyond basic cleaning.
 

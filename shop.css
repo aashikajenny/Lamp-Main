@@ -290,6 +290,7 @@ html { scroll-snap-type: none; }
 .prose .contact-ways li { display: grid; grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1.4fr); gap: 4px 24px; padding: 20px 0; border-bottom: 1px solid var(--line); margin: 0; }
 .contact-ways .cw-label { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); padding-top: 5px; }
 .contact-ways .cw-value { font: 300 clamp(20px, 2vw, 24px)/1.4 var(--font-display); }
+.contact-ways address.cw-value { font-style: normal; }
 .contact-ways .cw-value a { text-decoration: none; }
 .contact-ways .cw-value a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
 
