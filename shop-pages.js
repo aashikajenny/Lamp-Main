@@ -584,7 +584,18 @@
     cod: ["Placed", "Cash on delivery. We'll call or WhatsApp you to confirm it, then send it within 1 to 3 working days.", 0],
     shipped: ["On its way", "It has left us with our courier. It usually reaches you within 3 to 7 working days.", 1],
     delivered: ["Delivered", "It has reached you. If anything arrived damaged or doesn't work, tell us within 7 days of delivery, with an unboxing video, and we'll replace it.", 2],
+    returned: ["Back with us", "The courier couldn't deliver this parcel and brought it back to us. Please WhatsApp us, and we'll arrange to send it again.", -1],
     cancelled: ["Cancelled", "This order was cancelled. If you paid online, the refund goes back to the account you paid from, usually within 5 to 7 working days.", -1]
+  };
+  // a parcel booked with our courier service: where it is now (server/shiprocket.js, stageOf)
+  const STAGE = {
+    packed: ["Packed", "It's packed and waiting for our courier to collect it. It usually reaches you within 3 to 7 working days of leaving us.", 0],
+    collecting: ["Packed", "Our courier is on the way to collect it from us. It usually reaches you within 3 to 7 working days of leaving us.", 0],
+    "pickup-problem": ["Packed", "It's packed and waiting for our courier to collect it. It usually reaches you within 3 to 7 working days of leaving us.", 0],
+    out: ["Out for delivery", "The courier is bringing it to you today. Please keep your phone close so they can reach you.", 1],
+    attempted: ["Delivery attempted", "The courier couldn't deliver it this time. They usually try again; please answer their call, or WhatsApp us if you need help.", 1],
+    returning: ["Coming back to us", "The courier couldn't deliver it and is bringing it back to us. Please WhatsApp us, and we'll arrange to send it again.", 1],
+    problem: ["Held up", "Your parcel is held up with the courier. We're sorting it out and will contact you; you can also WhatsApp us.", 1]
   };
   function trackPage() {
     const form = $(".track-form"), alertBox = $(".form-alert", form), go = $(".track-go"), goLabel = $(".go-label", go);
@@ -686,6 +697,9 @@
       shownOrder = o;
       const set = (k, v) => $$(`[data-t="${k}"]`, result).forEach((e) => { e.textContent = v; });
       let [title, text, at] = STATUS[o.status] || [o.status, "", 0];
+      if (o.status === "shipped" && o.courier && STAGE[o.courier.stage]) [title, text, at] = STAGE[o.courier.stage];
+      if (o.status === "shipped" && o.courier && o.courier.name) text += ` Courier: ${o.courier.name}.`;
+      if (o.status === "shipped" && o.courier && o.courier.stage === "out" && o.payment === "cod") text = text.replace("today.", `today. Please keep ${rupees(o.total)} ready.`);
       if (o.status === "cancelled") {
         const by = o.cancelled && o.cancelled.by === "buyer" ? "You cancelled this order." : "This order was cancelled.";
         const rf = o.refund;

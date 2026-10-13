@@ -386,9 +386,19 @@ html { scroll-snap-type: none; }
 .admin-search input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
 .admin-alert { margin: 0 0 18px; padding: 14px 18px; border-radius: 18px 5px; border: 1px solid rgba(162, 67, 58, 0.32); background: color-mix(in srgb, #a2433a 7%, var(--surface)); color: #7d3129; }
 .admin-empty { padding: 40px 0; color: var(--muted); font: 300 22px/1.4 var(--font-display); }
+.admin-note { margin: 0 0 18px; padding: 14px 18px; border-radius: 18px 5px; border: 1px solid color-mix(in srgb, #2f7a3a 30%, transparent); background: color-mix(in srgb, #2f7a3a 7%, var(--surface)); color: #24592c; display: grid; gap: 8px; justify-items: start; }
+.admin-note p { margin: 0; }
+.note-link { color: inherit; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.note-warn { color: #a2433a; }
+.admin-hint { margin: -8px 0 18px; max-width: 72ch; color: var(--muted); font-size: 14.5px; }
+.bulk { position: sticky; top: 84px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 18px 5px; background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 10px 24px -18px var(--shade, rgba(74, 47, 44, 0.5)); }
+.bulk-n { margin: 0 6px 0 0; font: 500 15px var(--font-display); }
 .orders { border-top: 1px solid var(--line-2); }
 .orders[aria-busy="true"] { opacity: 0.6; transition: opacity 0.2s; }
-.order-row { border-bottom: 1px solid var(--line); }
+.order-item { border-bottom: 1px solid var(--line); }
+.orders.can-pick .order-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; }
+.pick { width: 18px; height: 18px; margin: 20px 0 0 4px; accent-color: var(--accent); cursor: pointer; }
+.pick:disabled { cursor: default; opacity: 0.35; }
 .order-sum {
   display: grid; grid-template-columns: 112px minmax(140px, 1.1fr) minmax(0, 1.6fr) 80px minmax(150px, 0.9fr) 104px;
   gap: 4px 20px; align-items: center; padding: 16px 4px; cursor: pointer; font: 400 15.5px/1.35 var(--font-display);
@@ -405,6 +415,7 @@ html { scroll-snap-type: none; }
 .st-paid, .st-cod { background: var(--accent); color: var(--accent-ink); }
 .st-awaiting_payment { background: transparent; border: 1px dashed var(--ctl-line-hi); color: var(--muted); }
 .st-cancelled { text-decoration: line-through; color: var(--muted); }
+.st-returned, .os-status.st-warn { background: color-mix(in srgb, #a2433a 12%, var(--surface)); color: #7d3129; }
 .order-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px 36px; padding: 10px 4px 30px; }
 .ob-col h3 { margin: 0 0 12px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
 .ob-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -422,9 +433,47 @@ html { scroll-snap-type: none; }
   font: 400 15.5px/1.4 var(--font-display); color: var(--ink); resize: vertical;
 }
 .ob-update input:focus-visible, .ob-update textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
+
+/* Shipping with Shiprocket: a band across the order, under its three columns */
+.ob-ship { grid-column: 1 / -1; padding: 18px 20px 20px; border-radius: 22px 6px; background: var(--wash); border: 1px solid var(--line); }
+.ob-ship h3 { margin: 0 0 12px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
+.ship-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px 32px; align-items: start; }
+.ship-pack { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.ship-pack legend { padding: 0; margin-bottom: 8px; font: 500 14px var(--font-display); }
+.ship-num { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 6px; font: 400 13.5px var(--font-display); color: var(--muted); }
+.ship-num span { grid-column: 1 / -1; }
+.ship-num input { width: 100%; min-width: 0; height: 42px; padding: 0 10px; border: 1px solid var(--ctl-line-hi); border-radius: 12px 4px; background: var(--surface); font: 400 16px var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ship-num input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
+.ship-side { display: grid; gap: 12px; justify-items: start; padding-top: 26px; }
+.ship-confirm { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; line-height: 1.4; cursor: pointer; }
+.ship-confirm input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); }
+.ship-line { margin: 0; color: var(--muted); font-size: 14.5px; }
+.ship-couriers { display: grid; margin: 16px 0 10px; border-top: 1px solid var(--line); max-height: 340px; overflow-y: auto; }
+.courier { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px 16px; align-items: center; padding: 11px 6px; border-bottom: 1px solid var(--line); cursor: pointer; font: 400 15px/1.35 var(--font-display); }
+.courier:hover, .courier:has(input:checked) { background: var(--surface); }
+.courier input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); }
+.c-name { display: grid; min-width: 0; }
+.c-tags { color: var(--accent); font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; }
+.c-days { color: var(--muted); font-size: 14px; text-align: right; }
+.c-rate { min-width: 64px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ob-ship > .ob-acts { margin-top: 10px; }
+.ship-msg { margin: 10px 0 0; font-size: 14.5px; color: var(--muted); }
+.ship-msg:empty { display: none; }
+.ship-facts { display: flex; flex-wrap: wrap; gap: 10px 36px; margin: 0 0 14px; }
+.ship-facts dt { font-size: 13px; color: var(--muted); }
+.ship-facts dd { margin: 2px 0 0; font: 400 15.5px var(--font-display); font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) {
   .order-sum { grid-template-columns: 104px minmax(0, 1fr) 76px; }
   .os-items, .os-when { grid-column: 2 / -1; }
   .os-status { grid-column: 2 / -1; }
   .order-body { grid-template-columns: minmax(0, 1fr); }
+  .ship-grid { grid-template-columns: minmax(0, 1fr); }
+  .ship-side { padding-top: 0; }
+}
+@media (max-width: 560px) {
+  .ship-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .courier { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .c-days { grid-column: 2 / 3; text-align: left; }
+  .ob-ship { padding: 16px 14px; }
+  .bulk { top: 72px; }
 }

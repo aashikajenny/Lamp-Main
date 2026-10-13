@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- The order list (/admin) with made-up orders and a pretend Shiprocket, to look at and click
+       through its screens on the local preview: http://localhost:5551/tools/admin-preview.html
+       (tools/ is never published). The real server code is tested in shop-test.html. -->
+  <title>Orders preview | Aashi Enterprises</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="/fonts/icons.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/shop.css" />
+</head>
+<body class="shop-page admin-page" data-page="admin">
+  <div class="night" aria-hidden="true"></div>
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Aashi Enterprises, home">
+      <img class="brand-mark" src="/images/brand/logo-mark.svg" alt="" width="132" height="96" />
+      <span class="brand-name" aria-hidden="true"><span>Aashi</span><small>Enterprises</small></span>
+    </a>
+    <div class="nav-end">
+      <button type="button" class="btn btn-ghost btn-sm" data-refresh>Refresh</button>
+    </div>
+  </header>
+  <main class="shop" id="top">
+    <div class="wrap">
+      <h1 class="shop-title">Orders.</h1>
+      <div class="views" role="tablist" aria-label="Which orders"></div>
+      <div class="admin-search">
+        <label for="a-search" class="sr-only">Find an order</label>
+        <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
+      </div>
+      <p class="admin-alert" role="alert" hidden></p>
+      <div class="admin-note" role="status" hidden></div>
+      <p class="admin-hint" hidden>Shipping through Shiprocket is off. Once the Shiprocket API user is added in Cloudflare (SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD), you can book couriers and print labels from here.</p>
+      <div class="bulk" hidden></div>
+      <p class="admin-empty" hidden></p>
+      <div class="orders"></div>
+    </div>
+  </main>
+  <script>
+    // ?off: as if Shiprocket weren't set up yet
+    const SR_ON = !/[?&]off\b/.test(location.search);
+    const hour = 3600e3, ago = (h) => new Date(Date.now() - h * hour).toISOString();
+    const item = (product, design, designName, qty, price, name) => ({ product, design, designName, qty, price, name });
+    const base = { email: null, address: "Flat 4B, Shanti Apartments, MG Road, Sector 14, near the temple", city: "Gurugram", state: "Haryana", pincode: "122001", note: null, refund: null, tracking: null, ship: null };
+    const ORDERS = [
+      { ...base, id: "AE-7K3P9X", created: ago(2), status: "cod", payment: "cod", subtotal: 249, delivery: 49, total: 298, name: "Priya Sharma", phone: "9876543210", items: [item("mini", "ganesh-ji", "Ganesh Ji", 1, 249, "Mini Chanting Box")] },
+      { ...base, id: "AE-M4QW2R", created: ago(5), status: "paid", payment: "online", paymentId: "pay_PREVIEW123", subtotal: 747, delivery: 0, total: 747, name: "Rahul Verma", phone: "9811122233", city: "Pune", state: "Maharashtra", pincode: "411001", email: "rahul@example.com",
+        items: [item("mantra", "khatu-shyam-ji", "Khatu Shyam Ji", 1, 349, "Divine Mantra Box"), item("lamp", "mahadev", "Mahadev", 2, 199, "Night Lamp")], ship: { made: true, awb: null } },
+      { ...base, id: "AE-H8TZ5N", created: ago(30), status: "shipped", payment: "online", paymentId: "pay_PREVIEW456", subtotal: 349, delivery: 49, total: 398, name: "Anita Rao", phone: "9900011122", city: "Bengaluru", state: "Karnataka", pincode: "560001",
+        items: [item("mantra", "radha-krishna", "Radha Krishna", 1, 349, "Divine Mantra Box")], tracking: "https://shiprocket.co/tracking/190400000012",
+        ship: { made: true, awb: "190400000012", courier: "Delhivery Surface", label: "https://example.com/label.pdf", code: 3, status: "Pickup Scheduled", stage: "packed", at: ago(1), pickupOn: "2026-10-14 14:00:00", pickedUp: null, cancellable: true, pack: { weight: 0.45, length: 16, breadth: 12, height: 10 } } },
+      { ...base, id: "AE-2B9CVD", created: ago(80), status: "shipped", payment: "cod", subtotal: 398, delivery: 49, total: 447, name: "Suresh Kumar", phone: "9700012345", city: "Jaipur", state: "Rajasthan", pincode: "302001",
+        items: [item("lamp", "om", "Om", 2, 199, "Night Lamp")], tracking: "https://shiprocket.co/tracking/190400000034",
+        ship: { made: true, awb: "190400000034", courier: "Ecom Express Surface", label: null, code: 21, status: "Undelivered", stage: "attempted", at: ago(4), pickupOn: "2026-10-11 14:00:00", pickedUp: ago(60), cancellable: false, pack: { weight: 0.6, length: 16, breadth: 12, height: 18 } } },
+      { ...base, id: "AE-QX7MRT", created: ago(60), status: "shipped", payment: "online", paymentId: "pay_PREVIEW789", subtotal: 349, delivery: 49, total: 398, name: "Meena Iyer", phone: "9600098765", city: "Chennai", state: "Tamil Nadu", pincode: "600001",
+        items: [item("mantra", "om", "Om", 1, 349, "Divine Mantra Box")], tracking: "https://shiprocket.co/tracking/190400000056",
+        ship: { made: true, awb: "190400000056", courier: "Delhivery Surface", label: "https://example.com/label2.pdf", code: 18, status: "In Transit", stage: "moving", at: ago(2), pickupOn: "2026-10-12 14:00:00", pickedUp: ago(40), cancellable: false, pack: { weight: 0.45, length: 16, breadth: 12, height: 10 } } },
+      { ...base, id: "AE-RT4YU8", created: ago(200), status: "returned", payment: "cod", subtotal: 249, delivery: 49, total: 298, name: "Vikram Singh", phone: "9500054321", city: "Lucknow", state: "Uttar Pradesh", pincode: "226001",
+        items: [item("mini", "om", "Om", 1, 249, "Mini Chanting Box")], tracking: "https://shiprocket.co/tracking/190400000078",
+        ship: { made: true, awb: "190400000078", courier: "Xpressbees Surface", label: "https://example.com/label3.pdf", code: 10, status: "RTO Delivered", stage: "returned", at: ago(20), pickupOn: null, pickedUp: ago(180), cancellable: false, pack: null } }
+    ];
+    const VIEW = { open: ["paid", "cod"], unpaid: ["awaiting_payment"], shipped: ["shipped"], delivered: ["delivered"], returned: ["returned"], cancelled: ["cancelled"] };
+    const answer = (data, status = 200) => new Promise((r) => setTimeout(() => r(new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } })), 450));
+    window.fetch = async (url, init = {}) => {
+      url = String(url);
+      if (url.startsWith("/api/admin/orders")) {
+        if (init.method === "POST") return answer({ ok: true });
+        const view = new URL(url, location.href).searchParams.get("view");
+        const counts = {};
+        ORDERS.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
+        return answer({ orders: ORDERS.filter((o) => view === "all" || VIEW[view].includes(o.status)), counts, online: true, shiprocket: SR_ON, courierRule: "recommended" });
+      }
+      if (url === "/api/admin/ship") {
+        const b = JSON.parse(init.body);
+        if (b.action === "couriers") {
+          return answer({ couriers: [
+            { id: 19, name: "Ecom Express Surface", rate: 47.5, days: 6, etd: "Oct 19, 2026", rating: 4.6 },
+            { id: 43, name: "Delhivery Surface", rate: 54, days: 4, etd: "Oct 17, 2026", rating: 4.9 },
+            { id: 33, name: "Xpressbees Air", rate: 88, days: 2, etd: "Oct 15, 2026", rating: 4.4 }
+          ], recommended: 43, cheapest: 19, fastest: 33, pick: 43, rule: "recommended", pickup: "Home", wallet: 523.4 });
+        }
+        if (b.action === "book") {
+          const o = ORDERS.find((x) => x.id === b.id);
+          o.status = "shipped";
+          o.tracking = "https://shiprocket.co/tracking/190400000099";
+          o.ship = { made: true, awb: "190400000099", courier: "Delhivery Surface", label: "https://example.com/label.pdf", code: 1, status: "AWB Assigned", stage: "packed", at: new Date().toISOString(), pickupOn: "2026-10-14 15:00:00", pickedUp: null, cancellable: true, pack: b.pack };
+          return answer({ ok: true, id: o.id, status: "shipped", awb: o.ship.awb, courier: o.ship.courier, label: o.ship.label, tracking: o.tracking, pickupOn: o.ship.pickupOn, notes: [] });
+        }
+        if (b.action === "labels" || b.action === "manifest") return answer({ url: "https://example.com/" + b.action + ".pdf", count: b.ids.length });
+        if (b.action === "unship") { const o = ORDERS.find((x) => x.id === b.id); o.status = o.payment === "cod" ? "cod" : "paid"; o.ship = null; o.tracking = null; return answer({ ok: true, id: o.id, status: o.status }); }
+      }
+      return answer({ error: "Not in the preview" }, 404);
+    };
+  </script>
+  <script src="/shop.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

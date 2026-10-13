@@ -8,6 +8,8 @@ import * as cancel from "../functions/api/cancel.js";
 import { onRequest as middleware } from "../functions/_middleware.js";
 import { isAdminPath, adminGate } from "../server/admin.js";
 import { hmacHex, cleanCustomer } from "../server/orders.js";
+import * as adminShip from "../functions/api/admin/ship.js";
+import * as courierUpdates from "../functions/api/courier-updates.js";
 
 const ORIGIN = location.origin;
 const SECRET = "test_secret_abcdefghij";
@@ -40,6 +42,7 @@ function resetRazorpay() { rzp = { orders: {}, payments: {}, refunds: {}, calls:
 const realFetch = window.fetch.bind(window);
 window.fetch = async (url, init = {}) => {
   url = String(url);
+  if (url.startsWith(SR_API)) return shiprocketFake(url.slice(SR_API.length), init);
   if (!url.startsWith("https://api.razorpay.com/v1")) {
     if (url.startsWith("https://api.telegram.org")) { rzp.calls.push(["telegram", JSON.parse(init.body)]); return new Response("{}"); }
     return realFetch(url, init);
@@ -83,11 +86,102 @@ function pay(rzpOrderId, opts = {}) {
   return id;
 }
 
+// a pretend Shiprocket: its API user, pickup addresses, couriers, the orders made there and every call
+const SR_API = "https://apiv2.shiprocket.in/v1/external";
+const SR_PASSWORD = "sr-api-password-1";
+const SR_HOOK = "hook-token-0123456789abcdefghij";
+let sr;
+function resetShiprocket() {
+  sr = {
+    logins: 0, tokens: new Set(), calls: [], n: 0, orders: {}, wallet: 500, failAwb: null, lostAnswer: false, expire: false,
+    totalExtra: 0, tracking: {}, manifested: new Set(), cancelRefused: false,
+    couriers: [
+      { courier_company_id: 43, courier_name: "Delhivery Surface", rate: 54, cod: 1, estimated_delivery_days: "4", etd: "Oct 17, 2026", etd_hours: 91, rating: 4.9 },
+      { courier_company_id: 19, courier_name: "Ecom Express Surface", rate: 47.5, cod: 1, estimated_delivery_days: "6", etd: "Oct 19, 2026", etd_hours: 144, rating: 4.6 },
+      { courier_company_id: 33, courier_name: "Xpressbees Air", rate: 88, cod: 0, estimated_delivery_days: "2", etd: "Oct 15, 2026", etd_hours: 40, rating: 4.4 }
+    ]
+  };
+}
+async function shiprocketFake(path, init) {
+  const method = init.method || "GET", body = init.body ? JSON.parse(init.body) : null;
+  sr.calls.push([method, path, body]);
+  const ok = (d, status = 200) => new Response(d == null ? null : JSON.stringify(d), { status });
+  const bad = (status, message, extra = {}) => new Response(JSON.stringify({ message, status_code: status, ...extra }), { status });
+  if (method === "POST" && path === "/auth/login") {
+    if (!/@aashi\.example$/.test(body.email) || body.password !== SR_PASSWORD) return bad(400, "Invalid email and password combination");
+    const t = "token-" + (++sr.logins);
+    sr.tokens.add(t);
+    return ok({ token: t, email: body.email });
+  }
+  const auth = (init.headers && init.headers.authorization) || "";
+  if (!sr.tokens.has(auth.replace("Bearer ", "")) || sr.expire) { sr.expire = false; sr.tokens.clear(); return bad(401, "Token has expired"); }
+  let m;
+  const order = (id) => Object.values(sr.orders).find((o) => String(o.id) === String(id));
+  if (method === "GET" && path === "/settings/company/pickup") {
+    return ok({ data: { shipping_address: [
+      { pickup_location: "Shop", pin_code: "110059", is_primary_location: 0 },
+      { pickup_location: "Home", pin_code: "110018", is_primary_location: 1 }
+    ] } });
+  }
+  if (method === "GET" && path.startsWith("/courier/serviceability/?")) {
+    const q = new URLSearchParams(path.split("?")[1]);
+    if (q.get("delivery_postcode") === "999999") return ok({ status: 404, message: "Delivery postcode not serviceable" });
+    return ok({ status: 200, data: { available_courier_companies: sr.couriers.filter((c) => q.get("cod") !== "1" || c.cod === 1), recommended_courier_company_id: 43 } });
+  }
+  if (method === "GET" && path === "/account/details/wallet-balance") return ok({ data: { balance_amount: String(sr.wallet) } });
+  if (method === "POST" && path === "/orders/create/adhoc") {
+    if (sr.orders[body.order_id]) return bad(422, "Order Id already exists");
+    const id = 9000 + (++sr.n), shipment = 7000 + sr.n;
+    sr.orders[body.order_id] = { id, shipment, body, status: "NEW", awb: null, courier: null };
+    return ok({ order_id: id, shipment_id: shipment, status: "NEW", status_code: 1 });
+  }
+  if (method === "GET" && (m = path.match(/^\/orders\/show\/(\d+)$/))) {
+    const o = order(m[1]);
+    if (!o) return bad(404, "Order not found");
+    const b = o.body;
+    return ok({ data: { id: o.id, status: o.status, total: b.sub_total + b.shipping_charges + b.giftwrap_charges + b.transaction_charges - b.total_discount + sr.totalExtra, shipments: { id: o.shipment, awb: o.awb, courier: o.courier } } });
+  }
+  if (method === "POST" && path === "/courier/assign/awb") {
+    const o = Object.values(sr.orders).find((x) => x.shipment === body.shipment_id);
+    if (!o || o.status === "CANCELED") return bad(400, "Invalid shipment id");
+    if (o.awb) return bad(400, "AWB is already assigned");
+    if (sr.failAwb) return ok({ awb_assign_status: 0, response: { data: { awb_assign_error: sr.failAwb } } });
+    const c = sr.couriers.find((x) => x.courier_company_id === (body.courier_id || 43));
+    o.awb = "1904" + String(++sr.n).padStart(8, "0");
+    o.courier = c.courier_name;
+    sr.wallet -= c.rate;
+    if (sr.lostAnswer) { sr.lostAnswer = false; return new Response("<html>Gateway Timeout</html>", { status: 504 }); }
+    return ok({ awb_assign_status: 1, response: { data: { awb_code: o.awb, courier_name: c.courier_name, shipment_id: o.shipment, pickup_scheduled_date: "2026-10-14 14:00:00" } } });
+  }
+  if (method === "POST" && path === "/courier/generate/pickup") return ok({ pickup_status: 1, response: { pickup_scheduled_date: "2026-10-14 15:00:00", pickup_token_number: "Ref 1" } });
+  if (method === "POST" && path === "/manifests/generate") {
+    if (body.shipment_id.some((s) => sr.manifested.has(s))) return bad(400, "Manifest already generated for some shipment_ids, Please try again after removin them");
+    body.shipment_id.forEach((s) => sr.manifested.add(s));
+    return ok({ status: 1, manifest_url: `https://s3.example/manifest-${body.shipment_id.join("-")}.pdf` });
+  }
+  if (method === "POST" && path === "/manifests/print") return ok({ manifest_url: `https://s3.example/print-${body.order_ids.join("-")}.pdf` });
+  if (method === "POST" && path === "/courier/generate/label") return ok({ label_created: 1, label_url: `https://s3.example/label-${body.shipment_id.join("-")}.pdf`, not_created: [] });
+  if (method === "POST" && path === "/orders/cancel") {
+    if (sr.cancelRefused) return bad(400, "Order cannot be cancelled as it is already picked up");
+    body.ids.forEach((id) => { const o = order(id); if (o) o.status = "CANCELED"; });
+    return ok(null, 204);
+  }
+  if (method === "GET" && (m = path.match(/^\/courier\/track\/awb\/(\w+)$/))) {
+    const code = sr.tracking[m[1]];
+    if (!code) return ok({ tracking_data: { track_status: 0, error: "There is no activities found in our DB." } });
+    return ok({ tracking_data: { track_status: 1, shipment_status: code, shipment_track: [{ current_status: code === 7 ? "Delivered" : "In Transit" }] } });
+  }
+  return bad(404, "404 Not Found");
+}
+
 const designs = await realFetch("/images/designs/designs.json").then((r) => r.json());
+let envN = 0;
 function envWith(over = {}) {
   return {
     RAZORPAY_KEY_ID: "rzp_test_ABCDEFGH12", RAZORPAY_KEY_SECRET: SECRET, RAZORPAY_WEBHOOK_SECRET: WEBHOOK_SECRET,
     ADMIN_PASSWORD: "a-long-admin-password", DB: makeD1(),
+    // a new API user for each env, so no test leans on a login token kept from the one before
+    SHIPROCKET_EMAIL: `api${++envN}@aashi.example`, SHIPROCKET_PASSWORD: SR_PASSWORD, SHIPROCKET_WEBHOOK_TOKEN: SR_HOOK,
     ASSETS: { fetch: async () => new Response(JSON.stringify(designs)) },
     ...over
   };
@@ -429,11 +523,279 @@ test("an order table from before cancelling existed gets its new columns", async
   ok(["refund_id", "refund_status", "refund_amount", "cancelled_by", "cancelled_at"].every((c) => cols.includes(c)), "columns added: " + cols.join(","));
 });
 
+/* ---------- shipping with Shiprocket ---------- */
+const PACK = { weight: 0.45, length: 16, breadth: 12, height: 10 };
+const shipCall = (env, body, headers) => adminShip.onRequestPost(ctx(req("/api/admin/ship", { body, headers }), env)).then(read);
+const rowOf = (env, id) => env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first();
+// an order placed (cash on delivery, or paid online through Razorpay), from its own visitor
+let ipN = 0;
+async function placed(env, items, payment = "cod") {
+  const ip = `198.18.0.${++ipN % 250}`;
+  const r = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order(items, payment), headers: { "cf-connecting-ip": ip } }), env)))).body;
+  if (payment === "online") {
+    const pid = pay(r.razorpay.order_id);
+    await verify.onRequestPost(ctx(req("/api/verify", { body: { order: r.order, razorpay_order_id: r.razorpay.order_id, razorpay_payment_id: pid, razorpay_signature: await hmacHex(SECRET, `${r.razorpay.order_id}|${pid}`) } }), env));
+  }
+  return r.order;
+}
+const hook = (env, event, token = SR_HOOK) => courierUpdates.onRequestPost(ctx(req("/api/courier-updates", { body: event, headers: { "x-api-key": token, origin: null } }), env)).then(read);
+
+test("Shiprocket off: the list says so, and shipping is refused", async () => {
+  const env = envWith({ SHIPROCKET_EMAIL: "", SHIPROCKET_PASSWORD: "" });
+  const id = await placed(env, [LAMP]);
+  const list = (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=open", { method: "GET" }), env)))).body;
+  eq([list.shiprocket, list.orders[0].ship], [false, null], "off");
+  eq((await shipCall(env, { action: "couriers", id, pack: PACK })).status, 503, "refused");
+  eq(sr.calls.length, 0, "Shiprocket never called");
+  eq((await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=open", { method: "GET" }), envWith())))).body.shiprocket, true, "on with the API user");
+});
+
+test("couriers: from the primary pickup address, cheapest first, the recommended one picked; COD only COD couriers", async () => {
+  const env = envWith();
+  const paid = await placed(env, [MANTRA], "online");
+  const r = await shipCall(env, { action: "couriers", id: paid, pack: PACK });
+  eq(r.status, 200, "status " + JSON.stringify(r.body));
+  eq(r.body.couriers.map((c) => c.id), [19, 43, 33], "cheapest first");
+  eq([r.body.pick, r.body.cheapest, r.body.fastest, r.body.recommended, r.body.wallet, r.body.pickup], [43, 19, 33, 43, 500, "Home"], "picks");
+  const q = new URLSearchParams(sr.calls.find((c) => c[1].startsWith("/courier/serviceability")).at(1).split("?")[1]);
+  eq([q.get("pickup_postcode"), q.get("delivery_postcode"), q.get("cod"), q.get("weight"), q.get("declared_value")], ["110018", "122001", "0", "0.45", "398"], "asked for");
+  const cod = await placed(env, [MANTRA]);
+  eq((await shipCall(env, { action: "couriers", id: cod, pack: PACK })).body.couriers.map((c) => c.id), [19, 43], "COD: no prepaid-only courier");
+  eq((await shipCall(envWith({ DB: env.DB, SHIPROCKET_COURIER: "cheapest" }), { action: "couriers", id: cod, pack: PACK })).body.pick, 19, "rule: cheapest");
+  eq((await shipCall(envWith({ DB: env.DB, SHIPROCKET_COURIER: "fastest" }), { action: "couriers", id: paid, pack: PACK })).body.pick, 33, "rule: fastest");
+  eq((await shipCall(envWith({ DB: env.DB, SHIPROCKET_PICKUP: "shop" }), { action: "couriers", id: paid, pack: PACK })).body.pickup, "Shop", "named pickup address");
+  eq((await shipCall(envWith({ DB: env.DB, SHIPROCKET_PICKUP: "Warehouse" }), { action: "couriers", id: paid, pack: PACK })).status, 409, "unknown pickup address");
+  for (const p of [{ ...PACK, weight: 0 }, { ...PACK, length: "x" }, { ...PACK, height: 500 }, null]) {
+    eq((await shipCall(env, { action: "couriers", id: paid, pack: p })).status, 400, "bad parcel " + JSON.stringify(p));
+  }
+  eq((await shipCall(envWith({ SHIPROCKET_PASSWORD: "wrong-password" , DB: env.DB }), { action: "couriers", id: paid, pack: PACK })).body.error.includes("didn't accept"), true, "wrong API password says so");
+});
+
+test("book a paid order: Shiprocket order, courier, pickup, manifest, label; marked shipped; buyer can't cancel", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA, { ...LAMP, qty: 2 }], "online");
+  const b = await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  eq(b.status, 200, "booked " + JSON.stringify(b.body));
+  const made = sr.orders[id];
+  const p = made.body;
+  eq([p.order_id, p.pickup_location, p.payment_method, p.sub_total, p.shipping_charges, p.billing_phone, p.billing_pincode, p.billing_customer_name, p.billing_last_name, p.billing_email],
+    [id, "Home", "Prepaid", 747, 0, "9876543210", "122001", "Priya", "Sharma", "priya@example.com"], "order sent");
+  eq(p.order_items, [
+    { name: "Divine Mantra Box, Khatu Shyam Ji", sku: "mantra-khatu-shyam-ji", units: 1, selling_price: 349, discount: 0 },
+    { name: "Night Lamp, Meditating Shiv Ji", sku: "lamp-meditating-shiv-ji", units: 2, selling_price: 199, discount: 0 }
+  ], "items");
+  eq([p.weight, p.length, p.breadth, p.height], [0.45, 16, 12, 10], "parcel");
+  ok(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(p.order_date), "order date " + p.order_date);
+  eq(sr.calls.find((c) => c[1] === "/courier/assign/awb")[2], { shipment_id: made.shipment, courier_id: 43 }, "courier asked for");
+  ok(["/courier/generate/pickup", "/manifests/generate", "/courier/generate/label"].every((x) => sr.calls.some((c) => c[1] === x)), "pickup, manifest, label");
+  eq([b.body.status, b.body.awb, b.body.courier, b.body.label, b.body.tracking, b.body.pickupOn],
+    ["shipped", made.awb, "Delhivery Surface", `https://s3.example/label-${made.shipment}.pdf`, `https://shiprocket.co/tracking/${made.awb}`, "2026-10-14 15:00:00"], "answer");
+  const row = await rowOf(env, id);
+  eq([row.status, row.awb, row.sr_order_id, row.ship_lock, row.ship_code], ["shipped", made.awb, String(made.id), null, 1], "saved");
+  const t = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: id, phone: "9876543210" } }), env)));
+  eq([t.body.status, t.body.cancellable, t.body.courier, t.body.tracking], ["shipped", false, { name: "Delhivery Surface", awb: made.awb, stage: "packed" }, { url: `https://shiprocket.co/tracking/${made.awb}` }], "buyer sees it packed");
+  eq((await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: id, phone: "9876543210" } }), env)))).status, 409, "buyer can't cancel");
+  const again = await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  eq([again.status, sr.calls.filter((c) => c[1] === "/orders/create/adhoc").length, sr.calls.filter((c) => c[1] === "/courier/assign/awb").length], [200, 1, 1], "booking twice books once");
+  eq(sr.logins, 1, "one login for all of it");
+});
+
+test("cash on delivery: only once confirmed; Shiprocket's total must be the order's", async () => {
+  const env = envWith();
+  const id = await placed(env, [MINI]); // ₹249 + ₹49 delivery = ₹298
+  const r1 = await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  eq([r1.status, r1.body.field], [400, "confirmed"], "not confirmed");
+  eq(sr.calls.filter((c) => c[1] === "/orders/create/adhoc").length, 0, "nothing made at Shiprocket");
+  const r2 = await shipCall(env, { action: "book", id, pack: PACK, courier: 43, confirmed: true });
+  eq(r2.status, 200, "booked " + JSON.stringify(r2.body));
+  eq([sr.orders[id].body.payment_method, sr.orders[id].body.sub_total, sr.orders[id].body.shipping_charges], ["COD", 249, 49], "COD for ₹298");
+  // Shiprocket disagreeing about the total: nothing booked, its order cancelled, the next try gets a new number there
+  sr.totalExtra = -49;
+  const id2 = await placed(env, [MINI]);
+  const r3 = await shipCall(env, { action: "book", id: id2, pack: PACK, courier: 43, confirmed: true });
+  eq([r3.status, /₹249, not ₹298/.test(r3.body.error)], [409, true], "wrong total refused: " + r3.body.error);
+  const row = await rowOf(env, id2);
+  eq([row.status, row.sr_order_id, row.awb, row.sr_tries, sr.orders[id2].status], ["cod", null, null, 1, "CANCELED"], "cancelled there, still to ship here");
+  ok(!sr.calls.some((c) => c[1] === "/courier/assign/awb" && c[2].shipment_id === sr.orders[id2].shipment), "no courier booked for it");
+  sr.totalExtra = 0;
+  const r4 = await shipCall(env, { action: "book", id: id2, pack: PACK, courier: "auto", confirmed: true });
+  eq([r4.status, !!sr.orders[id2 + "-2"]], [200, true], "booked again as " + id2 + "-2");
+});
+
+test("a booking that fails half-way carries on from there; a lost answer isn't paid twice", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA], "online");
+  sr.failAwb = "Insufficient balance in wallet, please recharge";
+  const r1 = await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  eq([r1.status, r1.body.error.includes("Insufficient balance")], [409, true], "wallet: " + r1.body.error);
+  let row = await rowOf(env, id);
+  eq([row.status, !!row.sr_order_id, row.awb, row.ship_lock], ["paid", true, null, null], "order made there, unlocked, still to ship");
+  sr.failAwb = null;
+  sr.lostAnswer = true; // booked at Shiprocket, but the answer never arrives
+  const r2 = await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  eq([r2.status, r2.body.awb], [200, sr.orders[id].awb], "found the booking: " + JSON.stringify(r2.body));
+  eq([sr.calls.filter((c) => c[1] === "/orders/create/adhoc").length, sr.wallet], [1, 500 - 54], "one order, paid once");
+  // a changed parcel before any courier: the Shiprocket order is made again
+  const id2 = await placed(env, [MANTRA], "online");
+  sr.failAwb = "Insufficient balance";
+  await shipCall(env, { action: "book", id: id2, pack: PACK, courier: 43 });
+  sr.failAwb = null;
+  const r3 = await shipCall(env, { action: "book", id: id2, pack: { ...PACK, weight: 0.8 }, courier: 43 });
+  eq([r3.status, sr.orders[id2].status, sr.orders[id2 + "-2"].body.weight], [200, "CANCELED", 0.8], "remade with the new weight");
+});
+
+test("one booking at a time, and no cancelling while it runs", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA], "online");
+  await env.DB.prepare("UPDATE orders SET ship_lock = ? WHERE id = ?").bind(Date.now(), id).run();
+  eq((await shipCall(env, { action: "book", id, pack: PACK, courier: 43 })).status, 409, "second booking refused");
+  const c = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: id, phone: "9876543210" } }), env)));
+  eq([c.status, /handing this order to the courier/.test(c.body.error)], [409, true], "buyer: " + c.body.error);
+  eq((await read(await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id, status: "cancelled" } }), env)))).status, 409, "shop waits too");
+  eq((await rowOf(env, id)).status, "paid", "untouched");
+  // a lock left by a booking that died is ignored after 90 seconds
+  await env.DB.prepare("UPDATE orders SET ship_lock = ? WHERE id = ?").bind(Date.now() - 120e3, id).run();
+  eq((await shipCall(env, { action: "book", id, pack: PACK, courier: 43 })).status, 200, "stale lock");
+});
+
+test("a token Shiprocket stops taking: logged in again, once; the token is kept encrypted", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA], "online");
+  await shipCall(env, { action: "couriers", id, pack: PACK });
+  const kept = await env.DB.prepare("SELECT value FROM kept WHERE key = 'shiprocket_token'").first();
+  ok(kept && !kept.value.includes("token-") && kept.value.includes("."), "kept encrypted: " + (kept && kept.value));
+  sr.expire = true;
+  eq((await shipCall(env, { action: "couriers", id, pack: PACK })).status, 200, "worked after a fresh login");
+  eq(sr.logins, 2, "logged in twice in all");
+  ok(!JSON.stringify(sr.calls).includes(SR_PASSWORD) || sr.calls.filter((c) => JSON.stringify(c).includes(SR_PASSWORD)).every((c) => c[1] === "/auth/login"), "the password goes only to the login");
+});
+
+test("cancel a booking before pickup: back to To ship; then cancel the order: refunded", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA, LAMP], "online"); // ₹548
+  await shipCall(env, { action: "book", id, pack: PACK, courier: 19 });
+  const list = (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=shipped", { method: "GET" }), env)))).body;
+  eq([list.orders[0].ship.cancellable, list.orders[0].ship.stage, list.orders[0].ship.courier], [true, "packed", "Ecom Express Surface"], "listed");
+  const u = await shipCall(env, { action: "unship", id });
+  eq([u.status, u.body.status, sr.orders[id].status], [200, "paid", "CANCELED"], "booking cancelled");
+  let row = await rowOf(env, id);
+  eq([row.awb, row.sr_order_id, row.tracking, row.sr_tries], [null, null, null, 1], "forgotten here");
+  // booked again (AE-...-2), then the shop cancels the order before pickup: Shiprocket first, then the refund
+  await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  const second = sr.orders[id + "-2"];
+  ok(second && second.awb, "second booking");
+  const c = await read(await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id, status: "cancelled", tracking: `https://shiprocket.co/tracking/${second.awb}` } }), env)));
+  eq([c.status, c.body.status, c.body.refund, second.status], [200, "cancelled", "processed", "CANCELED"], "cancelled and refunded");
+  row = await rowOf(env, id);
+  eq([row.tracking, row.awb], [null, null], "the old tracking link isn't put back");
+});
+
+test("after pickup: the booking can't be cancelled here; Back to to-ship refused", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA], "online");
+  await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  const awb = sr.orders[id].awb;
+  eq((await hook(env, { awb, shipment_status_id: 42, shipment_status: "PICKED UP", current_status: "PICKED UP" })).status, 200, "picked up");
+  eq((await shipCall(env, { action: "unship", id })).status, 409, "too late to cancel the booking");
+  eq((await read(await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id, status: "open" } }), env)))).status, 409, "too late for to-ship");
+  const c = await read(await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id, status: "cancelled" } }), env)));
+  eq([c.body.status, c.body.refund], ["cancelled", null], "marked cancelled, no automatic refund");
+  ok(!sr.calls.some((x) => x[1] === "/orders/cancel"), "nothing cancelled at Shiprocket");
+});
+
+test("courier updates: token checked; delivered, returned, cancelled at Shiprocket, failed delivery", async () => {
+  const env = envWith({ TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "1" });
+  const a = await placed(env, [MANTRA], "online"), b = await placed(env, [LAMP]), c = await placed(env, [MINI], "online"), d = await placed(env, [MANTRA]);
+  for (const id of [a, b, c, d]) await shipCall(env, { action: "book", id, pack: PACK, courier: 43, confirmed: true });
+  const awb = (id) => sr.orders[id].awb;
+  eq((await hook(env, { awb: awb(a), shipment_status_id: 7 }, "wrong-token-0123456789abcdef")).status, 401, "wrong token");
+  eq((await hook(env, { awb: awb(a), shipment_status_id: 7 }, "")).status, 401, "no token");
+  eq((await hook(envWith({ SHIPROCKET_WEBHOOK_TOKEN: "" }), { awb: awb(a) })).status, 503, "not set up");
+  eq((await hook(env, { awb: "NOTOURS123", shipment_status_id: 7 })).status, 200, "someone else's parcel: OK, nothing done");
+  eq((await hook(env, "{not json")).status, 200, "unreadable: OK");
+
+  await hook(env, { awb: awb(a), shipment_status_id: 18, shipment_status: "IN TRANSIT" });
+  await hook(env, { awb: awb(a), shipment_status_id: 17, shipment_status: "OUT FOR DELIVERY" });
+  const t1 = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: a, phone: "9876543210" } }), env)));
+  eq(t1.body.courier.stage, "out", "buyer: out for delivery");
+  await hook(env, { awb: awb(a), shipment_status_id: 7, shipment_status: "DELIVERED" });
+  let row = await rowOf(env, a);
+  eq([row.status, !!row.delivered_at, !!row.picked_up_at, row.ship_status], ["delivered", true, true, "Delivered"], "delivered");
+  await hook(env, { awb: awb(a), shipment_status_id: 18, shipment_status: "IN TRANSIT" }); // late, out of order
+  eq((await rowOf(env, a)).status, "delivered", "a late update never undoes it");
+
+  await hook(env, { awb: awb(b), shipment_status_id: 21, shipment_status: "UNDELIVERED" });
+  await hook(env, { awb: awb(b), shipment_status_id: 9, shipment_status: "RTO INITIATED" });
+  await hook(env, { awb: awb(b), shipment_status_id: 10, shipment_status: "RTO DELIVERED" });
+  row = await rowOf(env, b);
+  eq([row.status, row.ship_status], ["returned", "RTO Delivered"], "returned");
+
+  const cAwb = awb(c);
+  await hook(env, { awb: cAwb, shipment_status_id: 8, shipment_status: "CANCELED" });
+  row = await rowOf(env, c);
+  eq([row.status, row.awb, row.sr_order_id, row.tracking], ["paid", null, null, null], "cancelled at Shiprocket: back in To ship");
+
+  await Promise.all(waits);
+  const said = rzp.calls.filter((x) => x[0] === "telegram").map((x) => x[1].text).join("\n");
+  ok(/couldn't deliver order/.test(said) && /coming back to you/.test(said) && /back with you/.test(said) && /back in To ship/.test(said), "owner told: " + said);
+  // returned → send again: the old booking set aside, booked afresh
+  eq((await read(await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id: b, status: "open" } }), env)))).body.status, "cod", "send again");
+  eq((await shipCall(env, { action: "book", id: b, pack: PACK, courier: 43, confirmed: true })).status, 200, "re-booked");
+  ok(sr.orders[b + "-2"] && (await rowOf(env, b)).awb === sr.orders[b + "-2"].awb, "with a new booking");
+});
+
+test("the Shipped tab asks Shiprocket about parcels not heard of for 3 hours", async () => {
+  const env = envWith();
+  const a = await placed(env, [MANTRA], "online"), b = await placed(env, [LAMP], "online");
+  for (const id of [a, b]) await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  const old = new Date(Date.now() - 4 * 3600e3).toISOString();
+  await env.DB.prepare("UPDATE orders SET ship_at = ?").bind(old).run();
+  sr.tracking[sr.orders[a].awb] = 7;
+  const list = (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=shipped", { method: "GET" }), env)))).body;
+  eq(list.orders.map((o) => o.id), [b], "a moved to Delivered");
+  eq((await rowOf(env, a)).status, "delivered", "a delivered");
+  ok((await rowOf(env, b)).ship_at > old, "b checked (nothing new), not asked again for 3 hours");
+  const n = sr.calls.filter((c) => c[1].startsWith("/courier/track")).length;
+  await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=shipped", { method: "GET" }), env));
+  eq(sr.calls.filter((c) => c[1].startsWith("/courier/track")).length, n, "not asked again so soon");
+});
+
+test("labels and manifest for several orders; auto courier; only booked ones", async () => {
+  const env = envWith();
+  const a = await placed(env, [MANTRA], "online"), b = await placed(env, [LAMP], "online"), c = await placed(env, [MINI], "online");
+  for (const id of [a, b]) {
+    const r = await shipCall(env, { action: "book", id, pack: PACK, courier: "auto" });
+    eq(r.body.courier, "Delhivery Surface", "auto = recommended");
+  }
+  const l = await shipCall(env, { action: "labels", ids: [a, b, c, "AE-NOPE22", "<x>"] });
+  eq(l.body, { url: `https://s3.example/label-${sr.orders[a].shipment}-${sr.orders[b].shipment}.pdf`, count: 2 }, "labels for the booked two");
+  eq((await shipCall(env, { action: "labels", ids: [c] })).status, 400, "nothing booked");
+  eq((await shipCall(env, { action: "labels", ids: [] })).status, 400, "none");
+  const m = await shipCall(env, { action: "manifest", ids: [a, b] });
+  eq(m.body, { url: `https://s3.example/print-${sr.orders[a].id}-${sr.orders[b].id}.pdf`, count: 2 }, "made at booking already, so printed");
+  eq((await shipCall(env, { action: "book", id: c, pack: PACK, courier: "x" })).status, 400, "a courier is needed");
+  eq((await shipCall(env, { action: "book", id: c, pack: PACK, courier: 43 }, { origin: "https://evil.example" })).status, 403, "other sites can't book");
+});
+
+test("an unfinished booking is cancelled at Shiprocket when the buyer cancels", async () => {
+  const env = envWith();
+  const id = await placed(env, [MANTRA], "online");
+  sr.failAwb = "Insufficient balance";
+  await shipCall(env, { action: "book", id, pack: PACK, courier: 43 });
+  const c = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: id, phone: "9876543210" } }), env)));
+  eq([c.status, c.body.status, c.body.refund.status, sr.orders[id].status], [200, "cancelled", "processed", "CANCELED"], "cancelled everywhere");
+  // no PIN code served: a plain message
+  const env2 = envWith();
+  const r = await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod", { ...CUSTOMER, pincode: "999999" }) }), env2)));
+  eq((await shipCall(env2, { action: "couriers", id: r.body.order, pack: PACK })).status, 409, "not serviceable");
+});
+
 /* ---------- run ---------- */
 const out = document.getElementById("results");
 let passed = 0;
 for (const [name, fn] of tests) {
   resetRazorpay();
+  resetShiprocket();
   waits.length = 0;
   const li = document.createElement("li");
   try { await fn(); li.className = "pass"; li.textContent = name; passed++; }

@@ -37,6 +37,11 @@
         <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
       </div>
       <p class="admin-alert" role="alert" hidden></p>
+      <!-- what was just done (a booking, its label), with what to do next -->
+      <div class="admin-note" role="status" hidden></div>
+      <p class="admin-hint" hidden>Shipping through Shiprocket is off. Once the Shiprocket API user is added in Cloudflare (SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD), you can book couriers and print labels from here.</p>
+      <!-- ticked orders: book them, or print their labels and manifest, together -->
+      <div class="bulk" hidden></div>
       <p class="admin-empty" hidden></p>
       <div class="orders"></div>
     </div>

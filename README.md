@@ -108,13 +108,13 @@ Run `python tools/serve.py` (the `lamp-site` preview does) and open http://local
 - `cart.html`, `checkout.html`, `order.html`, `track.html`, `shop-pages.js`, `shop.css`: the cart, checkout, order-placed and track-your-order pages (see "The shop")
 - `admin.html`, `admin.js`: the order list, `/admin`
 - `contact.html`, `shipping-policy.html`, `refund-policy.html`, `terms.html`, `privacy-policy.html`: the contact page and the policies
-- `functions/`: the order server (`api/checkout.js`, `api/verify.js`, `api/track.js`, `api/razorpay-webhook.js`, `api/admin/orders.js`) and `_middleware.js`, which sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store, and asks for the password on `/admin`
-- `server/`: what the order server shares (`orders.js`: checks, Razorpay, signatures, the database; `admin.js`: the lock on `/admin`)
+- `functions/`: the order server (`api/checkout.js`, `api/verify.js`, `api/track.js`, `api/cancel.js`, `api/razorpay-webhook.js`, `api/courier-updates.js`, `api/admin/orders.js`, `api/admin/ship.js`) and `_middleware.js`, which sends the old address (aashienterprises.pages.dev) and www.aashienterprises.store, permanently, to https://aashienterprises.store, and asks for the password on `/admin`
+- `server/`: what the order server shares (`orders.js`: checks, Razorpay, signatures, the database; `admin.js`: the lock on `/admin`; `shiprocket.js`: talking to Shiprocket; `shipping.js`: booking couriers and following parcels)
 - `build.sh`, `_headers`, `_routes.json`: the hosting build (see Deploy)
 - `fonts/`: the fonts and icons, with their licences (see Performance)
 - `404.html`: the page for addresses the site doesn't have
 - `sitemap.xml`, `robots.txt`: the addresses for search engines (see "Product addresses and SEO")
-- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server), `icons.py` (remakes the icon font after a new icon is used) and `shop-test.html` (the order server's tests)
+- `tools/`: the WebP converter (`webp.html`, run through `webp-server.ps1`; see "WebP converter" below), `product-pages.mjs` (makes the product addresses at build time), `serve.py` (the local preview server), `icons.py` (remakes the icon font after a new icon is used) `shop-test.html` (the order server's tests) and `admin-preview.html` (`/admin` with made-up orders, to look at locally)
 - `images/designs/`: the design artwork, as WebP, and `designs.json`
 - `images/generallayout/`: the original room photos; `images/rooms/`: their WebP copies, which the site loads
 
@@ -189,11 +189,11 @@ Since October 2026 the site sells directly; there are no marketplace links any m
 - **The products' pictures** in the cart, checkout, order and tracking pages are drawn by the site's own 3D models (`Models.still` in `models3d.js`): the same box, Mini and lamp as on the home page and in the product photos, in the design ordered, turned to show the button and the dial. One hidden 3D viewer draws them one after another after the page shows (Three.js is usually already in the browser's cache from the home page), and each is kept for the rest of the visit (`sessionStorage`). Without 3D, the artwork shows in a plain white frame.
 - **Policies**, which Razorpay asks every site to have: `/contact`, `/shipping-policy`, `/refund-policy` (replacements and refunds), `/terms`, `/privacy-policy`. Linked from the footer of every page.
 
-**What the business sees: `/admin`** (`admin.html`, `admin.js`). The order list, behind a user name and password the browser asks for: tabs for To ship, Not paid, Shipped, Delivered, Cancelled and All. Open an order to see what to pack, copy the address for the courier, call or WhatsApp the buyer (with a ready message: for cash on delivery, a request to confirm), and mark it shipped (with the tracking link or AWB number), delivered or cancelled. Online orders still waiting for payment are checked with Razorpay each time the list opens, in case a buyer paid and closed the page. A cancelled order that was paid online must be refunded in the Razorpay dashboard. Paid orders also show in the Razorpay dashboard, with the buyer's details in each order's notes.
+**What the business sees: `/admin`** (`admin.html`, `admin.js`). The order list, behind a user name and password the browser asks for: tabs for To ship, Not paid, Shipped, Delivered, Returned, Cancelled and All. Open an order to see what to pack, copy the address, call or WhatsApp the buyer (with a ready message: for cash on delivery, a request to confirm), book its courier through Shiprocket (see "Shipping with Shiprocket" below) or mark it shipped by hand (with the tracking link or AWB number), delivered, returned or cancelled. Online orders still waiting for payment are checked with Razorpay each time the list opens, in case a buyer paid and closed the page. A cancelled order that was paid online must be refunded in the Razorpay dashboard. Paid orders also show in the Razorpay dashboard, with the buyer's details in each order's notes.
 
 **How it works**
 
-- **Cloudflare Pages Functions** (`functions/`, with shared code in `server/`): `/api/checkout` places an order, `/api/verify` confirms an online payment, `/api/razorpay-webhook` hears about payments from Razorpay directly, `/api/admin/orders` serves the order list. `functions/_middleware.js` also asks for the password on `/admin` and `/api/admin`. Cloudflare builds these itself from the project folder; nothing in `functions/` or `server/` is ever published as a file.
+- **Cloudflare Pages Functions** (`functions/`, with shared code in `server/`): `/api/checkout` places an order, `/api/verify` confirms an online payment, `/api/razorpay-webhook` hears about payments from Razorpay directly, `/api/admin/orders` serves the order list, `/api/admin/ship` books couriers through Shiprocket, `/api/courier-updates` hears Shiprocket's tracking updates. `functions/_middleware.js` also asks for the password on `/admin` and `/api/admin`. Cloudflare builds these itself from the project folder; nothing in `functions/` or `server/` is ever published as a file.
 - **One price list:** `shop.js`. The browser sends only which product, which design and how many; the server prices the order from `shop.js` and makes the Razorpay order for that amount, so nobody can change what they pay.
 - **Online payment:** the server makes a Razorpay order; Razorpay's window takes the payment; the server then checks Razorpay's signature with the secret key (in constant time) and asks Razorpay that the payment is captured, for this order and the full amount, before the order counts as paid. If the account captures payments by hand, the server captures it. The key secret never leaves the server.
 - **Orders are kept** in a Cloudflare D1 database (binding `DB`; its tables are made on first use): every order, cash on delivery or online, with its status. Without the database, online payments still work (the Razorpay dashboard is then the order book), but cash on delivery and `/admin` are off.
@@ -208,13 +208,49 @@ Since October 2026 the site sells directly; there are no marketplace links any m
 | `RAZORPAY_KEY_SECRET` | its secret, from the same Razorpay page (Settings > API Keys) |
 | `RAZORPAY_WEBHOOK_SECRET` | optional: the secret you give the webhook in Razorpay (Settings > Webhooks: URL `https://aashienterprises.store/api/razorpay-webhook`, event `order.paid`) |
 | `ADMIN_PASSWORD` | the password for `/admin`, 12 characters or more (the user name is `aashi`, or set `ADMIN_USER`) |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | optional: a Telegram message for every new order |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | optional: a Telegram message for every new order, cancellation and courier problem |
+| `SHIPROCKET_EMAIL`, `SHIPROCKET_PASSWORD` | optional: the Shiprocket API user, for booking couriers from `/admin` (see "Shipping with Shiprocket"). Production only. |
+| `SHIPROCKET_PICKUP`, `SHIPROCKET_COURIER`, `SHIPROCKET_WEBHOOK_TOKEN` | optional: the pickup address's name in Shiprocket, which courier to offer first (`recommended`, `cheapest`, `fastest`), and the token for Shiprocket's tracking updates |
 
 and a **D1 database** bound as `DB` (Settings > Bindings). Redeploy after changing them.
 
 **Before going live:** live Razorpay keys once Razorpay has approved the site, and one real order of each kind (online and cash on delivery), seen through to `/admin`.
 
-**Courier:** orders are packed and sent by hand for now (copy the address from `/admin`). The shipping policy promises dispatch in 1 to 3 working days and delivery in about 3 to 7 more; change `shipping-policy.html`, the FAQ and the order page (`shop-pages.js`) together if that changes.
+## Shipping with Shiprocket
+
+Couriers are booked through **Shiprocket** from `/admin`, without copying addresses: Shiprocket gets the order, books the courier, asks for the pickup and makes the label; the tracking link goes on the order, and Shiprocket's updates move it along. Nothing ships by itself: the owner presses Book for every order (or ticks several and books them together), and a cash on delivery order can be booked only after ticking that the buyer confirmed it. Until the Shiprocket settings are added, `/admin` works as before (send it yourself, mark it shipped with the tracking).
+
+**Every day** (the owner):
+
+1. A new order shows in **To ship**. Cash on delivery: WhatsApp the buyer first (the WhatsApp button has the message ready) and wait for their YES.
+2. Open the order. Under **Ship with Shiprocket**, check the packed parcel's weight and box size (filled in from the last time the same products were shipped, or from `SHOP.packing` in `shop.js`), tick that a COD buyer confirmed, and press **See couriers and prices**: every courier that delivers there, cheapest first, with its days and Shiprocket's recommended one picked. Press **Book**. The price comes out of the Shiprocket wallet.
+3. The order moves to **Shipped** ("Booked, awaiting pickup"). **Print label**, pack the parcel, stick the label on. The green note at the top also has **WhatsApp the buyer**, with the tracking link in the message.
+4. When the courier comes, hand over the parcels. Several at once: tick them in Shipped and press **Print labels** or **Print manifest** (the list the courier signs).
+5. That's all. The order turns **Delivered** by itself. If the courier can't deliver, a parcel is coming back, or one is lost, Telegram says so (when Telegram is set up) and the order shows it in red. A parcel that comes back lands in **Returned**: check it, then **Send again** (back to To ship) or Cancel order. Shiprocket pays cash on delivery money into the bank account set up in Shiprocket.
+
+**Changing your mind:** before the courier picks a parcel up, **Cancel booking** (in the order's Shipment band) cancels it at Shiprocket (the charge goes back to the wallet) and puts the order back in To ship; Cancel order does that too, then cancels the order and refunds a paid one in full. After pickup, stop or return it in Shiprocket. Bookings cancelled in Shiprocket's own panel also come back to To ship.
+
+**How it works** (`server/shiprocket.js` talks to Shiprocket's API; `server/shipping.js` books and follows; `functions/api/admin/ship.js` is `/admin`'s address for it; `functions/api/courier-updates.js` hears Shiprocket's updates)
+
+- **Booking is step by step and saved as it goes:** the order at Shiprocket (as `AE-XXXXXX`; after a cancelled booking `AE-XXXXXX-2`, since Shiprocket won't reuse a cancelled number), the courier and its tracking number (AWB: the moment the wallet is charged), the pickup, the manifest, the label. If a step fails (most often: too little money in the wallet), the message says why, and pressing Book again carries on from that step, so there is never a second order at Shiprocket or a second charge. A booking whose answer got lost on the way is found again in Shiprocket's own record. While a booking runs, the order is locked for up to 90 seconds: no second booking, and no cancelling half-way.
+- **Cash on delivery money is checked:** before a courier is booked for a COD order, the total Shiprocket has for it must be exactly the order's total (products plus delivery); if not, nothing is booked and the order at Shiprocket is cancelled, so a courier can never collect the wrong amount.
+- **Tracking:** Shiprocket calls `/api/courier-updates` as a parcel moves (set up below). Delivered → Delivered; back with the shop (RTO delivered) → Returned; booking cancelled at Shiprocket → back in To ship; a failed delivery, a parcel coming back, lost or damaged → a Telegram message. Only an order still marked shipped changes, so a late or repeated update never undoes anything. The **Shipped** tab also asks Shiprocket about parcels it hasn't heard of for 3 hours (6 at a time), so tracking works even before the webhook is set up. Buyers see the stage on `/track` (Packed, On its way, Out for delivery, Delivery attempted, Coming back to us, Back with us) and the courier's tracking link.
+- **Security:** the API user's password stays in Cloudflare and goes only to Shiprocket's login. The login token (good for 10 days) is kept in the database encrypted (AES-GCM, with a key made from the API user's credentials). `/api/admin/ship` is behind the `/admin` password and answers only the site's own pages; `/api/courier-updates` refuses any call without the secret token (checked in constant time). Shiprocket's labels and manifests open from Shiprocket's own links (https only).
+- **Tests:** `tools/shop-test.html` covers it against a pretend Shiprocket (couriers and picks, the order sent, COD confirmation and the total check, half-way failures and lost answers, the lock, re-login, cancelling before and after pickup, every kind of update, the Shipped tab's checks, labels and manifests). `tools/admin-preview.html` shows `/admin` with made-up orders and a pretend Shiprocket, to click through its screens locally.
+
+**Setting it up** (once):
+
+1. Shiprocket account: KYC done, the wallet recharged, the bank account for COD money added.
+2. Shiprocket > Settings > **Pickup Addresses**: the address parcels leave from (RZ-40, Narsingh Garden, Khyala, New Delhi 110018), its phone verified. Note its name.
+3. Shiprocket > Settings > **API** > Add New API User: a **different email** from the Shiprocket login (Shiprocket requires it), with access to orders, couriers, shipments, labels/manifests, tracking, pickup addresses and account (wallet), and buyer details allowed. Copy its password.
+4. Cloudflare (Workers & Pages > aashienterprises > Settings > Variables and secrets, Production): add `SHIPROCKET_EMAIL`, `SHIPROCKET_PASSWORD` (secret), `SHIPROCKET_PICKUP` (the name from step 2, if there is more than one), optionally `SHIPROCKET_COURIER` (`recommended`, `cheapest` or `fastest`), and `SHIPROCKET_WEBHOOK_TOKEN` (secret): 24 or more random letters and digits of your own. Redeploy.
+5. Shiprocket > Settings > API > **Webhooks**: URL `https://aashienterprises.store/api/courier-updates`, the toggle on, and the same token as `SHIPROCKET_WEBHOOK_TOKEN`.
+6. Weigh and measure one packed Mantra Box, Mini and Night Lamp and put them in `SHOP.packing` (`shop.js`), so the parcel fills itself in (and booking several at once works).
+7. Test with **one real order** (Shiprocket has no test mode: every booking is real): book it, print the label, then Cancel booking (the charge comes back). If it was cash on delivery, check in Shiprocket that its COD amount matches.
+
+Leave the Shiprocket settings out of the Preview environment: preview deployments would book real couriers too.
+
+**Courier promises:** the shipping policy promises dispatch in 1 to 3 working days and delivery in about 3 to 7 more; change `shipping-policy.html`, the FAQ and the order page (`shop-pages.js`) together if that changes.
 
 ## WebP converter
 

@@ -11,9 +11,11 @@
 //   ADMIN_PASSWORD           the password for /admin, the order list (12 characters or more).
 //   ADMIN_USER               optional: the user name for /admin (aashi if not set).
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   optional: a Telegram message for every new order.
+//   SHIPROCKET_...           optional: booking couriers from /admin (server/shiprocket.js lists them).
 // Binding (Settings > Bindings): DB, a D1 database. It holds the orders; cash on delivery and /admin
 // need it. Its tables are made on first use.
 import "../shop.js";
+import { ShipError, cancelAtShiprocket, stageOf } from "./shiprocket.js";
 
 const SHOP = () => globalThis.SHOP;
 const enc = new TextEncoder();
@@ -28,9 +30,11 @@ export function json(data, status = 200) {
     status, headers: { "content-type": "application/json; charset=utf-8", ...NO_STORE }
   });
 }
-// one way out for every error: the buyer sees a plain message, the log gets the detail
+// one way out for every error: the buyer sees a plain message, the log gets the detail (Shiprocket's
+// own messages reach only /admin: no buyer-facing address lets one through)
 export function fail(e) {
   if (e instanceof HttpError) return json({ error: e.message, field: e.field }, e.status);
+  if (e instanceof ShipError) return json({ error: e.message }, e.status);
   console.error(e && e.stack || e);
   return json({ error: "Something went wrong on our side. Please try again in a minute, or WhatsApp us to order." }, 500);
 }
@@ -148,7 +152,8 @@ export async function razorpay(env, method, path, body) {
 
 /* ---------- The database (D1) ---------- */
 // Statuses: awaiting_payment (paying online, not paid yet), paid, cod (cash on delivery, to ship),
-// shipped, delivered, cancelled. Amounts are whole rupees.
+// shipped (with the courier, or booked with Shiprocket and waiting for its pickup), delivered,
+// returned (the courier brought it back) and cancelled. Amounts are whole rupees.
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
@@ -165,11 +170,22 @@ const SCHEMA = [
   "CREATE INDEX IF NOT EXISTS admin_fails_by_visitor ON admin_fails (visitor, at)",
   // order look-ups on /track, to slow down anyone guessing order numbers or mobile numbers
   "CREATE TABLE IF NOT EXISTS lookups (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
-  "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)"
+  "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)",
+  // small things the server keeps between requests (Shiprocket's login token, encrypted)
+  "CREATE TABLE IF NOT EXISTS kept (key TEXT PRIMARY KEY, value TEXT NOT NULL, until INTEGER NOT NULL)"
 ];
 // columns added after the first orders were taken: added to an existing table on first use
-// (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop")
-const LATER_COLUMNS = { refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT" };
+// (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop";
+// the rest: its Shiprocket booking, server/shipping.js: Shiprocket's order and shipment ids, how many
+// bookings were cancelled before (sr_tries), the courier's tracking number (awb), the courier, the
+// label, Shiprocket's last status for it (ship_code, ship_status, ship_at), the pickup date, when the
+// courier picked it up, the parcel's weight and size, and a lock while a booking is being made)
+const LATER_COLUMNS = {
+  refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT",
+  sr_order_id: "TEXT", sr_shipment_id: "TEXT", sr_tries: "INTEGER", awb: "TEXT", courier: "TEXT", label_url: "TEXT",
+  ship_code: "INTEGER", ship_status: "TEXT", ship_at: "TEXT", pickup_on: "TEXT", picked_up_at: "TEXT",
+  shipped_at: "TEXT", delivered_at: "TEXT", package: "TEXT", ship_lock: "INTEGER"
+};
 async function prepare(db) {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
   const { results } = await db.prepare("PRAGMA table_info(orders)").all();
@@ -179,6 +195,8 @@ async function prepare(db) {
     try { await db.prepare(`ALTER TABLE orders ADD COLUMN ${c} ${type}`).run(); }
     catch (e) { if (!/duplicate column/i.test(String(e && e.message))) throw e; } // another instance added it first
   }
+  // courier updates find their order by its tracking number
+  await db.prepare("CREATE INDEX IF NOT EXISTS orders_by_awb ON orders (awb)").run();
 }
 const made = new WeakMap(); // the tables are made once per database, per server instance
 export async function database(env) {
@@ -214,7 +232,7 @@ export async function settle(env, db, row) {
 // An order can be cancelled until it is marked shipped. A paid one is refunded in full, at once,
 // through Razorpay, to the account it was paid from.
 export const CANCELLABLE = ["paid", "cod", "awaiting_payment"];
-const reread = (db, id) => db.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first();
+export const reread = (db, id) => db.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first();
 
 // The whole amount back to the buyer. Razorpay refuses to refund more than was paid, so asking
 // twice can never pay out twice.
@@ -234,19 +252,35 @@ export async function refundOrder(env, db, row) {
   }
 }
 
+// While /admin books a courier for an order (server/shipping.js), the order is locked for this long at
+// most, so it can't be cancelled (or booked twice) half-way through
+export const SHIP_LOCK_MS = 90e3;
+
 // Cancel an order that hasn't left yet; by is "buyer" or "shop". Returns { ok, row } with the order
-// as it is now (ok: false when it had already been shipped, delivered or cancelled).
+// as it is now (ok: false when it had already been shipped, delivered or cancelled; busy: true when a
+// courier is being booked for it this moment).
 export async function cancelOrder(env, db, row, by) {
   // a payment the site never heard about is caught first, so that money comes back too
   if (row.status === "awaiting_payment" && (await settle(env, db, row)) !== row.status) row = await reread(db, row.id);
   if (!CANCELLABLE.includes(row.status)) return { ok: false, row };
   const t = now();
   const done = await db.prepare(`UPDATE orders SET status = 'cancelled', cancelled_by = ?, cancelled_at = ?, updated_at = ?, refund_status = ?
-      WHERE id = ? AND status = ?`)
-    .bind(by, t, t, row.status === "paid" ? "pending" : null, row.id, row.status).run();
-  // shipped (or cancelled) a moment ago by someone else: leave it as it is
-  if (!(done.meta && done.meta.changes)) return { ok: false, row: await reread(db, row.id) };
+      WHERE id = ? AND status = ? AND (ship_lock IS NULL OR ship_lock < ?)`)
+    .bind(by, t, t, row.status === "paid" ? "pending" : null, row.id, row.status, Date.now() - SHIP_LOCK_MS).run();
+  // shipped (or cancelled) a moment ago by someone else, or being booked right now: leave it as it is
+  if (!(done.meta && done.meta.changes)) {
+    const now2 = await reread(db, row.id);
+    return { ok: false, row: now2, busy: now2.status === row.status };
+  }
   if (row.status === "paid") await refundOrder(env, db, row);
+  // an order already made at Shiprocket (a booking that didn't finish) is cancelled there too
+  if (row.sr_order_id) {
+    try { await cancelAtShiprocket(env, db, row); }
+    catch (e) {
+      console.error("Shiprocket cancel", row.id, e);
+      await notify(env, `Order ${row.id} was cancelled, but Shiprocket couldn't cancel it there: cancel Shiprocket order ${row.sr_order_id} by hand. (${e.message})`);
+    }
+  }
   return { ok: true, row: await reread(db, row.id) };
 }
 
@@ -282,6 +316,9 @@ export function buyersView(row, names) {
   const t = (row.tracking || "").trim();
   // the courier's tracking: a link (only an https or http address) or a tracking number
   const tracking = !t ? null : /^https?:\/\/[^\s<>"]+$/i.test(t) ? { url: t } : { number: t };
+  // booked through Shiprocket: which courier, and where the parcel is (server/shiprocket.js, stageOf)
+  const courier = row.awb && ["shipped", "delivered", "returned"].includes(row.status)
+    ? { name: row.courier || null, awb: row.awb, stage: stageOf(row.ship_code) } : null;
   return {
     order: row.id, created: row.created_at, updated: row.updated_at, status: row.status, payment: row.payment,
     subtotal: row.subtotal, delivery: row.delivery, total: row.total,
@@ -290,7 +327,7 @@ export function buyersView(row, names) {
       name: (SHOP.products[l.product] || {}).name || l.product, designName: names[l.design] || l.design
     })),
     place: `${row.city}, ${row.state} ${row.pincode}`,
-    tracking,
+    tracking, courier,
     cancellable: CANCELLABLE.includes(row.status),
     cancelled: row.status === "cancelled" ? { by: row.cancelled_by || "shop", at: row.cancelled_at || row.updated_at } : null,
     refund: row.refund_status ? { status: row.refund_status, amount: row.refund_amount || row.total } : null

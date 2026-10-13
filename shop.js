@@ -33,6 +33,11 @@
     // the most of one design a cart can hold, and the most different lines (bulk orders: WhatsApp)
     maxQty: 10,
     maxLines: 12,
+    // one of each product packed for the courier, for booking through Shiprocket in /admin: weight in
+    // kg with the box, and the box's length, breadth and height in cm, e.g. { weight: 0.4, length: 15,
+    // breadth: 12, height: 10 }. Weigh and measure a packed one and fill these in; until then /admin
+    // asks for the parcel each time (and remembers the last one typed for the same products).
+    packing: { mantra: null, mini: null, lamp: null },
     // where buyers reach the business (the order pages, the policies)
     phone: "+91 82879 94052",
     whatsapp: "918287994052",

@@ -10,9 +10,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const body = await readJson(request, 1000);
     const found = await buyersOrder(request, env, body);
     const names = await designNames(env, request);
-    const { ok, row } = await cancelOrder(env, found.db, found.row, "buyer");
+    const { ok, row, busy } = await cancelOrder(env, found.db, found.row, "buyer");
     if (!ok) {
       if (row.status === "cancelled") return json(buyersView(row, names)); // already cancelled: show it
+      if (busy) throw new HttpError(409, "We're handing this order to the courier right now, so it can't be cancelled here. Please WhatsApp us.");
       throw new HttpError(409, "This order has already left us, so it can't be cancelled here. Please WhatsApp us; if it arrives damaged or doesn't work, we replace it.");
     }
     const refund = row.refund_status === "failed" ? " REFUND FAILED: refund it in the Razorpay dashboard."
