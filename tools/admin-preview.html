@@ -27,9 +27,20 @@
     <div class="wrap">
       <h1 class="shop-title">Orders.</h1>
       <div class="views" role="tablist" aria-label="Which orders"></div>
-      <div class="admin-search">
-        <label for="a-search" class="sr-only">Find an order</label>
-        <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
+      <div class="admin-tools">
+        <div class="admin-search">
+          <label for="a-search" class="sr-only">Find an order</label>
+          <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
+        </div>
+        <details class="admin-export">
+          <summary>Monthly export</summary>
+          <div class="export-body">
+            <label for="a-month">Month</label>
+            <select id="a-month"></select>
+            <a class="btn btn-primary btn-sm" data-export download>Download spreadsheet</a>
+            <p class="export-sum" aria-live="polite"></p>
+          </div>
+        </details>
       </div>
       <p class="admin-alert" role="alert" hidden></p>
       <div class="admin-note" role="status" hidden></div>
@@ -60,7 +71,14 @@
         ship: { made: true, awb: "190400000056", courier: "Delhivery Surface", label: "https://example.com/label2.pdf", code: 18, status: "In Transit", stage: "moving", at: ago(2), pickupOn: "2026-10-12 14:00:00", pickedUp: ago(40), cancellable: false, pack: { weight: 0.45, length: 16, breadth: 12, height: 10 } } },
       { ...base, id: "AE-RT4YU8", created: ago(200), status: "returned", payment: "cod", subtotal: 249, delivery: 49, total: 298, name: "Vikram Singh", phone: "9500054321", city: "Lucknow", state: "Uttar Pradesh", pincode: "226001",
         items: [item("mini", "om", "Om", 1, 249, "Mini Chanting Box")], tracking: "https://shiprocket.co/tracking/190400000078",
-        ship: { made: true, awb: "190400000078", courier: "Xpressbees Surface", label: "https://example.com/label3.pdf", code: 10, status: "RTO Delivered", stage: "returned", at: ago(20), pickupOn: null, pickedUp: ago(180), cancellable: false, pack: null } }
+        ship: { made: true, awb: "190400000078", courier: "Xpressbees Surface", label: "https://example.com/label3.pdf", code: 10, status: "RTO Delivered", stage: "returned", at: ago(20), pickupOn: null, pickedUp: ago(180), cancellable: false, pack: null } },
+      // clearing up: unpaid (this week and older), delivered, cancelled and one with the buyer's details removed
+      { ...base, id: "AE-UN1PD7", created: ago(20), status: "awaiting_payment", payment: "online", subtotal: 199, delivery: 49, total: 248, name: "Neha Gupta", phone: "9876500011", items: [item("lamp", "om", "Om", 1, 199, "Night Lamp")], canDelete: true },
+      { ...base, id: "AE-OLD9P1", created: ago(24 * 9), status: "awaiting_payment", payment: "online", subtotal: 349, delivery: 49, total: 398, name: "Karan Mehta", phone: "9876500022", items: [item("mantra", "om", "Om", 1, 349, "Divine Mantra Box")], canDelete: true, old: true },
+      { ...base, id: "AE-OLD9P2", created: ago(24 * 12), status: "awaiting_payment", payment: "online", subtotal: 249, delivery: 49, total: 298, name: "Pooja Nair", phone: "9876500033", items: [item("mini", "om", "Om", 1, 249, "Mini Chanting Box")], canDelete: true, old: true },
+      { ...base, id: "AE-DLV3RD", created: ago(24 * 6), status: "delivered", payment: "cod", subtotal: 349, delivery: 49, total: 398, name: "Sunita Das", phone: "9876500044", city: "Kolkata", state: "West Bengal", pincode: "700001", items: [item("mantra", "radha-krishna", "Radha Krishna", 1, 349, "Divine Mantra Box")], canForget: true },
+      { ...base, id: "AE-CNC4LD", created: ago(24 * 3), status: "cancelled", payment: "cod", cancelledBy: "buyer", cancelledAt: ago(70), subtotal: 199, delivery: 49, total: 248, name: "Arjun Patel", phone: "9876500055", items: [item("lamp", "mahadev", "Mahadev", 1, 199, "Night Lamp")], canDelete: true },
+      { ...base, id: "AE-FRG7TN", created: ago(24 * 40), status: "delivered", payment: "online", paymentId: "pay_PREVIEW000", subtotal: 498, delivery: 0, total: 498, name: "(details removed)", phone: "", address: "", pincode: "", city: "Indore", state: "Madhya Pradesh", items: [item("mini", "om", "Om", 2, 249, "Mini Chanting Box")], forgotten: ago(24 * 2) }
     ];
     const VIEW = { open: ["paid", "cod"], unpaid: ["awaiting_payment"], shipped: ["shipped"], delivered: ["delivered"], returned: ["returned"], cancelled: ["cancelled"] };
     const answer = (data, status = 200) => new Promise((r) => setTimeout(() => r(new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } })), 450));
@@ -79,11 +97,21 @@
         return answer({ enquiries: ENQUIRIES, counts, orderCounts });
       }
       if (url.startsWith("/api/admin/orders")) {
-        if (init.method === "POST") return answer({ ok: true });
-        const view = new URL(url, location.href).searchParams.get("view");
+        if (init.method === "POST") {
+          const b = JSON.parse(init.body), i = ORDERS.findIndex((x) => x.id === b.id);
+          if (b.status === "delete") { ORDERS.splice(i, 1); return answer({ ok: true, deleted: true }); }
+          if (b.status === "forget") { Object.assign(ORDERS[i], { name: "(details removed)", phone: "", email: null, address: "", pincode: "", forgotten: new Date().toISOString(), canForget: false }); return answer({ ok: true, forgotten: true }); }
+          return answer({ ok: true });
+        }
+        const p = new URL(url, location.href).searchParams, view = p.get("view"), q = (p.get("q") || "").toLowerCase();
         const counts = {};
-        ORDERS.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
-        return answer({ orders: ORDERS.filter((o) => view === "all" || VIEW[view].includes(o.status)), counts, newEnquiries: ENQUIRIES.filter((e) => e.status === "new").length, online: true, shiprocket: SR_ON, courierRule: "recommended" });
+        ORDERS.forEach((o) => { if (!o.old) counts[o.status] = (counts[o.status] || 0) + 1; });
+        const orders = q ? ORDERS.filter((o) => [o.id, o.name, o.phone, o.city].some((v) => String(v).toLowerCase().includes(q)))
+          : ORDERS.filter((o) => (view === "all" || VIEW[view].includes(o.status)) && (view !== "unpaid" || !!o.old === (p.get("old") === "1")));
+        return answer({ orders, more: false, unpaidOld: ORDERS.filter((o) => o.old).length, searched: q || null, counts, newEnquiries: ENQUIRIES.filter((e) => e.status === "new").length, online: true, shiprocket: SR_ON, courierRule: "recommended" });
+      }
+      if (url.startsWith("/api/admin/export")) {
+        return answer({ month: "2026-10", orders: 7, unpaid: 3, cancelled: 1, online: { n: 4, amount: 2041 }, cod: { n: 3, amount: 1143 }, codCollected: { n: 1, amount: 398 }, refunded: { n: 0, amount: 0 } });
       }
       if (url === "/api/admin/ship") {
         const b = JSON.parse(init.body);

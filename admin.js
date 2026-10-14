@@ -82,7 +82,7 @@
       b.append(el("span", null, label));
       const n = k === "enquiries" ? newEnquiries : COUNTS[k] ? COUNTS[k].reduce((s, st) => s + (counts[st] || 0), 0) : null;
       if (n) b.append(el("span", "view-n", String(n)));
-      b.addEventListener("click", () => { view = k; picked.clear(); history.replaceState(null, "", "#" + k); showNote(); load(); });
+      b.addEventListener("click", () => { view = k; picked.clear(); searchAll = ""; showOld = false; history.replaceState(null, "", "#" + k); showNote(); load(); });
       return b;
     }));
   }
@@ -408,6 +408,10 @@
     // where to send it
     const send = el("section", "ob-col");
     send.append(el("h3", null, "Send to"));
+    if (o.forgotten) {
+      // the name, mobile, email and address were removed; the town and state stay for the accounts
+      send.append(el("p", "ob-cancel", `Buyer's details removed ${when(o.forgotten)}. Only the town is kept: ${o.city}, ${o.state}.`));
+    } else {
     const addr = `${o.name}\n${o.address}\n${o.city}, ${o.state} ${o.pincode}\nMobile: ${o.phone}`;
     send.append(el("pre", "ob-addr", addr));
     const acts = el("div", "ob-acts");
@@ -428,6 +432,7 @@
     acts.append(copy, call, wa);
     send.append(acts);
     if (o.email) send.append(el("p", "ob-email", o.email));
+    }
 
     // update it
     const upd = el("form", "ob-col ob-update");
@@ -449,14 +454,15 @@
     const next = {
       open: o.status === "awaiting_payment" ? [["open", "Save"], ["cancelled", "Cancel order"]] : [["shipped", "Mark shipped"], ["open", "Save"], ["cancelled", "Cancel order"]],
       shipped: [["delivered", "Mark delivered"], ["shipped", "Save"], ...(viaShiprocket ? [] : [["returned", "Mark returned"], ["open", "Back to to-ship"]]), ["cancelled", "Cancel order"]],
-      delivered: [["delivered", "Save"], ["open", "Back to to-ship"]],
+      delivered: [["delivered", "Save"], ...(o.forgotten ? [] : [["open", "Back to to-ship"]])],
       returned: [["open", "Send again"], ["returned", "Save"], ["cancelled", "Cancel order"]],
       cancelled: [
         ...(canRefund ? [["refund", `Refund ${rupees(o.total)}`]] : []),
         ["cancelled", "Save"],
-        ...(refunded ? [] : [["open", "Back to to-ship"]])
+        ...(refunded || o.forgotten ? [] : [["open", "Back to to-ship"]])
       ]
     }[current] || [];
+    if (o.forgotten && current === "returned") next.splice(0, 1);
     const btns = el("div", "ob-acts");
     next.forEach(([status, label], i) => {
       // with Shiprocket on, booking is the main way to ship: marking shipped by hand steps back
@@ -467,6 +473,26 @@
       btns.append(b);
     });
     upd.append(btns);
+    // clearing up: an order that never took money can go; a finished one can lose the buyer's details
+    if (o.canDelete || o.canForget) {
+      const tidy = el("div", "ob-acts ob-tidy");
+      const b = button("btn btn-ghost btn-sm btn-danger", o.canDelete ? "Delete order" : "Remove buyer's details");
+      b.addEventListener("click", async () => {
+        const ask = o.canDelete
+          ? `Delete ${o.id} for good? No money was taken for it${o.status === "awaiting_payment" ? " (it is checked with Razorpay first, and kept if it was paid after all)" : ""}. It leaves the monthly export too.`
+          : `Remove the buyer's name, mobile, email and address from ${o.id}? The order, its amounts and the town stay for your accounts. This can't be undone, and the order can't be sent again. Razorpay${o.ship && o.ship.awb ? " and Shiprocket keep" : " keeps"} its own copy of the payment details.`;
+        if (!confirm(ask)) return;
+        b.disabled = true;
+        try {
+          await post("/api/admin/orders", { id: o.id, status: o.canDelete ? "delete" : "forget" });
+          open.delete(o.id);
+          showAlert("");
+          load();
+        } catch (err) { b.disabled = false; showAlert(`Couldn't ${o.canDelete ? "delete" : "clear"} ${o.id}: ${err.message}`); }
+      });
+      tidy.append(b);
+      upd.append(tidy);
+    }
     upd.addEventListener("submit", async (e) => {
       e.preventDefault();
       const status = e.submitter ? e.submitter.value : current;
@@ -622,11 +648,19 @@
     return item;
   }
 
-  async function load() {
+  // what the list shows beyond its tab's newest 300: older pages (more), a search of every order
+  // (searchAll), and in Not paid, the ones older than a week (showOld; unpaidOld counts them)
+  let more = false, unpaidOld = 0, searchAll = "", showOld = false, extended = false;
+  async function load(opts = {}) {
     list.setAttribute("aria-busy", "true");
     try {
       const enquiries = view === "enquiries";
-      const r = await fetch(enquiries ? "/api/admin/enquiries?view=all" : `/api/admin/orders?view=${view}`, { headers: { accept: "application/json" }, cache: "no-store" });
+      const qs = new URLSearchParams({ view });
+      if (searchAll) qs.set("q", searchAll);
+      if (view === "unpaid" && showOld) qs.set("old", "1");
+      if (opts.before) qs.set("before", opts.before);
+      extended = !!opts.before;
+      const r = await fetch(enquiries ? "/api/admin/enquiries?view=all" : `/api/admin/orders?${qs}`, { headers: { accept: "application/json" }, cache: "no-store" });
       const res = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
       if (enquiries) {
@@ -642,7 +676,9 @@
         newEnquiries = res.newEnquiries || 0;
         hintBox.hidden = shiprocket || view !== "open";
         drawTabs(res.counts || {});
-        shown = res.orders;
+        unpaidOld = res.unpaidOld || 0;
+        more = !!res.more;
+        shown = opts.before ? shown.concat(res.orders) : res.orders;
       }
       draw();
     } catch (err) {
@@ -675,13 +711,113 @@
     list.replaceChildren(...list2.map(card));
     drawBulk();
     emptyBox.hidden = list2.length > 0;
-    emptyBox.textContent = q ? "No order matches that here. Try the All tab." : view === "open" ? "Nothing to ship right now." : "No orders here.";
+    emptyBox.textContent = searchAll ? `No order anywhere matches “${searchAll}”.`
+      : q ? "No order matches that in this tab."
+      : view === "open" ? "Nothing to ship right now."
+      : view === "unpaid" ? (showOld ? "No unpaid orders older than 7 days." : "No unpaid orders in the last 7 days.")
+      : "No orders here.";
+    drawFoot(q);
   }
+
+  // under the list: search every order, show older, and in Not paid the ones older than a week
+  const foot = el("div", "list-foot");
+  list.after(foot);
+  function drawFoot(q) {
+    const parts = [];
+    const typed = search.value.trim();
+    if (searchAll) {
+      const back = button("btn btn-ghost btn-sm", "Back to the tab");
+      back.addEventListener("click", () => { searchAll = ""; search.value = ""; load(); });
+      parts.push(el("p", "foot-text", `Every order matching “${searchAll}”, whatever its tab, newest first.`), back);
+    } else if (q && typed.length >= 3) {
+      const all = button("btn btn-ghost btn-sm", `Search all orders for “${typed}”`);
+      all.addEventListener("click", () => { searchAll = typed; load(); });
+      parts.push(all);
+    }
+    if (more && shown.length) {
+      const older = button("btn btn-ghost btn-sm", "Show older orders");
+      older.addEventListener("click", () => { older.disabled = true; load({ before: shown[shown.length - 1].created }); });
+      parts.push(older);
+    }
+    if (view === "unpaid" && !searchAll) {
+      if (!showOld && unpaidOld) {
+        const show = button("btn btn-ghost btn-sm", `Show ${unpaidOld} older`);
+        show.addEventListener("click", () => { showOld = true; load(); });
+        parts.push(el("p", "foot-text", `${unpaidOld} unpaid ${unpaidOld === 1 ? "checkout" : "checkouts"} older than 7 days ${unpaidOld === 1 ? "is" : "are"} tucked away (never paid, nothing to ship).`), show);
+      } else if (showOld) {
+        const back = button("btn btn-ghost btn-sm", "Back to the last 7 days");
+        back.addEventListener("click", () => { showOld = false; load(); });
+        const gone = shown.filter((o) => o.canDelete);
+        if (gone.length) {
+          const del = button("btn btn-ghost btn-sm btn-danger", `Delete these ${gone.length}`);
+          del.addEventListener("click", () => deleteMany(gone, del));
+          parts.push(el("p", "foot-text", "Unpaid checkouts older than 7 days. Each is checked with Razorpay before it is deleted."), del, back);
+        } else parts.push(back);
+      }
+    }
+    foot.replaceChildren(...parts);
+    foot.hidden = !parts.length;
+  }
+  async function deleteMany(orders, btn) {
+    if (!confirm(`Delete ${orders.length} unpaid ${orders.length === 1 ? "order" : "orders"} for good? Each is checked with Razorpay first; one that turns out to be paid is kept.`)) return;
+    btn.disabled = true;
+    busy = true;
+    let done = 0;
+    const kept = [];
+    for (const [i, o] of orders.entries()) {
+      // one at a time, slowly: the flood guard in Cloudflare blocks more than 20 calls in 10 seconds
+      if (i) await new Promise((r) => setTimeout(r, 700));
+      btn.textContent = `Deleting ${i + 1} of ${orders.length}…`;
+      try { await post("/api/admin/orders", { id: o.id, status: "delete" }); done++; } catch (err) { kept.push(o.id); }
+    }
+    busy = false;
+    showNote(el("p", null, `Deleted ${done} unpaid ${done === 1 ? "order" : "orders"}.${kept.length ? ` Kept ${kept.join(", ")} (paid after all, or changed).` : ""}`));
+    load();
+  }
+
+  /* ---------- Monthly export: the figures, and the spreadsheet ---------- */
+  const monthSel = $("#a-month"), exportLink = $("[data-export]"), exportSum = $(".export-sum"), exportBox = $(".admin-export");
+  (function months() {
+    // this month and the eleven before it, India time
+    const nowIst = new Date(Date.now() + 330 * 60e3);
+    let y = nowIst.getUTCFullYear(), m = nowIst.getUTCMonth();
+    for (let i = 0; i < 12; i++) {
+      const value = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const label = new Date(Date.UTC(y, m, 15)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+      monthSel.append(new Option(label, value));
+      if (--m < 0) { m = 11; y--; }
+    }
+  })();
+  async function monthSummary() {
+    const month = monthSel.value;
+    exportLink.href = `/api/admin/export?month=${month}`;
+    exportLink.setAttribute("download", `aashi-orders-${month}.csv`);
+    exportSum.textContent = "Adding up…";
+    try {
+      const r = await fetch(`/api/admin/export?month=${month}&summary=1`, { headers: { accept: "application/json" }, cache: "no-store" });
+      const s = await r.json();
+      if (!r.ok) throw new Error(s.error || `Error ${r.status}`);
+      if (month !== monthSel.value) return;
+      if (!s.orders && !s.unpaid) { exportSum.textContent = "No orders that month."; return; }
+      exportSum.textContent = [
+        `${s.orders} ${s.orders === 1 ? "order" : "orders"}${s.cancelled ? ` (${s.cancelled} cancelled)` : ""}`,
+        `paid online ${rupees(s.online.amount)} (${s.online.n})`,
+        s.refunded.n ? `refunded ${rupees(s.refunded.amount)} (${s.refunded.n})` : "",
+        s.cod.n ? `cash on delivery ${rupees(s.cod.amount)} (${s.cod.n}), collected so far ${rupees(s.codCollected.amount)}` : "",
+        s.unpaid ? `${s.unpaid} never paid` : ""
+      ].filter(Boolean).join(" · ") + ".";
+    } catch (err) { exportSum.textContent = `Couldn't add up the month: ${err.message}`; }
+  }
+  monthSel.addEventListener("change", monthSummary);
+  exportBox.addEventListener("toggle", () => { if (exportBox.open) monthSummary(); });
+  exportLink.href = `/api/admin/export?month=${monthSel.value}`;
+
   search.addEventListener("input", draw);
   $("[data-refresh]").addEventListener("click", () => { showNote(); load(); });
-  // new orders show up by themselves while the page is open (not while you are in the middle of something)
+  // new orders show up by themselves while the page is open (not while you are in the middle of
+  // something, or looking at older orders or a search of every order)
   setInterval(() => {
-    const working = busy || picked.size || document.activeElement.closest(".ob-update, .ob-ship, .eq-update") || list.querySelector(".ship-couriers:not([hidden])");
+    const working = busy || picked.size || extended || searchAll || document.activeElement.closest(".ob-update, .ob-ship, .eq-update") || list.querySelector(".ship-couriers:not([hidden])");
     if (!document.hidden && !working) load();
   }, 60000);
   load();

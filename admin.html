@@ -32,9 +32,21 @@
     <div class="wrap">
       <h1 class="shop-title">Orders.</h1>
       <div class="views" role="tablist" aria-label="Which orders"></div>
-      <div class="admin-search">
-        <label for="a-search" class="sr-only">Find an order</label>
-        <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
+      <div class="admin-tools">
+        <div class="admin-search">
+          <label for="a-search" class="sr-only">Find an order</label>
+          <input id="a-search" type="search" placeholder="Find: order number, name, mobile or town" autocomplete="off" />
+        </div>
+        <!-- a month's orders for the accounts: the figures, and the file (admin.js, /api/admin/export) -->
+        <details class="admin-export">
+          <summary>Monthly export</summary>
+          <div class="export-body">
+            <label for="a-month">Month</label>
+            <select id="a-month"></select>
+            <a class="btn btn-primary btn-sm" data-export download>Download spreadsheet</a>
+            <p class="export-sum" aria-live="polite"></p>
+          </div>
+        </details>
       </div>
       <p class="admin-alert" role="alert" hidden></p>
       <!-- what was just done (a booking, its label), with what to do next -->

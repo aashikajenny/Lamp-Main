@@ -15,6 +15,10 @@ import {
 import { shiprocketReady, cancelAtShiprocket, forgetShipment, trackingUrl, stageOf } from "../../../server/shiprocket.js";
 import { unship, beforePickup, refreshTracking } from "../../../server/shipping.js";
 
+// one page of a tab: the newest PAGE orders; "Show older" asks for the PAGE before a given time
+const PAGE = 300;
+// "Not paid" shows the last week; older abandoned checkouts wait behind "Show older unpaid"
+const UNPAID_DAYS = 7;
 const VIEWS = {
   open: "status IN ('paid', 'cod')",
   unpaid: "status = 'awaiting_payment'",
@@ -44,17 +48,51 @@ async function catchUp(env, db) {
   ]);
 }
 
+// For good, and only where it is safe:
+// - delete: an order where no money ever changed hands (never paid online, or cancelled before any
+//   payment or courier booking). Nothing about it needs keeping.
+// - remove the buyer's details: a finished order (delivered, returned or cancelled) keeps its number,
+//   products, amounts, dates, payment and courier references (the business's sales records, which tax
+//   rules expect kept for years) but loses the name, mobile, email, address and PIN (the privacy policy:
+//   details are deleted once no longer needed). The town and state stay: they are where it was sold to.
+const NO_MONEY = ["awaiting_payment", "cancelled"], FINISHED = ["delivered", "returned", "cancelled"];
+const deletable = (o) => NO_MONEY.includes(o.status) && !o.rzp_payment_id && !o.awb && !o.sr_order_id;
+// (not while a paid, cancelled order's refund isn't through: the buyer may still need contacting)
+const refundDone = (o) => !(o.status === "cancelled" && o.rzp_payment_id && o.refund_status !== "processed");
+const forgettable = (o) => FINISHED.includes(o.status) && !o.forgotten_at && !deletable(o) && refundDone(o);
+
 export async function onRequestGet({ request, env }) {
   try {
     const db = await database(env);
     if (!db) throw new HttpError(503, "The order database isn't connected yet (the DB binding in Cloudflare).");
-    const view = new URL(request.url).searchParams.get("view") || "open";
+    const params = new URL(request.url).searchParams;
+    const view = params.get("view") || "open";
     if (!VIEWS[view]) throw new HttpError(400, "Unknown view.");
-    if (view === "open" || view === "unpaid" || view === "cancelled" || view === "all") await catchUp(env, db);
+    // older than a time already shown ("Show older"), and a search across every order, whatever its tab
+    const before = params.get("before") || "";
+    if (before && !/^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(before)) throw new HttpError(400, "Unknown time.");
+    const q = String(params.get("q") || "").trim().slice(0, 60);
+    const old = params.get("old") === "1";
+    if (!before && !q && (view === "open" || view === "unpaid" || view === "cancelled" || view === "all")) await catchUp(env, db);
     const shiprocket = shiprocketReady(env);
-    if (view === "shipped" && shiprocket) await refreshTracking(env, db);
-    const { results } = await db.prepare(`SELECT * FROM orders WHERE ${VIEWS[view]} ORDER BY created_at DESC LIMIT 300`).all();
+    if (!before && !q && view === "shipped" && shiprocket) await refreshTracking(env, db);
+
+    const weekAgo = new Date(Date.now() - UNPAID_DAYS * 86400e3).toISOString();
+    const where = [], binds = [];
+    if (q) {
+      // order number, name, mobile (+91 or not), town, PIN or tracking number; % and _ match themselves
+      const term = q.replace(/^\+?91(?=\d{10}$)/, "").replace(/[\\%_]/g, (c) => "\\" + c);
+      where.push("(id LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR city LIKE ? ESCAPE '\\' OR pincode LIKE ? ESCAPE '\\' OR awb LIKE ? ESCAPE '\\')");
+      binds.push(...Array(6).fill(`%${term}%`));
+    } else {
+      where.push(VIEWS[view]);
+      if (view === "unpaid") { where.push(old ? "created_at <= ?" : "created_at > ?"); binds.push(weekAgo); }
+    }
+    if (before) { where.push("created_at < ?"); binds.push(before); }
+    const { results } = await db.prepare(`SELECT * FROM orders WHERE ${where.join(" AND ")} ORDER BY created_at DESC LIMIT ${PAGE}`).bind(...binds).all();
     const counts = await db.prepare("SELECT status, COUNT(*) AS n FROM orders GROUP BY status").all();
+    // the Not paid badge counts only the last week; the older ones are counted apart
+    const unpaidOld = (await db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'awaiting_payment' AND created_at <= ?").bind(weekAgo).first()).n;
     const enquiries = await db.prepare("SELECT COUNT(*) AS n FROM enquiries WHERE status = 'new'").first();
     const n = await designNames(env, request);
     const SHOP = globalThis.SHOP;
@@ -73,10 +111,15 @@ export async function onRequestGet({ request, env }) {
         cancellable: o.status === "shipped" && !!o.sr_order_id && beforePickup(o),
         pack: o.package ? JSON.parse(o.package) : null
       } : null,
-      shippedAt: o.shipped_at, deliveredAt: o.delivered_at
+      shippedAt: o.shipped_at, deliveredAt: o.delivered_at, forgotten: o.forgotten_at || null,
+      // what can be done to it for good (see onRequestPost): delete it, or remove the buyer's details
+      canDelete: deletable(o), canForget: forgettable(o)
     }));
+    const countMap = Object.fromEntries(counts.results.map((c) => [c.status, c.n]));
+    if (countMap.awaiting_payment) countMap.awaiting_payment -= unpaidOld;
     return json({
-      orders, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])), newEnquiries: enquiries.n, online: onlineReady(env),
+      orders, more: results.length === PAGE, unpaidOld, searched: q || null,
+      counts: countMap, newEnquiries: enquiries.n, online: onlineReady(env),
       shiprocket, courierRule: ["cheapest", "fastest"].includes(String(env.SHIPROCKET_COURIER || "").toLowerCase()) ? String(env.SHIPROCKET_COURIER).toLowerCase() : "recommended"
     });
   } catch (e) {
@@ -96,7 +139,24 @@ export async function onRequestPost({ request, env }) {
       throw new HttpError(409, "A courier is being booked for this order right now. Wait a minute, then refresh.");
     }
     const want = body.status;
+    if (want === "delete") {
+      // an unpaid online order is checked with Razorpay first: one paid after all is never deleted
+      if (row.status === "awaiting_payment" && (await settle(env, db, row)) !== row.status) row = await reread(db, row.id);
+      if (!deletable(row)) throw new HttpError(409, "Only an order where no money was taken (never paid, or cancelled before paying or booking a courier) can be deleted. For a finished order, remove the buyer's details instead.");
+      const gone = await db.prepare("DELETE FROM orders WHERE id = ? AND status IN ('awaiting_payment', 'cancelled') AND rzp_payment_id IS NULL AND awb IS NULL AND sr_order_id IS NULL")
+        .bind(row.id).run();
+      if (!(gone.meta && gone.meta.changes)) throw new HttpError(409, "This order changed a moment ago. Refresh the list.");
+      return json({ ok: true, deleted: true });
+    }
+    if (want === "forget") {
+      if (!forgettable(row)) throw new HttpError(409, row.forgotten_at ? "The buyer's details were already removed." : "Only a finished order (delivered, returned or cancelled) can have the buyer's details removed.");
+      await db.prepare(`UPDATE orders SET name = '(details removed)', phone = '', email = NULL, address = '', pincode = '', visitor = NULL,
+          forgotten_at = ?, updated_at = ? WHERE id = ? AND status IN ('delivered', 'returned', 'cancelled') AND forgotten_at IS NULL`)
+        .bind(now(), now(), row.id).run();
+      return json({ ok: true, forgotten: true });
+    }
     if (!["open", "shipped", "delivered", "returned", "cancelled", "refund"].includes(want)) throw new HttpError(400, "Unknown status.");
+    if (row.forgotten_at && want === "open") throw new HttpError(409, "The buyer's details were removed from this order, so it can't be sent again. Ask the buyer to order again.");
     const str = (v, max) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "");
     let tracking = str(body.tracking, 300) || null;
     const note = str(body.note, 600) || null;

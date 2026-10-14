@@ -187,12 +187,13 @@ const SCHEMA = [
 // the rest: its Shiprocket booking, server/shipping.js: Shiprocket's order and shipment ids, how many
 // bookings were cancelled before (sr_tries), the courier's tracking number (awb), the courier, the
 // label, Shiprocket's last status for it (ship_code, ship_status, ship_at), the pickup date, when the
-// courier picked it up, the parcel's weight and size, and a lock while a booking is being made)
+// courier picked it up, the parcel's weight and size, and a lock while a booking is being made;
+// forgotten_at: when the buyer's personal details were removed from a finished order, /admin)
 const LATER_COLUMNS = {
   refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT",
   sr_order_id: "TEXT", sr_shipment_id: "TEXT", sr_tries: "INTEGER", awb: "TEXT", courier: "TEXT", label_url: "TEXT",
   ship_code: "INTEGER", ship_status: "TEXT", ship_at: "TEXT", pickup_on: "TEXT", picked_up_at: "TEXT",
-  shipped_at: "TEXT", delivered_at: "TEXT", package: "TEXT", ship_lock: "INTEGER"
+  shipped_at: "TEXT", delivered_at: "TEXT", package: "TEXT", ship_lock: "INTEGER", forgotten_at: "TEXT"
 };
 async function prepare(db) {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));

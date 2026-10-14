@@ -7,10 +7,11 @@ import * as track from "../functions/api/track.js";
 import * as cancel from "../functions/api/cancel.js";
 import { onRequest as middleware } from "../functions/_middleware.js";
 import { isAdminPath, adminGate } from "../server/admin.js";
-import { hmacHex, cleanCustomer } from "../server/orders.js";
+import { hmacHex, cleanCustomer, database } from "../server/orders.js";
 import * as adminShip from "../functions/api/admin/ship.js";
 import * as courierUpdates from "../functions/api/courier-updates.js";
 import * as enquiry from "../functions/api/enquiry.js";
+import * as exportApi from "../functions/api/admin/export.js";
 import * as adminEnquiries from "../functions/api/admin/enquiries.js";
 
 const ORIGIN = location.origin;
@@ -523,6 +524,126 @@ test("an order table from before cancelling existed gets its new columns", async
   eq([r.status, r.body.status, r.body.cancelled.by], [200, "cancelled", "buyer"], "the old order cancels");
   const cols = env.DB.raw.exec("PRAGMA table_info(orders)")[0].values.map((v) => v[1]);
   ok(["refund_id", "refund_status", "refund_amount", "cancelled_by", "cancelled_at"].every((c) => cols.includes(c)), "columns added: " + cols.join(","));
+});
+
+/* ---------- clearing up: delete, remove the buyer's details, older pages, search, export ---------- */
+const adminList = async (env, qs) => (await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?" + qs, { method: "GET" }), env)))).body;
+const adminUpd = (env, body) => adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body }), env)).then(read);
+const ago = (days) => new Date(Date.now() - days * 86400e3).toISOString();
+const backdate = (env, id, days) => env.DB.raw.run("UPDATE orders SET created_at = ? WHERE id = ?", [ago(days), id]);
+
+test("delete: only orders that never took money; one paid after all is kept", async () => {
+  const env = envWith();
+  const place = async (items, payment, ip) => (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order(items, payment), headers: { "cf-connecting-ip": ip } }), env)))).body;
+  const unpaid = await place([LAMP], "online", "198.51.100.21");
+  const paidLate = await place([MINI], "online", "198.51.100.22");
+  const cod = await place([MANTRA], "cod", "198.51.100.23");
+  pay(paidLate.razorpay.order_id); // paid, but the page never heard
+  // the list says which can go
+  env.DB.raw.run("UPDATE orders SET created_at = ? WHERE id = ?", [ago(1), unpaid.order]);
+  const l = await adminList(env, "view=unpaid");
+  eq(l.orders.find((o) => o.id === unpaid.order).canDelete, true, "unpaid can be deleted");
+  eq((await adminUpd(env, { id: cod.order, status: "delete" })).status, 409, "an open COD order can't be deleted");
+  // the late payment: checked with Razorpay at delete time (the list catch-up already marked it; undo that to test delete's own check)
+  env.DB.raw.run("UPDATE orders SET status = 'awaiting_payment', rzp_payment_id = NULL WHERE id = ?", [paidLate.order]);
+  const d1 = await adminUpd(env, { id: paidLate.order, status: "delete" });
+  eq(d1.status, 409, "paid after all: kept");
+  eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(paidLate.order).first()).status, "paid", "and now shows as paid");
+  eq((await adminUpd(env, { id: unpaid.order, status: "delete" })).body, { ok: true, deleted: true }, "unpaid deleted");
+  eq(await env.DB.prepare("SELECT id FROM orders WHERE id = ?").bind(unpaid.order).first(), null, "gone from the database");
+  // a cancelled COD order (no money, no courier) can go; a delivered one can't
+  await adminUpd(env, { id: cod.order, status: "cancelled" });
+  eq((await adminList(env, "view=cancelled")).orders[0].canDelete, true, "cancelled COD can be deleted");
+  eq((await adminUpd(env, { id: cod.order, status: "delete" })).status, 200, "cancelled COD deleted");
+  await adminUpd(env, { id: paidLate.order, status: "shipped", tracking: "AWB9" });
+  await adminUpd(env, { id: paidLate.order, status: "delivered" });
+  eq((await adminUpd(env, { id: paidLate.order, status: "delete" })).status, 409, "delivered can't be deleted");
+  eq((await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id: paidLate.order, status: "delete" }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites can't delete");
+});
+
+test("remove buyer's details: finished orders only, refund through first; can't be sent again", async () => {
+  const env = envWith();
+  const p = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MINI], "online") }), env)))).body;
+  const pid = pay(p.razorpay.order_id);
+  await verify.onRequestPost(ctx(req("/api/verify", { body: { order: p.order, razorpay_order_id: p.razorpay.order_id, razorpay_payment_id: pid, razorpay_signature: await hmacHex(SECRET, `${p.razorpay.order_id}|${pid}`) } }), env));
+  eq((await adminUpd(env, { id: p.order, status: "forget" })).status, 409, "not while still to ship");
+  rzp.failRefunds = true;
+  await adminUpd(env, { id: p.order, status: "cancelled" });
+  eq((await adminList(env, "view=cancelled")).orders[0].canForget, false, "not while the refund failed");
+  eq((await adminUpd(env, { id: p.order, status: "forget" })).status, 409, "refused while the refund failed");
+  rzp.failRefunds = false;
+  await adminUpd(env, { id: p.order, status: "refund" });
+  eq((await adminList(env, "view=cancelled")).orders[0].canForget, true, "refunded: can be cleared");
+  eq((await adminUpd(env, { id: p.order, status: "forget" })).body, { ok: true, forgotten: true }, "cleared");
+  const row = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(p.order).first();
+  eq([row.name, row.phone, row.email, row.address, row.pincode, row.visitor, row.city, row.total, row.rzp_payment_id],
+    ["(details removed)", "", null, "", "", null, "Gurugram", 298, pid], "personal details gone; town, amounts and payment kept");
+  const o = (await adminList(env, "view=cancelled")).orders[0];
+  ok(o.forgotten && !o.canForget && !o.canDelete, "shown as cleared");
+  eq((await adminUpd(env, { id: p.order, status: "forget" })).status, 409, "not twice");
+  eq((await adminUpd(env, { id: p.order, status: "open" })).status, 409, "can't be sent again");
+  const t = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: p.order, phone: "9876543210" } }), env)));
+  eq(t.status, 404, "the old mobile no longer finds it on Track");
+});
+
+test("Not paid shows the last 7 days; older ones counted apart; Show older pages; search everything", async () => {
+  const env = envWith();
+  const ids = [];
+  for (let i = 0; i < 4; i++) {
+    const b = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "online"), headers: { "cf-connecting-ip": `198.51.100.${40 + i}` } }), env)))).body;
+    ids.push(b.order);
+  }
+  backdate(env, ids[0], 10); backdate(env, ids[1], 8); backdate(env, ids[2], 2);
+  const recent = await adminList(env, "view=unpaid");
+  eq(recent.orders.map((o) => o.id).sort(), [ids[2], ids[3]].sort(), "last 7 days only");
+  eq([recent.unpaidOld, recent.counts.awaiting_payment], [2, 2], "older counted apart; the badge counts the week");
+  eq((await adminList(env, "view=unpaid&old=1")).orders.map((o) => o.id), [ids[1], ids[0]], "older ones, newest first");
+  eq((await adminList(env, "view=all")).more, false, "a short list has no more");
+  const before = (await adminList(env, "view=all")).orders[1].created;
+  eq((await adminList(env, `view=all&before=${encodeURIComponent(before)}`)).orders.map((o) => o.id), [ids[1], ids[0]], "older than the one shown");
+  eq((await read(await adminOrders.onRequestGet(ctx(req("/api/admin/orders?view=all&before=1%27%20OR%201=1", { method: "GET" }), env)))).status, 400, "a bad time is refused");
+
+  // search: every tab, mobile with or without +91, % and _ only match themselves
+  const cod = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MANTRA], "cod", { ...CUSTOMER, name: "Ravi Kumar", phone: "9123456780", city: "Jaipur", state: "Rajasthan", pincode: "302001" }), headers: { "cf-connecting-ip": "198.51.100.50" } }), env)))).body;
+  await adminUpd(env, { id: cod.order, status: "shipped", tracking: "x" });
+  env.DB.raw.run("UPDATE orders SET name = ? WHERE id = ?", ["Ravi 50%_off", cod.order]); // (the checkout only takes letters)
+  eq((await adminList(env, "view=open&q=jaipur")).orders.map((o) => o.id), [cod.order], "finds a shipped order from the To ship tab");
+  eq((await adminList(env, "view=open&q=%2B919123456780")).orders.map((o) => o.id), [cod.order], "+91 mobile");
+  eq((await adminList(env, "view=open&q=9123456780")).searched, "9123456780", "says what it searched");
+  eq((await adminList(env, "view=open&q=50%25_")).orders.map((o) => o.id), [cod.order], "a literal 50%_");
+  eq((await adminList(env, "view=open&q=%25")).orders.map((o) => o.id), [cod.order], "% matches only a real %");
+  eq((await adminList(env, "view=open&q=_")).orders.map((o) => o.id), [cod.order], "_ matches only a real _");
+  eq((await adminList(env, `view=open&q=${ids[0]}`)).orders.map((o) => o.id), [ids[0]], "even an old unpaid one, by number");
+});
+
+test("monthly export: the month in India time, cells can't be formulas, cleared buyers stay cleared, the figures", async () => {
+  const env = envWith();
+  const put = (id, created, status, payment, total, extra = "") => env.DB.raw.run(`INSERT INTO orders (id, created_at, updated_at, status, payment, subtotal, delivery, total, items, name, phone, email, address, city, state, pincode, rzp_payment_id, refund_status, refund_amount, forgotten_at)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, '[{"product":"lamp","design":"meditating-shiv-ji","qty":2,"price":199}]', ?, '9876543210', NULL, '1 Road', 'Delhi', 'Delhi', '110001', ?, ?, ?, ?)`,
+    [id, created, created, status, payment, total, total, extra.name || "Asha", extra.pid || null, extra.refund || null, extra.refundAmount || null, extra.forgotten || null]);
+  await database(env); // the table
+  put("AE-SEP30A", "2026-09-30T18:29:00.000Z", "delivered", "cod", 398);             // 30 Sep 23:59 IST: September
+  put("AE-OCT01A", "2026-09-30T18:31:00.000Z", "paid", "online", 398, { pid: "pay_A", name: "=HYPERLINK(\"x\")" }); // 1 Oct 00:01 IST
+  put("AE-OCT02B", "2026-10-02T10:00:00.000Z", "cancelled", "online", 398, { pid: "pay_B", refund: "processed", refundAmount: 398 });
+  put("AE-OCT03C", "2026-10-03T10:00:00.000Z", "delivered", "cod", 398, { forgotten: "2026-10-10T00:00:00.000Z", name: "(details removed)" });
+  put("AE-OCT04D", "2026-10-04T10:00:00.000Z", "awaiting_payment", "online", 398);
+  put("AE-NOV01A", "2026-10-31T18:30:00.000Z", "cod", "cod", 398);                   // 1 Nov 00:00 IST: November
+  const get = (qs) => exportApi.onRequestGet(ctx(req("/api/admin/export?" + qs, { method: "GET" }), env));
+  const r = await get("month=2026-10");
+  eq([r.status, r.headers.get("content-type"), r.headers.get("content-disposition")], [200, "text/csv; charset=utf-8", 'attachment; filename="aashi-orders-2026-10.csv"'], "a CSV file");
+  const csv = await r.text();
+  const lines = csv.replace(/^﻿/, "").trim().split("\r\n");
+  eq(lines.length, 5, "header + the four October orders");
+  eq(lines.slice(1).map((l) => l.split(",")[1]), ["AE-OCT01A", "AE-OCT02B", "AE-OCT03C", "AE-OCT04D"], "only October, India time, oldest first");
+  ok(lines[1].startsWith("2026-10-01 00:01,"), "times in India time: " + lines[1].slice(0, 20));
+  ok(lines[1].includes(`"'=HYPERLINK(""x"")"`), "a formula is written as text: " + lines[1]);
+  ok(lines[1].includes("Night Lamp") && lines[1].includes("x 2"), "what was bought");
+  ok(lines[3].includes("(details removed)") && !lines[3].includes("110001"), "a cleared buyer stays cleared");
+  const s = await read(await get("month=2026-10&summary=1"));
+  eq(s.body, { month: "2026-10", orders: 3, unpaid: 1, cancelled: 1, online: { n: 2, amount: 796 }, cod: { n: 1, amount: 398 }, codCollected: { n: 1, amount: 398 }, refunded: { n: 1, amount: 398 } }, "the figures");
+  eq((await read(await get("month=2026-13"))).status, 400, "a month that isn't");
+  eq((await read(await get("month=2026-10%27"))).status, 400, "nothing else");
+  ok(isAdminPath("/api/admin/export"), "behind the /admin password");
 });
 
 /* ---------- shipping with Shiprocket ---------- */
