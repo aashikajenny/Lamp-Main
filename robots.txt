@@ -1,4 +1,8 @@
+# Search engines and AI assistants are all welcome to read the whole site, and to show it in search
+# results and use it in their answers (Content-Signal: search, ai-input; see contentsignals.org).
+# For AI assistants: /llms.txt describes the shop, /.well-known/ai-catalog.json says how to shop here.
 User-agent: *
+Content-Signal: search=yes, ai-input=yes
 Allow: /
 
 Sitemap: https://aashienterprises.store/sitemap.xml

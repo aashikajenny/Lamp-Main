@@ -12,9 +12,10 @@
 // reads <folder>/index.html and the project's script.js, and writes the three pages beside that
 // index.html. build.sh runs it on dist/; run it on the project folder ("node tools/product-pages.mjs .")
 // to preview them locally (git ignores the pages made there). The site's address comes from the
-// canonical link in index.html.
+// canonical link in index.html. Built into dist/, the home page also gains its FAQ in what Google reads
+// (the project's own index.html is left as it is).
 import { readFileSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = process.argv[2] || ".";
@@ -36,6 +37,43 @@ function swap(html, pattern, to, what) {
   const n = (html.match(new RegExp(pattern.source, "g")) || []).length;
   if (n !== 1) throw new Error(`product-pages: expected one ${what} in index.html, found ${n}`);
   return html.replace(pattern, to);
+}
+
+// The questions and answers in the FAQ that a product's page shows (each <details> in index.html,
+// for every product or for those in its data-for), as plain text, for search engines and AI
+// assistants to read as questions and answers. (An answer that names the product on show through a
+// <span data-p> is left out: its words change with the product.)
+const unhtml = (s) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const QA = [...src.matchAll(/<details class="reveal"(?: data-for="([^"]*)")?>\s*<summary>([\s\S]*?)<\/summary>\s*<p>([\s\S]*?)<\/p>\s*<\/details>/g)]
+  .map(([, forWhich, q, a]) => ({ for: forWhich ? forWhich.split(" ") : null, q: unhtml(q), a, text: unhtml(a) }));
+if (QA.length < 8) throw new Error(`product-pages: expected the FAQ in index.html, found ${QA.length} questions`);
+const faq = (id) => ({
+  "@type": "FAQPage",
+  "mainEntity": QA.filter((x) => (!x.for || x.for.includes(id)) && !x.a.includes("data-p"))
+    .map((x) => ({ "@type": "Question", "name": x.q, "acceptedAnswer": { "@type": "Answer", "text": x.text } }))
+});
+// delivery, as the shipping policy and the FAQ give it: across India, leaving us in 1 to 3 working
+// days and arriving 3 to 7 working days after that; the charge from shop.js (free from freeFrom)
+const shipping = (price) => ({
+  "@type": "OfferShippingDetails",
+  "shippingRate": { "@type": "MonetaryAmount", "value": price >= SHOP.delivery.freeFrom ? 0 : SHOP.delivery.fee, "currency": "INR" },
+  "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "IN" },
+  "deliveryTime": {
+    "@type": "ShippingDeliveryTime",
+    "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 3, "unitCode": "DAY" },
+    "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 7, "unitCode": "DAY" }
+  }
+});
+
+// the home page: its own description of the business, plus the FAQ it opens with (the best seller's)
+if (resolve(dir) !== resolve(dirname(fileURLToPath(import.meta.url)), "..")) {
+  const home = src.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  if (!home) throw new Error("product-pages: expected a schema.org block in index.html");
+  const ld = JSON.parse(home[1]);
+  ld["@graph"] = ld["@graph"].filter((n) => n["@type"] !== "FAQPage").concat(faq("mantra"));
+  writeFileSync(join(dir, "index.html"), src.replace(home[0],
+    `<script type="application/ld+json">\n  ${JSON.stringify(ld, null, 2).replace(/\n/g, "\n  ")}\n  </script>`));
 }
 
 for (const [id, p] of Object.entries(PAGES)) {
@@ -66,14 +104,19 @@ for (const [id, p] of Object.entries(PAGES)) {
         "brand": { "@type": "Brand", "name": "Aashi Enterprises" }, "manufacturer": { "@id": `${SITE}/#org` },
         "image": photo, "url": url,
         // the price the page shows, which the shop charges (shop.js), sold on this site
-        "offers": { "@type": "Offer", "price": price, "priceCurrency": "INR", "availability": "https://schema.org/InStock", "url": url, "seller": { "@id": `${SITE}/#org` } }
+        "offers": {
+          "@type": "Offer", "price": price, "priceCurrency": "INR", "availability": "https://schema.org/InStock",
+          "itemCondition": "https://schema.org/NewCondition", "url": url, "seller": { "@id": `${SITE}/#org` },
+          "shippingDetails": shipping(price)
+        }
       },
       {
         "@type": "BreadcrumbList", "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "Aashi Enterprises", "item": `${SITE}/` },
           { "@type": "ListItem", "position": 2, "name": p.name, "item": url }
         ]
-      }
+      },
+      faq(id)
     ]
   };
   html = swap(html, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,

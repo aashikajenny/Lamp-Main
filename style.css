@@ -162,7 +162,7 @@ main, .footer { position: relative; z-index: 3; }
   pointer-events: none;
 }
 .model-slot.is-flat { display: flex; align-items: center; justify-content: center; }
-.model-slot.is-flat img { width: min(60%, 260px); border-radius: 18px; border: 10px solid #fbf6f1; box-shadow: 0 30px 70px -24px var(--shade); }
+.model-slot.is-flat img { width: min(60%, 260px); height: auto; border-radius: 18px; border: 10px solid #fbf6f1; box-shadow: 0 30px 70px -24px var(--shade); }
 /* copy that sits beside a product stays above the edge of its glow */
 .hero-copy, .show-captions, .show-bar, .order-copy { position: relative; z-index: 1; }
 
@@ -309,6 +309,17 @@ html[data-product="lamp"] .nav-swap > a:not([data-for~="lamp"]) { visibility: hi
 }
 .hero-title .line { display: block; overflow: hidden; padding-bottom: 0.08em; white-space: nowrap; }
 .hero-title .line > span { display: inline-block; transform-origin: 0 100%; }
+/* the entrance: the headline's lines rise into the light, then the rest lifts in after them. It is
+   CSS, so it starts with the page's first view; as a script it waited for the scripts to download,
+   and on a slow connection the text showed, vanished, then came back */
+.hero-title .line > span { animation: hero-rise 1.2s var(--ease) 0.1s both; }
+.hero-title .line + .line > span { animation-delay: 0.24s; }
+@keyframes hero-rise { from { transform: translateY(105%) rotate(2deg); opacity: 0; } }
+.hero-sub, .hero-points, .hero-ctas, .hero-more { animation: hero-lift 0.9s var(--ease) both; }
+.hero-points { animation-delay: 0.55s; }
+.hero-ctas { animation-delay: 0.65s; }
+.hero-more { animation-delay: 0.75s; }
+@keyframes hero-lift { from { opacity: 0; transform: translateY(22px); } }
 /* the claim is the headline; the product's full name sits beneath it as its nameplate, in rose */
 .hero-title .line:last-child { font-size: clamp(22px, 2.3vw, 38px); letter-spacing: -0.005em; margin-top: 0.35em; }
 .hero-sub { font-size: clamp(17px, 1.35vw, 19px); color: var(--muted); max-width: 36ch; margin-bottom: 30px; }

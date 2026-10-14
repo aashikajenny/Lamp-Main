@@ -30,4 +30,9 @@ cp images/brand/petal-*.svg images/brand/logo-mark.svg images/brand/favicon.svg 
 if [ -d audio ]; then cp -r audio dist/; fi
 # each product's own page, made from index.html: /mantra-box, /mini-chanting-box, /night-lamp
 node tools/product-pages.mjs dist
+# what AI assistants read: llms.txt, the AI catalog and the shopping skill in .well-known/ (tools/agents.mjs)
+node tools/agents.mjs dist
+# the icons inside the main stylesheet, the stylesheets and scripts minified, and every file named with
+# its fingerprint so browsers can keep it for a year (tools/assets.mjs; _headers)
+node tools/assets.mjs dist
 echo "Built dist/: $(find dist -type f | wc -l) files"
