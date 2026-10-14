@@ -18,6 +18,8 @@ cp contact.html shipping-policy.html refund-policy.html terms.html privacy-polic
 # (each function run counts against the daily allowance; a flood of requests for files can't use it up)
 cp _routes.json dist/
 cp -r images/designs images/rooms dist/images/
+# the hero's still: the picture of the 3D box that stands in while the 3D loads (tools/hero-still.html)
+cp -r images/hero dist/images/
 # link previews (WhatsApp, Facebook...) and the product photos Google is given
 cp -r images/share dist/images/
 # the fonts and icons (cut down to the ones the site uses: tools/icons.py), with their licences

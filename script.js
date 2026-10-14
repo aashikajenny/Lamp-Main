@@ -142,8 +142,16 @@
     { at: 860, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.3, sound: 0.7, burst: true },
     { at: 1500, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.92, sound: 1 }
   ];
+  // The best seller in the hero: its pose, and the pose it holds as it takes over from the still that
+  // stands in for it while the 3D loads (no sway yet, the sound off, the dial low). The still
+  // (images/hero/) is a picture of the 3D box in exactly that pose, made by tools/hero-still.html,
+  // which reads both from here: keep them JSON, and remake the still after changing them.
+  const HERO = /* hero */ {
+    "pose": { "rx": -0.06, "ry": -0.32, "glow": 1, "sway": 0.42, "on": 1, "sound": 0.7, "knob": 0.7 },
+    "still": { "sway": 0, "sound": 0, "knob": 0.1, "move": 0 }
+  } /* /hero */;
   const P = {
-    hero: { rx: -0.06, ry: -0.32, glow: 1, sway: 0.42, on: 1, sound: 0.7, knob: 0.7 },
+    hero: HERO.pose,
     order: { s: 1.05, rx: -0.04, ry: 0.15, glow: 1, sway: 0.2, on: 1, sound: 0.35 },
     // each feature is a list of poses: the first at once, the rest `at` ms later.
     // burst: the background sends out a ripple too
@@ -189,7 +197,8 @@
   function makeView(name, kinds, opts = {}) {
     const slot = $(`.model-slot[data-slot="${name}"]`);
     const canvas = document.createElement("canvas");
-    slot.appendChild(canvas);
+    // (in the slot, or in its [data-canvas] layer: the hero's, which it shares with its still)
+    (slot.querySelector("[data-canvas]") || slot).appendChild(canvas);
     const view = Models.create(canvas, Object.assign({ kinds }, opts));
     if (!view) {
       canvas.remove();
@@ -742,28 +751,30 @@
   }, { margin: "60% 0px 60% 0px" });
 
   /* ---------- Start: the best seller switches on; the others follow when the page is idle ---------- */
-  // The still in the hero (the box in its default design) shows from the first moment. The 3D box is
-  // made straight after the page has first shown (making it takes a moment, which would otherwise
-  // hold back that first view), and fades in over the still once it has drawn wearing its artwork.
+  // The still in the hero shows from the first moment: a picture of the 3D box in its default design,
+  // in the pose it holds as it takes over (HERO.still), placed exactly where the 3D draws it
+  // (style.css). The 3D box is made straight after the page has first shown (making it takes a
+  // moment, which would otherwise hold back that first view) and holds that same pose, out of sight.
+  // Once it is drawn wearing its artwork, in that artwork's light, it fades in over the still, the two
+  // adding up exactly (so nothing changes: the still might never have been there), and then it comes
+  // alive: the sway grows, the dial turns up and the rings of sound begin.
   // Without 3D (no WebGL, or no graphics card to draw it with), the still stays.
   const heroSpace = $(".hero-space");
-  const heroLive = () => heroSpace.classList.add("is-live");
+  const frames = (n) => new Promise((res) => { const step = () => (n-- > 0 ? requestAnimationFrame(step) : res()); step(); });
   function makeHero() {
     const heroView = makeView("hero", ["mantra"], { poster: true });
     if (!heroView) return;
-    // (the 3D box only draws once its shaders have compiled, so wait for that too)
-    Promise.all([heroView.drawn, Art.ready.then(() => Art.file(designFor("mantra")))])
-      .then(() => requestAnimationFrame(() => requestAnimationFrame(heroLive)), heroLive);
-    setTimeout(heroLive, 8000); // whatever happens, never leave the still in front for long
-    heroView.setPose(P.hero);
+    const id = designFor("mantra");
+    heroView.setPose(Object.assign({}, P.hero, HERO.still));
     heroView.snap();
-    if (!reduceMotion) {
-      heroView.setPose(Object.assign({}, P.hero, { on: 0, sound: 0, knob: 0.1 }));
-      heroView.snap();
-      heroView.power = 0;
-      animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.3, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
-      setTimeout(() => heroView.setPose(P.hero), 900);
-    }
+    // (it only draws once its shaders have compiled; the artwork's picture and its light come apart)
+    Promise.all([heroView.drawn, Art.ready.then(() => Promise.all([Art.file(id), Art.light(id)]))])
+      .then(() => { heroView.settle(); return frames(3); })
+      .then(() => {
+        heroSpace.classList.add("is-live");
+        // the crossing takes 0.6 s (style.css); then the 3D alone, coming alive
+        setTimeout(() => { heroSpace.classList.add("is-done"); heroView.setPose(P.hero); }, reduceMotion ? 0 : 650);
+      });
   }
   Field.level = 1;
   // the rest of the 3D is made while the visitor reads the hero, one step per idle moment, so no

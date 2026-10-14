@@ -11,18 +11,20 @@
          setKind(k, flip)    "mantra" | "mini" | "lamp"; with flip, it turns once and changes while edge-on
          setArt(id, flip)    show a design (see designs.js) on its front, the same way
          setPose(p)          ease toward {s, rx, ry, x, y, z, orbit, ringX, ringZ, glow, room, spin, sway,
-                             on, knob, sound, press}
+                             on, knob, sound, press, move}
                              s: size (1 fills about half the canvas height); x, y: offset in half-canvas
                              widths/heights; orbit: angle on the picker's turning stage (ringX, ringZ: its size);
                              room: studio light (0..1); spin: a steady turn in rad/s; sway: a slow side-to-side
                              turn; on: the sound playing; knob: the volume dial (0..1);
-                             sound: rings of sound from the speaker (0..1); press: the red mantra button pressed in
+                             sound: rings of sound from the speaker (0..1); press: the red mantra button pressed in;
+                             move: how much it moves of its own accord (0: holds still, as in a picture; 1, the default)
          snap()              jump straight to the current pose
          power               0..1 multiplier on the light
          art, kind           what it shows now
        focus               index of the unit the page's light follows
        drawn               a promise, resolved the first time the viewer has drawn
        warm()              compile its shaders ahead, in the background (done for you on changes)
+       settle()            take the light of the artwork in focus at once, on the next frame
        (a one-product viewer also has its unit's methods itself)
      focusPoint()        [x, y, design id, kind] of the on-screen product nearest the middle of the screen */
 (function () {
@@ -807,8 +809,10 @@
   const page = { x: window.scrollX, y: window.scrollY };
   window.addEventListener("scroll", () => { page.x = window.scrollX; page.y = window.scrollY; }, { passive: true });
   let failed = false, listed = false; // listed: the design list has loaded
-  const DEFAULTS = { s: 1, x: 0, y: 0, z: 0, orbit: 0, ringX: 0, ringZ: 0, room: 1, spin: 0, sway: 0, on: 1, knob: 0.6, sound: 0, press: 0 };
-  const RATE = { s: 3.2, x: 2.6, y: 2.6, z: 2.6, orbit: 2.8, ringX: 3, ringZ: 3, rx: 3, ry: 2.6, glow: 2.2, room: 2.2, spin: 1.6, sway: 1.6, on: 6, knob: 2.4, sound: 2, press: 14 };
+  // move: how much it moves of its own accord (sway, bob, the glint's sweep, following the pointer).
+  // At 0 it holds perfectly still, as a picture of it would (the hero's still: see script.js)
+  const DEFAULTS = { s: 1, x: 0, y: 0, z: 0, orbit: 0, ringX: 0, ringZ: 0, room: 1, spin: 0, sway: 0, on: 1, knob: 0.6, sound: 0, press: 0, move: 1 };
+  const RATE = { s: 3.2, x: 2.6, y: 2.6, z: 2.6, orbit: 2.8, ringX: 3, ringZ: 3, rx: 3, ry: 2.6, glow: 2.2, room: 2.2, spin: 1.6, sway: 1.6, on: 6, knob: 2.4, sound: 2, press: 14, move: 0.8 };
   const warmWhite = new THREE.Color(0xfff0d8);
 
   function makeUnit(viewer, index) {
@@ -837,6 +841,7 @@
     let model = null, kind = null, wantKind = "lamp";
     let turn = 0, shownArt = null, wantArt = null, flipFrom = null;
     const phase = index * 1.7; // so products on one stage don't bob in step
+    let glintT = 1.1; // the glint's own clock, which only runs while it moves (starting just after a sweep)
 
     function build(k) {
       if (model) spin.remove(model.group);
@@ -919,7 +924,7 @@
         const calm = reduceMotion || viewer.still;
         const ease = calm ? 1 : null;
         for (const p in target) cur[p] += (target[p] - cur[p]) * (ease || 1 - Math.exp(-dt * RATE[p]));
-        const motion = calm ? 0 : 1;
+        const motion = calm ? 0 : Math.max(0, Math.min(1, cur.move));
         // and has no halo or shadow on a page: the picture is the product alone, so it sits cleanly
         // on the cream page and on the rose panel alike
         halo.visible = shadow.visible = !viewer.still;
@@ -973,7 +978,8 @@
           // the glint on the Mantra Box's glass: a quick sweep every few seconds, nudged by the turn
           // of the box, as light catches real glass
           if (model.glint) {
-            const p = calm ? 1 : ((t + phase) % 5.5) / 5.5;
+            glintT += dt * motion;
+            const p = calm ? 1 : ((glintT + phase) % 5.5) / 5.5;
             const k = Math.min(1, p / 0.18), sweep = 1 - Math.pow(1 - k, 3);
             model.glint.offset.x = 0.9 - 1.8 * sweep + Math.sin(ry) * 0.18;
           }
@@ -1138,7 +1144,7 @@
     // a product or design brings new ones), one at a time (see queueShader), not on the frame its
     // section first scrolls into view, which used to freeze the page for a moment right then. The
     // viewer only draws once all of its own are done; until then its canvas keeps its last frame.
-    let pending = true, warmTimer = 0, drawn = false, onDrawn;
+    let pending = true, warmTimer = 0, drawn = false, onDrawn, settleLight = false;
     let sized = false, sizeTimer = 0, pw = 1, ph = 1; // pw x ph: the drawing size it wants
     const firstDraw = new Promise((res) => { onDrawn = res; });
     function compiled() {
@@ -1208,6 +1214,8 @@
       quality(level) { ratio = ratioFor(level); viewer.resize(canvas.clientWidth, canvas.clientHeight, true); },
       // compile the scene's shaders soon (once, however many changes ask for it in a row)
       warm() { if (!warmTimer) warmTimer = setTimeout(compileAll, 0); },
+      // the next frame takes the light of the artwork in focus at once, instead of easing to it
+      settle() { settleLight = true; wake(); },
       // resolves the first time the viewer has actually drawn its product
       drawn: firstDraw,
       // build each product once out of sight and compile its shaders now, so changing product later
@@ -1230,7 +1238,8 @@
         const room = Math.max(ROOM_MIN, Math.min(1, f ? f.room() : 1));
         hemi.intensity = 0.35 * room; key.intensity = KEY * room;
         rim.intensity = 1.3 * (0.25 + 0.75 * room); fill.intensity = 0.25 * room;
-        const k = reduceMotion || viewer.still ? 1 : 1 - Math.exp(-dt * 2.5);
+        const k = reduceMotion || viewer.still || settleLight ? 1 : 1 - Math.exp(-dt * 2.5);
+        settleLight = false;
         rim.color.lerp(rimTo, k); fill.color.lerp(fillTo, k);
         viewer.units.forEach((u) => u.frame(dt, t, room));
         if (warmTimer) { clearTimeout(warmTimer); compileAll(); }

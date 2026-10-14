@@ -123,15 +123,20 @@ for (const p of pages) {
   if (next !== html) writeFileSync(at(p), next);
 }
 
-// any file of the site still named without a fingerprint would be kept a year unchanged: say so
-const missed = [];
+// any file of the site still named without a fingerprint would be kept a year unchanged, and one the
+// pages name that isn't in the published site would be missing from it: say so, and stop the build
+const missed = [], missing = [];
 for (const p of pages) {
-  for (const [, , v] of read(p).matchAll(/\b(href|src|data-src)="([^"]+)"/g)) {
-    if (target(v, "")) missed.push(`${p}: ${v}`);
+  for (const [, , value] of read(p).matchAll(/\b(href|src|data-src|srcset)="([^"]+)"/g)) {
+    for (const part of value.split(",")) {
+      const v = part.trim().split(/\s+/)[0];
+      const file = v.split("?")[0].replace(/^\//, "");
+      if (target(v, "")) missed.push(`${p}: ${v}`);
+      else if (!/^([a-z]+:|\/\/|#)/i.test(v) && ASSET.test(file) && !existsSync(at(file))) missing.push(`${p}: ${v}`);
+    }
   }
 }
-if (missed.length) {
-  console.error("Named without a fingerprint:\n  " + missed.join("\n  "));
-  process.exit(1);
-}
+if (missed.length) console.error("Named without a fingerprint:\n  " + missed.join("\n  "));
+if (missing.length) console.error("Not in the published site:\n  " + missing.join("\n  "));
+if (missed.length || missing.length) process.exit(1);
 console.log(`Fingerprinted ${hashes.size} files`);
