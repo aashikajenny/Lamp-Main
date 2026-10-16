@@ -28,13 +28,20 @@ export class ShiprocketError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
-// requests made together share one log-in (Shiprocket may refuse several at once)
+// requests made together share one log-in (Shiprocket may refuse several at once); a refused
+// email and password aren't tried again for 10 minutes (repeated wrong tries can lock the user)
 let loggingIn = null; // { email, promise }
+let refusedLogin = null; // { key, at, error }
+const RETRY_MS = 10 * 60e3;
 function login(env) {
   const email = (env.SHIPROCKET_EMAIL || "").trim();
   if (cached && cached.email === email && Date.now() - cached.at < TOKEN_MS) return Promise.resolve(cached.token);
+  const key = `${email}|${env.SHIPROCKET_PASSWORD || ""}`;
+  if (refusedLogin && refusedLogin.key === key && Date.now() - refusedLogin.at < RETRY_MS) return Promise.reject(refusedLogin.error);
   if (loggingIn && loggingIn.email === email) return loggingIn.promise;
-  const promise = logIn(env, email).finally(() => { if (loggingIn && loggingIn.promise === promise) loggingIn = null; });
+  const promise = logIn(env, email)
+    .then((token) => { refusedLogin = null; return token; }, (e) => { if (e.status === 0) refusedLogin = { key, at: Date.now(), error: e }; throw e; })
+    .finally(() => { if (loggingIn && loggingIn.promise === promise) loggingIn = null; });
   loggingIn = { email, promise };
   return promise;
 }

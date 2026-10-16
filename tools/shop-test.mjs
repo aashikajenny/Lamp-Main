@@ -732,6 +732,10 @@ test("Shiprocket: the connection check; a token that ran out is renewed once; pi
   eq([good.connected, good.pickupAddresses[0].name, good.wallet], [true, "work", "1000"], "connected");
   const bad = await check({ ...env, SHIPROCKET_EMAIL: "other@aashi.test", SHIPROCKET_PASSWORD: "nope" });
   eq([bad.connected, /didn't accept the email or password \(403/.test(bad.problem)], [false, true], "wrong password explained");
+  const tries = () => srCalls("/auth/login").length;
+  const tried = tries();
+  eq((await check({ ...env, SHIPROCKET_EMAIL: "other@aashi.test", SHIPROCKET_PASSWORD: "nope" })).connected, false, "still wrong");
+  eq(tries(), tried, "a refused password isn't tried again straight away");
   eq((await check({ ...env, SHIPROCKET_PASSWORD: "" })).connected, false, "not set");
   await check(env); // a fresh token
   const before = sr.logins;
