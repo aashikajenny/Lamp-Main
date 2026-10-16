@@ -15,7 +15,7 @@
 // Safe to press twice: each step that worked is saved on the order (the Shiprocket order, then the
 // AWB), so pressing again carries on from where it stopped and never makes a second shipment, and an
 // order being sent can't be sent again at the same moment.
-import { HttpError, now } from "./orders.js";
+import { HttpError, now, database } from "./orders.js";
 
 const API = "https://apiv2.shiprocket.in/v1/external";
 const TOKEN_MS = 9 * 86400e3; // Shiprocket's token lasts 10 days
@@ -30,20 +30,58 @@ export class ShiprocketError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
-// requests made together share one log-in (Shiprocket may refuse several at once); a refused
-// email and password aren't tried again for 10 minutes (repeated wrong tries can lock the user)
+/* Logging in, carefully: Shiprocket blocks an API user after too many wrong passwords. Requests made
+   together share one log-in; and once Shiprocket refuses an email and password, they aren't tried
+   again for 10 minutes (an hour if Shiprocket says the user is blocked), by any server instance:
+   the refusal is noted in the database (as a fingerprint of the email and password, never the
+   password itself), so a new password is tried at once but a wrong one isn't tried over and over. */
 let loggingIn = null; // { email, promise }
-let refusedLogin = null; // { key, at, error }
-const RETRY_MS = 10 * 60e3;
+let refusedLogin = null; // { key, at, wait, error }
+const waitAfter = (says) => (/block/i.test(says || "") ? 60 : 10) * 60e3;
+const enc = new TextEncoder();
+const fingerprint = async (s) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
+const refusal = (status, says) => Object.assign(
+  new ShiprocketError(`Shiprocket didn't accept the email or password (${status}${says ? ": " + says : ""}).`, 0),
+  { loginStatus: status, loginSays: String(says || "").slice(0, 80) }
+);
+async function sharedRefusal(env, key) {
+  const db = await database(env).catch(() => null);
+  if (!db) return null;
+  const row = await db.prepare("SELECT v, at FROM notes WHERE k = 'shiprocket_login_refused'").first().catch(() => null);
+  if (!row) return null;
+  const v = JSON.parse(row.v);
+  return v.key === key && Date.now() - row.at < waitAfter(v.says) ? { ...v, at: row.at } : null;
+}
+async function noteRefusal(env, key, e) {
+  const db = await database(env).catch(() => null);
+  if (db) await db.prepare("INSERT OR REPLACE INTO notes (k, v, at) VALUES ('shiprocket_login_refused', ?, ?)")
+    .bind(JSON.stringify({ key, status: e.loginStatus, says: e.loginSays }), Date.now()).run().catch(() => {});
+}
 function login(env) {
   const email = (env.SHIPROCKET_EMAIL || "").trim();
   if (cached && cached.email === email && Date.now() - cached.at < TOKEN_MS) return Promise.resolve(cached.token);
-  const key = `${email}|${password(env)}`;
-  if (refusedLogin && refusedLogin.key === key && Date.now() - refusedLogin.at < RETRY_MS) return Promise.reject(refusedLogin.error);
   if (loggingIn && loggingIn.email === email) return loggingIn.promise;
-  const promise = logIn(env, email)
-    .then((token) => { refusedLogin = null; return token; }, (e) => { if (e.status === 0) refusedLogin = { key, at: Date.now(), error: e }; throw e; })
-    .finally(() => { if (loggingIn && loggingIn.promise === promise) loggingIn = null; });
+  const promise = (async () => {
+    const key = await fingerprint(`${email}|${password(env)}`);
+    if (refusedLogin && refusedLogin.key === key && Date.now() - refusedLogin.at < refusedLogin.wait) throw refusedLogin.error;
+    const shared = await sharedRefusal(env, key);
+    if (shared) {
+      const error = refusal(shared.status, shared.says);
+      refusedLogin = { key, at: shared.at, wait: waitAfter(shared.says), error };
+      throw error;
+    }
+    try {
+      const token = await logIn(env, email);
+      refusedLogin = null;
+      return token;
+    } catch (e) {
+      if (e.status === 0) {
+        refusedLogin = { key, at: Date.now(), wait: waitAfter(e.loginSays), error: e };
+        await noteRefusal(env, key, e);
+      }
+      throw e;
+    }
+  })().finally(() => { if (loggingIn && loggingIn.promise === promise) loggingIn = null; });
   loggingIn = { email, promise };
   return promise;
 }
@@ -56,7 +94,7 @@ async function logIn(env, email) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.token) {
     cached = null;
-    throw Object.assign(new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0), { loginStatus: res.status, loginSays: String(data.message || "").slice(0, 80) });
+    throw refusal(res.status, data.message);
   }
   cached = { token: data.token, email, at: Date.now() };
   return data.token;

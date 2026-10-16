@@ -175,6 +175,8 @@ const SCHEMA = [
   // slow down anyone asking about PIN code after PIN code
   "CREATE TABLE IF NOT EXISTS pincodes (pin TEXT PRIMARY KEY, info TEXT NOT NULL, at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS pin_checks (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
+  // small notes every server instance shares (server/shiprocket.js: a log-in Shiprocket refused)
+  "CREATE TABLE IF NOT EXISTS notes (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)",
   "CREATE INDEX IF NOT EXISTS pin_checks_by_visitor ON pin_checks (visitor, at)"
 ];
 // columns added after the first orders were taken: added to an existing table on first use

@@ -736,6 +736,9 @@ test("Shiprocket: the connection check; a token that ran out is renewed once; pi
   const tried = tries();
   eq((await check({ ...env, SHIPROCKET_EMAIL: "other@aashi.test", SHIPROCKET_PASSWORD: "nope" })).connected, false, "still wrong");
   eq(tries(), tried, "a refused password isn't tried again straight away");
+  // not by another server instance either (it has its own memory, but the same database)
+  const note = await env.DB.prepare("SELECT v FROM notes WHERE k = 'shiprocket_login_refused'").first();
+  ok(note && !note.v.includes("nope"), "the refusal is noted, without the password: " + (note && note.v));
   eq((await check({ ...env, SHIPROCKET_PASSWORD: "" })).connected, false, "not set");
   await check(env); // a fresh token
   const before = sr.logins;
