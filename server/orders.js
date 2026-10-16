@@ -11,6 +11,7 @@
 //   ADMIN_PASSWORD           the password for /admin, the order list (12 characters or more).
 //   ADMIN_USER               optional: the user name for /admin (aashi if not set).
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   optional: a Telegram message for every new order.
+//   SHIPROCKET_*             shipping through Shiprocket: see server/shiprocket.js.
 // Binding (Settings > Bindings): DB, a D1 database. It holds the orders; cash on delivery and /admin
 // need it. Its tables are made on first use.
 import "../shop.js";
@@ -168,8 +169,13 @@ const SCHEMA = [
   "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)"
 ];
 // columns added after the first orders were taken: added to an existing table on first use
-// (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop")
-const LATER_COLUMNS = { refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT" };
+// (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop";
+// sr_*, awb, courier, parcel: its shipment through Shiprocket, server/shiprocket.js)
+const LATER_COLUMNS = {
+  refund_id: "TEXT", refund_status: "TEXT", refund_amount: "INTEGER", cancelled_by: "TEXT", cancelled_at: "TEXT",
+  sr_order_id: "TEXT", sr_shipment_id: "TEXT", sr_tries: "INTEGER", awb: "TEXT", courier: "TEXT", sr_status: "TEXT",
+  sr_checked_at: "TEXT", sr_label: "TEXT", sr_pickup: "TEXT", sr_lock: "INTEGER", parcel: "TEXT"
+};
 async function prepare(db) {
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
   const { results } = await db.prepare("PRAGMA table_info(orders)").all();
@@ -179,6 +185,8 @@ async function prepare(db) {
     try { await db.prepare(`ALTER TABLE orders ADD COLUMN ${c} ${type}`).run(); }
     catch (e) { if (!/duplicate column/i.test(String(e && e.message))) throw e; } // another instance added it first
   }
+  // the courier's updates find their order by its AWB
+  await db.prepare("CREATE INDEX IF NOT EXISTS orders_by_awb ON orders (awb)").run();
 }
 const made = new WeakMap(); // the tables are made once per database, per server instance
 export async function database(env) {
@@ -276,6 +284,19 @@ export async function buyersOrder(request, env, body) {
   if (!row || row.phone !== phone) throw new HttpError(404, NOT_FOUND);
   return { db, row };
 }
+// Where a shipped parcel is, in the buyer's words (from Shiprocket's status; the rest, like returns,
+// is for the shop to see in /admin)
+const PARCEL_WORDS = [
+  [/^(AWB assigned|Label generated|Manifest generated|Pickup scheduled|Pickup queued|Pickup rescheduled|Out for pickup)$/, "Packed, waiting for the courier to collect it"],
+  [/^(Shipped|In transit)$/, "In transit"],
+  [/^Out for delivery$/, "Out for delivery"],
+  [/^Delayed$/, "Running a little late"],
+  [/^Undelivered$/, "The courier tried to deliver it and will try again"]
+];
+export function parcelWords(status) {
+  const hit = PARCEL_WORDS.find(([re]) => re.test(status || ""));
+  return hit ? hit[1] : null;
+}
 // What the buyer sees of their order: never the full address, name, phone or email
 export function buyersView(row, names) {
   const SHOP = globalThis.SHOP;
@@ -291,6 +312,7 @@ export function buyersView(row, names) {
     })),
     place: `${row.city}, ${row.state} ${row.pincode}`,
     tracking,
+    courier: row.status === "shipped" && row.awb ? { name: row.courier || null, status: parcelWords(row.sr_status) } : null,
     cancellable: CANCELLABLE.includes(row.status),
     cancelled: row.status === "cancelled" ? { by: row.cancelled_by || "shop", at: row.cancelled_at || row.updated_at } : null,
     refund: row.refund_status ? { status: row.refund_status, amount: row.refund_amount || row.total } : null

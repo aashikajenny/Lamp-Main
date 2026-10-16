@@ -1,9 +1,13 @@
-// /api/admin/shiprocket: is the site connected to Shiprocket? (the password is checked by
-// functions/_middleware.js). Signs in with SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD and lists the
-// pickup addresses and the wallet balance, so a wrong password or a missing pickup address shows
-// up here, before an order needs shipping.
-import { json, fail } from "../../../server/orders.js";
-import { shiprocket, shiprocketReady, ShiprocketError } from "../../../server/shiprocket.js";
+// /api/admin/shiprocket: shipping through Shiprocket from /admin (the password is checked by
+// functions/_middleware.js; see server/shiprocket.js).
+//   GET                                                        is the site connected? Signs in and lists
+//                                                              the pickup addresses and the wallet balance
+//   POST { id, action: "ship", parcel: { weight, length, breadth, height } }
+//                                                              send the order: Shiprocket order, courier
+//                                                              and AWB, pickup, label
+//   POST { id, action: "label" }                               the label again, to print
+import { HttpError, json, fail, readJson, ORDER_ID, database, designNames } from "../../../server/orders.js";
+import { shiprocket, shiprocketReady, ShiprocketError, shipOrder, makeLabel, cleanParcel } from "../../../server/shiprocket.js";
 
 export async function onRequestGet({ env }) {
   try {
@@ -24,6 +28,31 @@ export async function onRequestGet({ env }) {
     return json({ connected: true, signedInAs: env.SHIPROCKET_EMAIL.trim(), pickupAddresses: places, wallet });
   } catch (e) {
     if (e instanceof ShiprocketError) return json({ connected: false, problem: e.message });
+    return fail(e);
+  }
+}
+
+export async function onRequestPost({ request, env }) {
+  try {
+    const body = await readJson(request, 2000);
+    if (!shiprocketReady(env)) throw new HttpError(503, "Shiprocket isn't connected: add SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD in Cloudflare.");
+    const db = await database(env);
+    if (!db) throw new HttpError(503, "The order database isn't connected yet.");
+    if (!ORDER_ID.test(body.id || "")) throw new HttpError(400, "Unknown order.");
+    if (body.action === "ship") {
+      const parcel = cleanParcel(body.parcel);
+      const r = await shipOrder(env, db, body.id, parcel, await designNames(env, request));
+      return json({ ok: true, status: r.row.status, awb: r.row.awb, courier: r.row.courier, tracking: r.row.tracking, label: r.label, pickup: r.pickup });
+    }
+    if (body.action === "label") {
+      const row = await db.prepare("SELECT * FROM orders WHERE id = ?").bind(body.id).first();
+      if (!row) throw new HttpError(404, "Unknown order.");
+      return json({ ok: true, label: await makeLabel(env, db, row) });
+    }
+    throw new HttpError(400, "Unknown action.");
+  } catch (e) {
+    // Shiprocket's own message is for the shop to read (only /admin sees it)
+    if (e instanceof ShiprocketError) return json({ error: e.message }, 502);
     return fail(e);
   }
 }

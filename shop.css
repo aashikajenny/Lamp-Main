@@ -385,6 +385,8 @@ html { scroll-snap-type: none; }
 .admin-search input { width: 100%; height: 48px; padding: 0 18px; border: 1px solid var(--ctl-line-hi); border-radius: 16px 4px; background: var(--surface); font: 400 16px var(--font-display); color: var(--ink); }
 .admin-search input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
 .admin-alert { margin: 0 0 18px; padding: 14px 18px; border-radius: 18px 5px; border: 1px solid rgba(162, 67, 58, 0.32); background: color-mix(in srgb, #a2433a 7%, var(--surface)); color: #7d3129; }
+.admin-note { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 18px; padding: 12px 18px; border-radius: 18px 5px; border: 1px solid color-mix(in srgb, #2f7a3a 30%, transparent); background: color-mix(in srgb, #2f7a3a 7%, var(--surface)); color: #24592c; }
+.admin-note[hidden] { display: none; }
 .admin-empty { padding: 40px 0; color: var(--muted); font: 300 22px/1.4 var(--font-display); }
 .orders { border-top: 1px solid var(--line-2); }
 .orders[aria-busy="true"] { opacity: 0.6; transition: opacity 0.2s; }
@@ -421,6 +423,12 @@ html { scroll-snap-type: none; }
   width: 100%; padding: 10px 14px; border: 1px solid var(--ctl-line-hi); border-radius: 14px 4px; background: var(--surface);
   font: 400 15.5px/1.4 var(--font-display); color: var(--ink); resize: vertical;
 }
+.ob-ship { margin-top: 24px; }
+.ob-ship-size { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ob-ship-size label { margin-bottom: 8px; font-size: 13px; }
+.ob-ship-size input { padding: 9px 10px; }
+.ob-ship-note { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.ob-ship-line { margin: 0 0 12px; font-size: 15.5px; }
 .ob-update input:focus-visible, .ob-update textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent); }
 @media (max-width: 1100px) {
   .order-sum { grid-template-columns: 104px minmax(0, 1fr) 76px; }

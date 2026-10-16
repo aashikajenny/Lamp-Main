@@ -2,8 +2,10 @@
 //   POST { order, phone }   the same two numbers as /api/track, checked the same way
 // A cash on delivery order is simply cancelled; a paid one is cancelled and refunded in full through
 // Razorpay, at once, to the account it was paid from (server/orders.js, cancelOrder). Answers with
-// the order as /api/track shows it.
+// the order as /api/track shows it. An order already sent to Shiprocket (with no courier yet) is
+// cancelled there too.
 import { HttpError, json, fail, readJson, designNames, buyersOrder, buyersView, cancelOrder, notify } from "../../server/orders.js";
+import { cancelInShiprocket } from "../../server/shiprocket.js";
 
 export async function onRequestPost({ request, env, waitUntil }) {
   try {
@@ -17,7 +19,9 @@ export async function onRequestPost({ request, env, waitUntil }) {
     }
     const refund = row.refund_status === "failed" ? " REFUND FAILED: refund it in the Razorpay dashboard."
       : row.refund_status ? ` Refund of Rs ${row.total} started.` : "";
-    waitUntil(notify(env, `Order ${row.id} was cancelled by the buyer (${row.name}, ${row.phone}).${refund}`));
+    const sr = await cancelInShiprocket(env, found.db, row);
+    const srText = sr ? ` It was in Shiprocket and couldn't be cancelled there: cancel it in Shiprocket. (${sr})` : "";
+    waitUntil(notify(env, `Order ${row.id} was cancelled by the buyer (${row.name}, ${row.phone}).${refund}${srText}`));
     return json(buyersView(row, names));
   } catch (e) {
     return fail(e);

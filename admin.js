@@ -1,7 +1,8 @@
 /* The order list (/admin): every order placed on the website, newest first, in tabs by status.
    Open an order to see what to pack and where to send it, copy the address for the courier,
-   message the buyer on WhatsApp, and mark it shipped (with the tracking link), delivered or
-   cancelled. The server checks the password on every request (server/admin.js). */
+   message the buyer on WhatsApp, send it with Shiprocket (courier, pickup and label in one press)
+   or mark it shipped by hand (with the tracking link), delivered or cancelled. The server checks the
+   password on every request (server/admin.js). */
 (function () {
   "use strict";
   const SHOP = window.SHOP;
@@ -15,6 +16,7 @@
   const COUNTS = { open: ["paid", "cod"], unpaid: ["awaiting_payment"], shipped: ["shipped"], delivered: ["delivered"], cancelled: ["cancelled"] };
   let view = VIEWS.some(([k]) => k === location.hash.slice(1)) ? location.hash.slice(1) : "open";
   const open = new Set(); // orders left open across a refresh
+  let shiprocketOn = false; // Shiprocket connected (its email and password set in Cloudflare)
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -26,6 +28,25 @@
   const alertBox = $(".admin-alert"), emptyBox = $(".admin-empty"), list = $(".orders"), tabs = $(".views");
 
   function showAlert(msg) { alertBox.textContent = msg || ""; alertBox.hidden = !msg; }
+  // good news, with an optional link (the label to print)
+  const noteBox = $(".admin-note");
+  function showNote(msg, link) {
+    noteBox.replaceChildren();
+    noteBox.hidden = !msg;
+    if (!msg) return;
+    noteBox.append(el("span", null, msg));
+    if (link) {
+      const a = el("a", "btn btn-primary btn-sm", link.text);
+      a.href = link.href; a.target = "_blank"; a.rel = "noopener noreferrer";
+      noteBox.append(a);
+    }
+  }
+  async function post(url, body) {
+    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
+    return res;
+  }
 
   function drawTabs(counts) {
     tabs.replaceChildren(...VIEWS.map(([k, label]) => {
@@ -120,6 +141,8 @@
     acts.append(copy, call, wa);
     send.append(acts);
     if (o.email) send.append(el("p", "ob-email", o.email));
+    const ship = shipBox(o);
+    if (ship) send.append(ship);
 
     // update it
     const upd = el("form", "ob-col ob-update");
@@ -162,24 +185,110 @@
         const money = !o.paymentId ? ""
           : current === "open" ? ` It was paid online: ${rupees(o.total)} is refunded to the buyer automatically.`
           : ` It was paid online and has already shipped, so the money is NOT refunded automatically: press Refund afterwards if you are refunding it.`;
-        if (!confirm(`Cancel order ${o.id}?${money}`)) return;
+        const sr = o.ship.inShiprocket ? " Its Shiprocket shipment is cancelled too (Shiprocket refuses once the courier has picked it up)." : "";
+        if (!confirm(`Cancel order ${o.id}?${money}${sr}`)) return;
       }
       if (status === "refund" && !confirm(`Refund ${rupees(o.total)} to the buyer of ${o.id}, back to the account they paid from?`)) return;
       try {
-        const r = await fetch("/api/admin/orders", {
-          method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ id: o.id, status, tracking: track.value, note: note.value })
-        });
-        const res = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
-        showAlert("");
-        load();
+        const res = await post("/api/admin/orders", { id: o.id, status, tracking: track.value, note: note.value });
+        showNote("");
+        await load();
+        if (res.shiprocket) showAlert(`${o.id} is cancelled here, but not in Shiprocket: ${res.shiprocket} If the courier still has it, cancel it or ask for a return in Shiprocket.`);
       } catch (err) { showAlert(`Couldn't update ${o.id}: ${err.message}`); }
     });
 
     body.append(pack, send, upd);
     d.append(body);
     return d;
+  }
+
+  // Shiprocket: send an order still to ship (its parcel filled in from the products), or, once sent,
+  // its courier, AWB and where it is, with its label to print
+  function shipBox(o) {
+    const sh = o.ship || {};
+    if (sh.awb) {
+      const box = el("div", "ob-ship");
+      box.append(el("h3", null, "Shiprocket"));
+      const line = [sh.courier || "Courier", `AWB ${sh.awb}`, sh.status].filter(Boolean).join(" · ");
+      box.append(el("p", /RTO|Lost|Undelivered|Cancel/.test(sh.status || "") ? "ob-ship-line ob-warn" : "ob-ship-line", line));
+      if (!sh.pickup && o.status === "shipped") box.append(el("p", "ob-ship-note ob-warn", "The pickup isn't booked yet: book it in Shiprocket."));
+      const acts = el("div", "ob-acts");
+      if (o.status === "shipped" || o.status === "delivered") {
+        const label = el("button", "btn btn-primary btn-sm", "Print label");
+        label.type = "button";
+        label.addEventListener("click", async () => {
+          // the tab opens now: one opened after waiting for the server would be blocked
+          const tab = window.open("", "_blank");
+          label.disabled = true;
+          try {
+            const res = await post("/api/admin/shiprocket", { id: o.id, action: "label" });
+            if (tab) { tab.opener = null; tab.location.href = res.label; } else location.href = res.label;
+          } catch (err) {
+            if (tab) tab.close();
+            showAlert(`Couldn't get the label for ${o.id}: ${err.message}`);
+          } finally { label.disabled = false; }
+        });
+        acts.append(label);
+      }
+      if (o.tracking && /^https:\/\//.test(o.tracking)) {
+        const t = el("a", "btn btn-ghost btn-sm", "Track parcel");
+        t.href = o.tracking; t.target = "_blank"; t.rel = "noopener noreferrer";
+        acts.append(t);
+      }
+      box.append(acts);
+      return box;
+    }
+    if (!shiprocketOn || !["paid", "cod"].includes(o.status)) return null;
+    const form = el("form", "ob-update ob-ship");
+    form.append(el("h3", null, "Ship with Shiprocket"));
+    const p = sh.parcel || {};
+    const size = el("div", "ob-ship-size");
+    const fields = {};
+    [["weight", "Weight, kg", 0.05, 20, 0.01], ["length", "Length, cm", 1, 100, 0.5], ["breadth", "Breadth, cm", 1, 100, 0.5], ["height", "Height, cm", 1, 100, 0.5]].forEach(([k, text, min, max, step]) => {
+      const l = el("label", null, text);
+      const i = el("input");
+      i.type = "number"; i.name = k; i.min = min; i.max = max; i.step = step; i.required = true; i.inputMode = "decimal";
+      i.value = p[k] != null ? p[k] : "";
+      i.disabled = !!sh.inShiprocket; // once in Shiprocket, the parcel is what was sent
+      fields[k] = i;
+      l.append(i);
+      size.append(l);
+    });
+    form.append(size);
+    const count = o.items.reduce((n, l) => n + l.qty, 0);
+    form.append(el("p", "ob-ship-note", sh.inShiprocket
+      ? "This order is in Shiprocket but has no courier yet (often too little in the Shiprocket wallet). Press the button to try again."
+      : count > 1 ? `${count} products: filled in for the 20 × 12 × 15 cm box. Change it if you pack them differently.` : "Filled in for the product's own box."));
+    const go = el("button", "btn btn-primary btn-sm", sh.inShiprocket ? "Try again" : "Ship with Shiprocket");
+    go.type = "submit";
+    const acts = el("div", "ob-acts");
+    acts.append(go);
+    form.append(acts);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const ask = o.payment === "cod"
+        ? `Ship ${o.id} with Shiprocket? It's cash on delivery: the courier collects ${rupees(o.total)}. Only ship once the buyer has confirmed.`
+        : `Ship ${o.id} with Shiprocket?`;
+      if (!confirm(ask)) return;
+      go.disabled = true;
+      go.textContent = "Sending…";
+      // the list is redrawn first, then told what happened (redrawing clears old messages)
+      let res = null, failed = null;
+      try {
+        const parcel = Object.fromEntries(Object.entries(fields).map(([k, i]) => [k, Number(i.value)]));
+        res = await post("/api/admin/shiprocket", { id: o.id, action: "ship", parcel });
+      } catch (err) { failed = err; }
+      await load();
+      if (failed) {
+        showNote("");
+        showAlert(`Couldn't ship ${o.id}: ${failed.message}`);
+        return;
+      }
+      if (res.pickup) showAlert(res.pickup);
+      showNote(`${o.id} is shipped: ${res.courier || "the courier"}, AWB ${res.awb}.${res.label ? "" : " The label isn't ready yet: print it from the Shipped tab."}`,
+        res.label ? { href: res.label, text: "Print label" } : null);
+    });
+    return form;
   }
 
   async function load() {
@@ -189,6 +298,7 @@
       const res = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(res.error || `Error ${r.status}`);
       showAlert(res.online ? "" : "Online payment is off: add the Razorpay keys in Cloudflare to switch it on.");
+      shiprocketOn = !!res.shiprocket;
       drawTabs(res.counts || {});
       shown = res.orders;
       draw();

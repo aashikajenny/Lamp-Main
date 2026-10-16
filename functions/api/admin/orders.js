@@ -5,8 +5,11 @@
 // (server/orders.js, cancelOrder); "refund" refunds a cancelled paid order whose refund failed or
 // that was cancelled after shipping. Before listing, online orders still waiting for payment are
 // checked with Razorpay (a buyer may have paid and closed the page), and refunds still pending are
-// brought up to date.
+// brought up to date, and so are a few shipped parcels (where Shiprocket says they are).
+// Cancelling an order that was sent through Shiprocket cancels the shipment there too, if the
+// courier hasn't picked it up yet (server/shiprocket.js).
 import { HttpError, json, fail, readJson, ORDER_ID, onlineReady, razorpay, database, now, designNames, settle, cancelOrder, refundOrder, CANCELLABLE } from "../../../server/orders.js";
+import { shiprocketReady, catchUpTracking, cancelInShiprocket, parcelFor } from "../../../server/shiprocket.js";
 
 const VIEWS = {
   open: "status IN ('paid', 'cod')",
@@ -43,20 +46,29 @@ export async function onRequestGet({ request, env }) {
     const view = new URL(request.url).searchParams.get("view") || "open";
     if (!VIEWS[view]) throw new HttpError(400, "Unknown view.");
     if (view === "open" || view === "unpaid" || view === "cancelled" || view === "all") await catchUp(env, db);
+    if (view === "shipped" || view === "all") await catchUpTracking(env, db);
     const { results } = await db.prepare(`SELECT * FROM orders WHERE ${VIEWS[view]} ORDER BY created_at DESC LIMIT 300`).all();
     const counts = await db.prepare("SELECT status, COUNT(*) AS n FROM orders GROUP BY status").all();
     const n = await designNames(env, request);
     const SHOP = globalThis.SHOP;
-    const orders = results.map((o) => ({
-      id: o.id, created: o.created_at, updated: o.updated_at, status: o.status, payment: o.payment,
-      subtotal: o.subtotal, delivery: o.delivery, total: o.total,
-      items: JSON.parse(o.items).map((l) => ({ ...l, name: (SHOP.products[l.product] || {}).name || l.product, designName: n[l.design] || l.design })),
-      name: o.name, phone: o.phone, email: o.email, address: o.address, city: o.city, state: o.state, pincode: o.pincode,
-      paymentId: o.rzp_payment_id, tracking: o.tracking, note: o.note,
-      cancelledBy: o.cancelled_by, cancelledAt: o.cancelled_at,
-      refund: o.refund_status ? { status: o.refund_status, id: o.refund_id, amount: o.refund_amount || o.total } : null
-    }));
-    return json({ orders, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])), online: onlineReady(env) });
+    const orders = results.map((o) => {
+      const items = JSON.parse(o.items);
+      return {
+        id: o.id, created: o.created_at, updated: o.updated_at, status: o.status, payment: o.payment,
+        subtotal: o.subtotal, delivery: o.delivery, total: o.total,
+        items: items.map((l) => ({ ...l, name: (SHOP.products[l.product] || {}).name || l.product, designName: n[l.design] || l.design })),
+        name: o.name, phone: o.phone, email: o.email, address: o.address, city: o.city, state: o.state, pincode: o.pincode,
+        paymentId: o.rzp_payment_id, tracking: o.tracking, note: o.note,
+        cancelledBy: o.cancelled_by, cancelledAt: o.cancelled_at,
+        refund: o.refund_status ? { status: o.refund_status, id: o.refund_id, amount: o.refund_amount || o.total } : null,
+        // its shipment through Shiprocket, and the parcel to send if it has none yet
+        ship: {
+          awb: o.awb, courier: o.courier, status: o.sr_status, label: o.sr_label, pickup: !!o.sr_pickup, inShiprocket: !!o.sr_order_id,
+          parcel: o.parcel ? JSON.parse(o.parcel) : parcelFor(items)
+        }
+      };
+    });
+    return json({ orders, counts: Object.fromEntries(counts.results.map((c) => [c.status, c.n])), online: onlineReady(env), shiprocket: shiprocketReady(env) });
   } catch (e) {
     return fail(e);
   }
@@ -75,6 +87,7 @@ export async function onRequestPost({ request, env }) {
     const str = (v, max) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "");
     const tracking = str(body.tracking, 300) || null, note = str(body.note, 600) || null;
     const paidBack = row.refund_status === "pending" || row.refund_status === "processed";
+    let shiprocketProblem = null;
 
     if (want === "refund") {
       if (row.status !== "cancelled" || !row.rzp_payment_id) throw new HttpError(400, "Only a cancelled order that was paid online can be refunded.");
@@ -84,6 +97,7 @@ export async function onRequestPost({ request, env }) {
       // not shipped yet: cancelled, and refunded in full if it was paid
       const r = await cancelOrder(env, db, row, "shop");
       if (!r.ok) throw new HttpError(409, "This order changed a moment ago (shipped or cancelled). Refresh the list.");
+      shiprocketProblem = await cancelInShiprocket(env, db, r.row);
     } else {
       // "open" puts it back in the to-ship list: paid or cash on delivery, or still waiting for payment
       if (want === "open" && paidBack) throw new HttpError(409, "This order's money has been refunded, so it can't go back to the to-ship list. Ask the buyer to order again.");
@@ -92,10 +106,12 @@ export async function onRequestPost({ request, env }) {
       const by = want === "cancelled" && row.status !== "cancelled" ? "shop" : row.cancelled_by;
       await db.prepare("UPDATE orders SET status = ?, cancelled_by = ?, cancelled_at = ?, updated_at = ? WHERE id = ?")
         .bind(status, status === "cancelled" ? by : null, status === "cancelled" ? row.cancelled_at || now() : null, now(), body.id).run();
+      // a shipped order cancelled: its Shiprocket shipment too (refused once the courier has it)
+      if (status === "cancelled" && row.status !== "cancelled") shiprocketProblem = await cancelInShiprocket(env, db, row);
     }
     await db.prepare("UPDATE orders SET tracking = ?, note = ?, updated_at = ? WHERE id = ?").bind(tracking, note, now(), body.id).run();
     row = await db.prepare("SELECT status, refund_status FROM orders WHERE id = ?").bind(body.id).first();
-    return json({ ok: true, status: row.status, refund: row.refund_status });
+    return json({ ok: true, status: row.status, refund: row.refund_status, shiprocket: shiprocketProblem });
   } catch (e) {
     return fail(e);
   }

@@ -707,6 +707,13 @@
           : rf.status === "failed" ? `${by} Your refund of ${rupees(rf.amount)} is being sent back by hand; if it hasn't reached you in 7 working days, please WhatsApp us.`
           : `${by} ${rupees(rf.amount)} ${rf.status === "processed" ? "has been refunded" : "is being refunded"} to the account you paid from. Banks usually show it within 5 to 7 working days.`;
       }
+      // shipped through Shiprocket: which courier has it, and where it is
+      if (o.status === "shipped" && o.courier) {
+        const c = o.courier;
+        const with_ = c.name ? `It's with ${c.name}` : "It's with our courier";
+        text = `${with_}${c.status ? `: ${c.status.charAt(0).toLowerCase() + c.status.slice(1)}` : ""}.`
+          + (c.status === "Out for delivery" ? "" : " It usually reaches you within 3 to 7 working days of leaving us.");
+      }
       const day = (iso) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
       set("id", o.order);
       set("status", title);
