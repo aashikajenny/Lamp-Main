@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#faf5f0" />
   <!-- the site's own files, plus Razorpay's checkout (its script, its payment frame and its calls home) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://*.razorpay.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com https://checkout.razorpay.com https://*.razorpay.com https://static.cloudflareinsights.com; frame-src https://api.razorpay.com https://*.razorpay.com; connect-src 'self' https://*.razorpay.com https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://*.razorpay.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com https://checkout.razorpay.com https://*.razorpay.com https://static.cloudflareinsights.com; frame-src https://api.razorpay.com https://*.razorpay.com; connect-src 'self' https://*.razorpay.com https://cloudflareinsights.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com" />
   <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -36,60 +36,63 @@
       <p class="checkout-brief" hidden><span data-sum="count">0</span> <span data-brief="items">products</span>, <strong data-sum="total">₹0</strong>. <a href="/cart" data-back-cart>Change</a></p>
 
       <div class="checkout-grid" hidden>
-        <form class="checkout-form" id="checkout-form" novalidate>
+        <!-- toolname / tooldescription / toolparamdescription: an AI assistant in the browser can fill this
+             in for the buyer (WebMCP). It never sends the order: the buyer reads it and taps Place order -->
+        <form class="checkout-form" id="checkout-form" novalidate toolname="fill_delivery_details"
+              tooldescription="Fill in the buyer's name, mobile number, delivery address and how they will pay, for the products already in their Aashi Enterprises cart. Delivery is across India. This does not place the order: the buyer checks the details and taps Place order themselves.">
           <p class="form-alert" role="alert" hidden></p>
 
           <fieldset class="fields">
             <legend><h2>Where should we deliver?</h2></legend>
             <div class="field f-full">
               <label for="f-name">Full name</label>
-              <input id="f-name" name="name" autocomplete="name" maxlength="60" required />
+              <input id="f-name" name="name" toolparamdescription="The buyer's full name" autocomplete="name" maxlength="60" required />
               <p class="field-error" id="e-name"></p>
             </div>
             <div class="field f-half">
               <label for="f-phone">Mobile number</label>
               <div class="phone-box">
                 <span class="phone-cc" aria-hidden="true">+91</span>
-                <input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14" required aria-describedby="h-phone" />
+                <input id="f-phone" name="phone" toolparamdescription="The buyer's 10-digit Indian mobile number (WhatsApp updates go to it)" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14" required aria-describedby="h-phone" />
               </div>
               <p class="field-hint" id="h-phone">For delivery updates. We call only about your order.</p>
               <p class="field-error" id="e-phone"></p>
             </div>
             <div class="field f-half">
               <label for="f-email">Email <span class="opt">(optional)</span></label>
-              <input id="f-email" name="email" type="email" autocomplete="email" maxlength="100" aria-describedby="h-email" />
+              <input id="f-email" name="email" toolparamdescription="The buyer's email address, if they want the order confirmation by email (optional)" type="email" autocomplete="email" maxlength="100" aria-describedby="h-email" />
               <p class="field-hint" id="h-email">For your payment receipt.</p>
               <p class="field-error" id="e-email"></p>
             </div>
             <div class="field f-full">
               <label for="f-line1">House or flat number, building</label>
-              <input id="f-line1" name="line1" autocomplete="address-line1" maxlength="120" required />
+              <input id="f-line1" name="line1" toolparamdescription="House or flat number and building" autocomplete="address-line1" maxlength="120" required />
               <p class="field-error" id="e-line1"></p>
             </div>
             <div class="field f-full">
               <label for="f-line2">Street, area or locality</label>
-              <input id="f-line2" name="line2" autocomplete="address-line2" maxlength="120" required />
+              <input id="f-line2" name="line2" toolparamdescription="Street, area or locality" autocomplete="address-line2" maxlength="120" required />
               <p class="field-error" id="e-line2"></p>
             </div>
             <div class="field f-full">
               <label for="f-landmark">Landmark <span class="opt">(optional)</span></label>
-              <input id="f-landmark" name="landmark" maxlength="80" />
+              <input id="f-landmark" name="landmark" toolparamdescription="A landmark near the address, to help the courier (optional)" maxlength="80" />
               <p class="field-error" id="e-landmark"></p>
             </div>
             <div class="field f-third">
               <label for="f-pincode">PIN code</label>
-              <input id="f-pincode" name="pincode" inputmode="numeric" autocomplete="postal-code" maxlength="6" required />
+              <input id="f-pincode" name="pincode" toolparamdescription="The 6-digit PIN code" inputmode="numeric" autocomplete="postal-code" maxlength="6" required />
               <p class="field-error" id="e-pincode"></p>
             </div>
             <div class="field f-third">
               <label for="f-city">Town or city</label>
-              <input id="f-city" name="city" autocomplete="address-level2" maxlength="50" required />
+              <input id="f-city" name="city" toolparamdescription="Town or city" autocomplete="address-level2" maxlength="50" required />
               <p class="field-error" id="e-city"></p>
             </div>
             <div class="field f-third">
               <label for="f-state">State</label>
               <div class="select-box">
-                <select id="f-state" name="state" autocomplete="address-level1" required>
+                <select id="f-state" name="state" toolparamdescription="The state or union territory" autocomplete="address-level1" required>
                   <option value="">Choose</option>
                 </select>
                 <i class="ph ph-caret-down" aria-hidden="true"></i>
@@ -99,14 +102,14 @@
             <!-- left empty by people; robots that fill in every field give themselves away -->
             <div class="trap" aria-hidden="true">
               <label for="f-website">Website</label>
-              <input id="f-website" name="website" tabindex="-1" autocomplete="off" />
+              <input id="f-website" name="website" toolparamdescription="Always leave this empty (an order with anything here is refused)" tabindex="-1" autocomplete="off" />
             </div>
           </fieldset>
 
           <fieldset class="pay-ways">
             <legend><h2>How would you like to pay?</h2></legend>
             <label class="pay-way">
-              <input type="radio" name="payment" value="online" checked />
+              <input type="radio" name="payment" value="online" toolparamdescription="How the buyer pays: online (UPI, card, net banking or wallet, through Razorpay) or cod (cash on delivery, no extra charge)" checked />
               <span class="pay-body">
                 <span class="pay-name">Pay online</span>
                 <span class="pay-text">UPI, debit or credit card, net banking or wallet. Paid securely through Razorpay.</span>

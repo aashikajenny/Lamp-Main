@@ -18,6 +18,8 @@ cp contact.html shipping-policy.html refund-policy.html terms.html privacy-polic
 # (each function run counts against the daily allowance; a flood of requests for files can't use it up)
 cp _routes.json dist/
 cp -r images/designs images/rooms dist/images/
+# the hero's still: the picture of the 3D box that stands in while the 3D loads (tools/hero-still.html)
+cp -r images/hero dist/images/
 # link previews (WhatsApp, Facebook...) and the product photos Google is given
 cp -r images/share dist/images/
 # the fonts and icons (cut down to the ones the site uses: tools/icons.py), with their licences
@@ -30,4 +32,9 @@ cp images/brand/petal-*.svg images/brand/logo-mark.svg images/brand/favicon.svg 
 if [ -d audio ]; then cp -r audio dist/; fi
 # each product's own page, made from index.html: /mantra-box, /mini-chanting-box, /night-lamp
 node tools/product-pages.mjs dist
+# what AI assistants read: llms.txt, the AI catalog and the shopping skill in .well-known/ (tools/agents.mjs)
+node tools/agents.mjs dist
+# the icons inside the main stylesheet, the stylesheets and scripts minified, and every file named with
+# its fingerprint so browsers can keep it for a year (tools/assets.mjs; _headers)
+node tools/assets.mjs dist
 echo "Built dist/: $(find dist -type f | wc -l) files"

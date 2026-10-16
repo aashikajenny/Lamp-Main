@@ -142,8 +142,16 @@
     { at: 860, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.3, sound: 0.7, burst: true },
     { at: 1500, s, rx: -0.07, ry, glow: 0.8, sway: 0.06, on: 1, knob: 0.92, sound: 1 }
   ];
+  // The best seller in the hero: its pose, and the pose it holds as it takes over from the still that
+  // stands in for it while the 3D loads (no sway yet, the sound off, the dial low). The still
+  // (images/hero/) is a picture of the 3D box in exactly that pose, made by tools/hero-still.html,
+  // which reads both from here: keep them JSON, and remake the still after changing them.
+  const HERO = /* hero */ {
+    "pose": { "rx": -0.06, "ry": -0.32, "glow": 1, "sway": 0.42, "on": 1, "sound": 0.7, "knob": 0.7 },
+    "still": { "sway": 0, "sound": 0, "knob": 0.1, "move": 0 }
+  } /* /hero */;
   const P = {
-    hero: { rx: -0.06, ry: -0.32, glow: 1, sway: 0.42, on: 1, sound: 0.7, knob: 0.7 },
+    hero: HERO.pose,
     order: { s: 1.05, rx: -0.04, ry: 0.15, glow: 1, sway: 0.2, on: 1, sound: 0.35 },
     // each feature is a list of poses: the first at once, the rest `at` ms later.
     // burst: the background sends out a ripple too
@@ -173,7 +181,7 @@
     back: { s: 0.8, rx: -0.04, glow: 0.4, sway: 0.08, on: 1, sound: 0, ringX: 0.7, ringZ: 3.8 }
   };
 
-  /* ---------- One 3D viewer per slot: the hero's now, the rest once the page is idle ---------- */
+  /* ---------- One 3D viewer per slot: the hero's first, the rest once the page is idle ---------- */
   const views = {};
   // the designs a product offers (DESIGNS_FOR), in the design list's order
   const offers = (kind, id) => !!Art.DESIGNS[id] && (!DESIGNS_FOR[kind] || DESIGNS_FOR[kind].includes(id));
@@ -189,11 +197,13 @@
   function makeView(name, kinds, opts = {}) {
     const slot = $(`.model-slot[data-slot="${name}"]`);
     const canvas = document.createElement("canvas");
-    slot.appendChild(canvas);
+    // (in the slot, or in its [data-canvas] layer: the hero's, which it shares with its still)
+    (slot.querySelector("[data-canvas]") || slot).appendChild(canvas);
     const view = Models.create(canvas, Object.assign({ kinds }, opts));
     if (!view) {
-      // no WebGL: show the artwork itself instead
       canvas.remove();
+      // no 3D: a slot with a still of its own (the hero's) keeps showing it; others show the artwork
+      if (opts.poster) return null;
       slot.classList.add("is-flat");
       Art.ready.then(() => {
         const id = designFor(kinds[0]);
@@ -201,6 +211,7 @@
       }).then(([file, l]) => {
         const img = new Image();
         img.alt = "";
+        img.width = 400; img.height = 500; // the artwork's shape (4:5), so nothing shifts as it loads
         img.src = file ? file.src : Art.canvas().toDataURL();
         slot.appendChild(img);
         html.style.setProperty("--glow", `rgb(${l.glow.map((v) => Math.round(v * 255)).join(" ")})`);
@@ -740,27 +751,30 @@
   }, { margin: "60% 0px 60% 0px" });
 
   /* ---------- Start: the best seller switches on; the others follow when the page is idle ---------- */
-  const heroView = makeView("hero", ["mantra"]);
-  // the still in the hero stands in until the 3D box is drawn wearing its artwork, then fades out
+  // The still in the hero shows from the first moment: a picture of the 3D box in its default design,
+  // in the pose it holds as it takes over (HERO.still), placed exactly where the 3D draws it
+  // (style.css). The 3D box is made straight after the page has first shown (making it takes a
+  // moment, which would otherwise hold back that first view) and holds that same pose, out of sight.
+  // Once it is drawn wearing its artwork, in that artwork's light, it fades in over the still, the two
+  // adding up exactly (so nothing changes: the still might never have been there), and then it comes
+  // alive: the sway grows, the dial turns up and the rings of sound begin.
+  // Without 3D (no WebGL, or no graphics card to draw it with), the still stays.
   const heroSpace = $(".hero-space");
-  const heroLive = () => heroSpace.classList.add("is-live");
-  if (!heroView) heroLive();
-  else {
-    // (the 3D box only draws once its shaders have compiled in the background, so wait for that too)
-    Promise.all([heroView.drawn, Art.ready.then(() => Art.file(designFor("mantra")))])
-      .then(() => requestAnimationFrame(() => requestAnimationFrame(heroLive)), heroLive);
-    setTimeout(heroLive, 8000); // whatever happens, never leave the still in front for long
-  }
-  if (heroView) {
-    heroView.setPose(P.hero);
+  const frames = (n) => new Promise((res) => { const step = () => (n-- > 0 ? requestAnimationFrame(step) : res()); step(); });
+  function makeHero() {
+    const heroView = makeView("hero", ["mantra"], { poster: true });
+    if (!heroView) return;
+    const id = designFor("mantra");
+    heroView.setPose(Object.assign({}, P.hero, HERO.still));
     heroView.snap();
-    if (!reduceMotion) {
-      heroView.setPose(Object.assign({}, P.hero, { on: 0, sound: 0, knob: 0.1 }));
-      heroView.snap();
-      heroView.power = 0;
-      animate(heroView, { power: [0, 0.75, 0.2, 1] }, { duration: 1, delay: 0.3, times: [0, 0.1, 0.25, 1], ease: "easeOut" });
-      setTimeout(() => heroView.setPose(P.hero), 900);
-    }
+    // (it only draws once its shaders have compiled; the artwork's picture and its light come apart)
+    Promise.all([heroView.drawn, Art.ready.then(() => Promise.all([Art.file(id), Art.light(id)]))])
+      .then(() => { heroView.settle(); return frames(3); })
+      .then(() => {
+        heroSpace.classList.add("is-live");
+        // the crossing takes 0.6 s (style.css); then the 3D alone, coming alive
+        setTimeout(() => { heroSpace.classList.add("is-done"); heroView.setPose(P.hero); }, reduceMotion ? 0 : 650);
+      });
   }
   Field.level = 1;
   // the rest of the 3D is made while the visitor reads the hero, one step per idle moment, so no
@@ -797,24 +811,14 @@
     () => { if (views.order) views.order.prewarm(ORDER); }
   ];
   if (landAtProduct) setup.unshift(setup.splice(setup.indexOf(makeStage), 1)[0]);
-  (function next() {
+  function next() {
     const step = setup.shift();
     if (step) idle(() => { step(); setTimeout(next, 120); }); // a breath between steps for the animations
-  })();
-
-  /* ---------- Hero entrance: the headline rises into the light ---------- */
-  const heroLines = $$(".hero-title .line > span", hero);
-  const heroRest = [$(".hero-sub", hero), $(".hero-points", hero), $(".hero-ctas", hero), $(".hero-more", hero)];
-  if (!reduceMotion) {
-    heroLines.forEach((el) => { el.style.transform = "translateY(105%) rotate(2deg)"; el.style.opacity = "0"; });
-    heroRest.forEach((el) => { el.style.opacity = "0"; el.style.transform = "translateY(22px)"; });
-    inView(hero, () => {
-      heroLines.forEach((el, i) => animate(el,
-        { transform: "translateY(0%) rotate(0deg)", opacity: 1 },
-        { duration: 1.2, delay: 0.1 + i * 0.14, ease: EASE }));
-      heroRest.forEach((el, i) => animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.9, delay: (i ? 0.45 : 0) + i * 0.1, ease: EASE }));
-    }, { amount: 0.4 });
   }
+  // the hero's box once the page has first shown (the frame after the first), then the rest
+  requestAnimationFrame(() => setTimeout(() => { makeHero(); next(); }, 0));
+
+  /* ---------- Hero entrance: the headline rises into the light (style.css: hero-rise) ---------- */
 
   /* ---------- Reveals: content is visible by default; scripts lift it in as it arrives ---------- */
   if (!reduceMotion) {
@@ -1150,6 +1154,63 @@
     keepPick(design);
     location.href = "/checkout?buy=" + encodeURIComponent(`${product}.${design}`);
   });
+
+  /* ---------- Tools for AI assistants (WebMCP) ----------
+     In a browser that lets AI assistants use websites for their user (WebMCP: document.modelContext),
+     the assistant can read what the shop sells and put products in the visitor's cart. It never
+     orders: the visitor checks out themselves. (The order tracking and delivery forms are tools too:
+     track.html, checkout.html.) Elsewhere this does nothing. */
+  if (document.modelContext && typeof document.modelContext.registerTool === "function") {
+    const site = location.origin;
+    const designList = (kind) => SHOP.products[kind].designs.filter((id) => Art.DESIGNS[id]);
+    const tool = (t) => { try { Promise.resolve(document.modelContext.registerTool(t)).catch(() => {}); } catch (e) { /* not this version */ } };
+    tool({
+      name: "list_products",
+      description: "What Aashi Enterprises sells: each product with its price in rupees, what it does, its page, and the designs (sacred artworks) it comes in; plus delivery and payment. Use it before adding anything to the cart.",
+      inputSchema: { type: "object", properties: {} },
+      annotations: { readOnlyHint: true },
+      async execute() {
+        await Art.ready;
+        return JSON.stringify({
+          shop: "Aashi Enterprises, New Delhi",
+          products: ORDER.map((kind) => ({
+            product: kind, name: PAGES[kind].name, price: SHOP.products[kind].price, currency: "INR",
+            about: PAGES[kind].description, page: `${site}/${PAGES[kind].slug}`,
+            designs: designList(kind).map((id) => ({ design: id, name: Art.DESIGNS[id].name }))
+          })),
+          delivery: `Across India. ₹${SHOP.delivery.fee} per order, free on orders of ₹${SHOP.delivery.freeFrom} or more. Orders leave in 1 to 3 working days and arrive 3 to 7 working days later.`,
+          payment: "Online (UPI, card, net banking or wallet, through Razorpay) or cash on delivery at no extra charge.",
+          limits: `Up to ${SHOP.maxQty} of each design per order; for more, call or WhatsApp ${SHOP.phone}.`,
+          cart: `${site}/cart`
+        });
+      }
+    });
+    tool({
+      name: "add_to_cart",
+      description: "Put a product, in one of its designs, into the visitor's cart on this website (list_products gives the products and designs). It does not order or pay: the visitor reviews the cart and checks out themselves.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          product: { type: "string", enum: ORDER, description: "mantra (Divine Mantra Box), mini (Mini Chanting Box) or lamp (Night Lamp)" },
+          design: { type: "string", description: "The design's id or name from list_products, for example khatu-shyam-ji or Khatu Shyam Ji" },
+          quantity: { type: "integer", minimum: 1, maximum: SHOP.maxQty, default: 1 }
+        },
+        required: ["product", "design"]
+      },
+      async execute({ product: kind, design, quantity = 1 } = {}) {
+        await Art.ready;
+        if (!SHOP.products[kind]) return `There is no product "${kind}". Use mantra, mini or lamp.`;
+        const wanted = String(design || "").trim().toLowerCase();
+        const id = designList(kind).find((d) => d === wanted || Art.DESIGNS[d].name.toLowerCase() === wanted);
+        if (!id) return `The ${PAGES[kind].name} doesn't come in "${design}". Its designs: ${designList(kind).map((d) => Art.DESIGNS[d].name).join(", ")}.`;
+        const line = Cart.add(kind, id, Math.max(1, Math.min(SHOP.maxQty, Math.floor(quantity) || 1)));
+        if (!line) return `The cart is full. The visitor can check out first, or call or WhatsApp ${SHOP.phone} for a bigger order.`;
+        const q = SHOP.quote(Cart.items());
+        return `Added: ${PAGES[kind].name}, ${Art.DESIGNS[id].name} (${line.qty} of this design in the cart). The cart now comes to ₹${q.total}` +
+          `${q.delivery ? ` including ₹${q.delivery} delivery` : ", delivery free"}. To order, the visitor opens ${site}/cart and checks out.`;
+      }
+    });
+  }
 
   /* ---------- First paint ---------- */
   fillText();

@@ -34,10 +34,14 @@
   }
 
   // the design names, from the site's design list (images/designs/designs.json)
-  let names = {};
-  const namesReady = fetch("/images/designs/designs.json")
+  // (and each artwork's fingerprint, so the picture's address changes when it does: tools/assets.mjs)
+  let names = {}, versions = {};
+  const namesReady = fetch("/images/designs/designs.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : []))
-    .then((list) => { names = Object.fromEntries(list.map((d) => [d.id, d.name])); })
+    .then((list) => {
+      names = Object.fromEntries(list.map((d) => [d.id, d.name]));
+      versions = Object.fromEntries(list.filter((d) => d.v).map((d) => [d.id, d.v]));
+    })
     .catch(() => {});
   // the first drawing waits for the names (a moment at most), so they never change under the reader
   const namesSoon = Promise.race([namesReady, new Promise((r) => setTimeout(r, 600))]);
@@ -107,7 +111,8 @@
     const img = new Image();
     img.alt = "";
     img.decoding = "async";
-    img.src = `/images/designs/${encodeURIComponent(f.dataset.design)}.webp`;
+    const id = f.dataset.design;
+    img.src = `/images/designs/${encodeURIComponent(id)}.webp${versions[id] ? "?v=" + versions[id] : ""}`;
     art.append(img);
     f.replaceChildren(art);
     delete f.dataset.wait;
@@ -617,15 +622,22 @@
     }
     (fields.order.value ? fields.phone : fields.order).focus({ preventScroll: true });
 
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
+      const found = find();
+      // asked by an AI assistant in the browser, for the buyer (WebMCP: the form's toolname in
+      // track.html): it is told what the page now shows
+      if (e.agentInvoked && typeof e.respondWith === "function") e.respondWith(found);
+    });
+    // looks the order up and shows it; resolves to what the page then says, in words
+    async function find() {
       showAlert("");
       const order = orderOf(fields.order.value);
       const phone = phoneOf(squash(fields.phone.value));
       showError("order", order ? "" : "Please enter your order number: AE- and six letters and numbers.");
       showError("phone", /^[6-9]\d{9}$/.test(phone) ? "" : "Please enter the 10-digit mobile number you gave with the order.");
-      if (!order) { fields.order.focus(); return; }
-      if (!/^[6-9]\d{9}$/.test(phone)) { fields.phone.focus(); return; }
+      if (!order) { fields.order.focus(); return $("#e-order").textContent; }
+      if (!/^[6-9]\d{9}$/.test(phone)) { fields.phone.focus(); return $("#e-phone").textContent; }
       go.disabled = true; go.classList.add("is-busy"); goLabel.textContent = "Finding your order";
       try {
         let r;
@@ -634,19 +646,21 @@
         } catch (err) { throw new Error("We couldn't reach our server. Please check your internet connection and try again."); }
         const res = await r.json().catch(() => null);
         if (!r.ok || !res) {
-          if (res && res.field && fields[res.field]) { showError(res.field, res.error); fields[res.field].focus(); return; }
+          if (res && res.field && fields[res.field]) { showError(res.field, res.error); fields[res.field].focus(); return res.error; }
           throw new Error((res && res.error) || `Order tracking isn't working just now (error ${r.status}). Please WhatsApp us your order number.`);
         }
         fields.order.value = res.order;
         who = { order: res.order, phone };
         showOrder(res);
+        return result.innerText.replace(/\n\s*\n+/g, "\n").trim();
       } catch (err) {
         result.hidden = true;
         showAlert(err.message);
+        return err.message;
       } finally {
         go.disabled = false; go.classList.remove("is-busy"); goLabel.textContent = "Find my order";
       }
-    });
+    }
 
     // the order on show, and the two numbers that found it (cancelling asks for them again)
     let who = null, shownOrder = null;

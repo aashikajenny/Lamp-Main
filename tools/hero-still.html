@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- everything is read from the site itself: the 3D (models3d.js), the designs, and the pose and
+       default design from script.js -->
+  <base href="../" />
+  <title>Hero still</title>
+  <style>
+    body { margin: 0; padding: 20px; font: 16px/1.5 system-ui, sans-serif; background: #faf5f0; color: #3a2420; }
+    .stage { position: fixed; left: 0; top: 0; pointer-events: none; }
+    p { max-width: 60ch; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <!-- The hero's still: the picture that stands in for the 3D Mantra Box while the 3D loads
+       (index.html: .hero-poster), drawn by the site's own 3D in the very pose the 3D holds as it takes
+       over (HERO in script.js), so the 3D takes over without a seam. Remake it after changing the
+       Mantra Box's default design (PAGES in script.js), HERO, or the box's look in models3d.js:
+       open this page through the WebP converter's server (tools/webp-server.ps1, then
+       http://localhost:5560/tools/hero-still.html) and it saves its four sizes (still-600.webp to
+       still-1200.webp) into images/hero/ itself; opened any other way, it offers them to download
+       into images/hero/. -->
+
+  <p id="log">Drawing the hero's still...</p>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="designs.js"></script>
+  <script src="models3d.js"></script>
+  <script>
+    (async function () {
+      "use strict";
+      const log = document.getElementById("log");
+      const say = (t) => { log.textContent = t; };
+      const src = await fetch("script.js", { cache: "no-cache" }).then((r) => r.text());
+      const block = (name) => JSON.parse(src.match(new RegExp(`/\\* ${name} \\*/([\\s\\S]*?)/\\* /${name} \\*/`))[1]);
+      const HERO = block("hero"), PAGES = block("pages");
+      const design = PAGES.mantra.design;
+      const frames = (n) => new Promise((res) => { const step = () => (n-- > 0 ? requestAnimationFrame(step) : res()); step(); });
+      // the picture spans the box's height twice over, the box centred: on a square canvas the 3D makes
+      // the box half the canvas's height, so the canvas is the picture (style.css places it)
+      const SIZES = [[600, "still-600.webp"], [800, "still-800.webp"], [1000, "still-1000.webp"], [1200, "still-1200.webp"]];
+      const ratio = Math.min(window.devicePixelRatio || 1, 2); // the drawing scale models3d.js uses
+      const made = [];
+      for (const [px, name] of SIZES) {
+        const canvas = document.createElement("canvas");
+        canvas.className = "stage";
+        canvas.style.width = canvas.style.height = px / ratio + "px";
+        document.body.appendChild(canvas);
+        const view = Models.create(canvas, { kinds: ["mantra"] });
+        if (!view) { say("This browser can't draw the 3D (it needs a graphics card)."); return; }
+        await LampArt.ready;
+        view.setArt(design);
+        view.setPose(Object.assign({}, HERO.pose, HERO.still));
+        view.snap();
+        await Promise.all([view.drawn, LampArt.file(design), LampArt.light(design)]);
+        view.settle();
+        await frames(12);
+        const out = document.createElement("canvas");
+        out.width = out.height = px;
+        out.getContext("2d").drawImage(canvas, 0, 0, px, px);
+        const blob = await new Promise((res) => out.toBlob(res, "image/webp", 0.86));
+        // (the lossless picture too, for a script that encodes it smaller: window.stills)
+        made.push({ name, blob, url: out.toDataURL("image/webp", 0.86), png: out.toDataURL("image/png") });
+        canvas.remove();
+      }
+      window.stills = made.map((m) => ({ name: m.name, url: m.url, png: m.png }));
+      // saved straight into images/hero/ through the WebP converter's server, or offered to download
+      let saved = 0;
+      for (const m of made) {
+        const r = await fetch(`save?path=${encodeURIComponent("images/hero/" + m.name)}`, { method: "POST", body: m.blob }).catch(() => null);
+        if (r && r.ok) saved++;
+      }
+      if (saved === made.length) { say(`Saved images/hero/${made.map((m) => m.name).join(" and ")}.`); return; }
+      say("Save these into images/hero/: ");
+      made.forEach((m) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(m.blob); a.download = m.name;
+        a.textContent = `${m.name} (${Math.round(m.blob.size / 1024)} KB)`;
+        log.append(a, " ");
+      });
+    })();
+  </script>
+</body>
+</html>

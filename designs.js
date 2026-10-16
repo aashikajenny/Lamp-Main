@@ -47,6 +47,10 @@
 
   const DESIGNS = {};
   const ids = [];
+  // each artwork's fingerprint, which the published design list carries (tools/assets.mjs), so the
+  // browser can keep the picture for a long time and still fetch it again once it changes
+  const versions = {};
+  const artURL = (id) => `images/designs/${encodeURIComponent(id)}.webp${versions[id] ? "?v=" + versions[id] : ""}`;
   const ready = fetch("images/designs/designs.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : []))
     .catch(() => [])
@@ -54,6 +58,7 @@
       if (!list.length) list = [{ id: "om", name: "Sacred OM" }]; // e.g. opened straight from disk
       list.forEach((d) => {
         DESIGNS[d.id] = { name: d.name, note: NOTES[d.id] || "" };
+        if (d.v) versions[d.id] = d.v;
         ids.push(d.id);
       });
       // the default comes first in the picker
@@ -78,7 +83,7 @@
   function file(id) {
     return files[id] || (files[id] = new Promise((resolve) => {
       const img = new Image();
-      img.src = `images/designs/${encodeURIComponent(id)}.webp`;
+      img.src = artURL(id);
       // decoded off the main thread before anyone uses it, so turning it into a 3D texture or a
       // thumbnail never stops the page to decode it
       const loaded = img.decode ? img.decode()

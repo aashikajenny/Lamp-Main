@@ -7,7 +7,7 @@
   <meta name="description" content="Check on your Aashi Enterprises order with your order number and mobile number: whether it has shipped, its tracking, and when it was delivered." />
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#faf5f0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <link rel="icon" href="/images/brand/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -39,12 +39,15 @@
         <h1 class="shop-title" id="track-title">Track your order.</h1>
         <p class="track-lead">Enter your order number and the mobile number you ordered with. No account needed.</p>
 
-        <form class="track-form checkout-form" novalidate>
+        <!-- toolname / tooldescription / toolparamdescription: an AI assistant in the browser can use
+             this form as a tool (WebMCP) to look an order up for the buyer, and is told what it finds -->
+        <form class="track-form checkout-form" novalidate toolname="track_order" toolautosubmit
+              tooldescription="Look up an order placed with Aashi Enterprises: where it is (placed, packed, shipped, delivered or cancelled), the courier tracking number once it ships, what was ordered and the total. Needs the order number and the mobile number the order was placed with.">
           <p class="form-alert" role="alert" hidden></p>
           <div class="fields">
             <div class="field f-full">
               <label for="t-order">Order number</label>
-              <input id="t-order" name="order" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="AE-" required aria-describedby="h-order" />
+              <input id="t-order" name="order" toolparamdescription="The order number: AE- followed by six letters and numbers, for example AE-7K2M9P" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="AE-" required aria-describedby="h-order" />
               <p class="field-hint" id="h-order">It starts with AE-. It's on the page you saw after ordering, and in our WhatsApp messages.</p>
               <p class="field-error" id="e-order"></p>
             </div>
@@ -52,7 +55,7 @@
               <label for="t-phone">Mobile number</label>
               <div class="phone-box">
                 <span class="phone-cc" aria-hidden="true">+91</span>
-                <input id="t-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14" required />
+                <input id="t-phone" name="phone" toolparamdescription="The 10-digit Indian mobile number the order was placed with" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14" required />
               </div>
               <p class="field-error" id="e-phone"></p>
             </div>

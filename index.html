@@ -34,7 +34,8 @@
         "name": "Aashi Enterprises",
         "alternateName": ["Aashi Enterprises Mantra Box", "Aashi"],
         "url": "https://aashienterprises.store/",
-        "publisher": { "@id": "https://aashienterprises.store/#org" }
+        "publisher": { "@id": "https://aashienterprises.store/#org" },
+        "creator": { "@type": "Person", "name": "Yatharth Saxena" }
       },
       {
         "@type": "Organization",
@@ -147,9 +148,14 @@
             <img class="p-pink" src="images/brand/petal-pink.svg" alt="" style="--i: 5" />
           </div>
           <div class="hero-pedestal"><span></span><span></span></div>
-          <!-- a still of the box in its default design, shown at once while the 3D loads, then
-               faded out under it (keep the image in step with PRODUCTS.mantra.design in script.js) -->
-          <div class="hero-poster"><span><img src="images/designs/khatu-shyam-ji.webp" alt="" fetchpriority="high" /></span></div>
+          <!-- the 3D box, and the still that stands in for it while the 3D loads: a picture of the 3D
+               box itself (images/hero/, made by tools/hero-still.html) in the pose the 3D holds as it
+               takes over, placed exactly where the 3D draws it (style.css), so the 3D takes over
+               without a seam. The 3D's canvas goes in here too (data-canvas). (sizes: about how wide
+               the still shows, 1.36 x the slot's height on a phone and 55% of the window above) -->
+          <div class="hero-model" data-canvas>
+            <img class="hero-poster" src="images/hero/still-800.webp" srcset="images/hero/still-600.webp 600w, images/hero/still-800.webp 800w, images/hero/still-1000.webp 1000w, images/hero/still-1200.webp 1200w" sizes="(max-width: 767.98px) 41vh, 55vw" width="800" height="800" alt="" fetchpriority="high" />
+          </div>
         </div>
       </div>
     </section>
@@ -542,7 +548,8 @@
           <li><a href="/terms">Terms</a></li>
           <li><a href="/privacy-policy">Privacy</a></li>
         </ul>
-        <p>Made in Bharat</p>
+        <!-- who made the website (also in what Google reads: the WebSite's creator) -->
+        <p>Made in Bharat <span aria-hidden="true">&middot;</span> Website designed &amp; developed by Yatharth Saxena</p>
       </div>
     </div>
   </footer>

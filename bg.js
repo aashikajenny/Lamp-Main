@@ -5,18 +5,21 @@
    (read from the image by LampArt.light), easing across when the design changes.
    Everything is drawn on the GPU in one call: each dot is a point whose position, glow and
    size are worked out in the vertex shader, so the main thread does almost nothing per frame.
-   Exposes window.Field = { level (0..1, how visible the field is), burst(strong) }. */
+   Exposes window.Field = { level (0..1, how visible the field is), burst(strong) }.
+   It starts once the page has loaded and shown, so starting its graphics never holds up the first
+   view of the page; it fades in. It needs a graphics card: where the browser would draw it in
+   software, every frame would hold up the page, so the page goes without it there. */
 (function () {
   "use strict";
 
   const canvas = document.getElementById("field");
-  const gl = canvas && (canvas.getContext("webgl", { alpha: true, antialias: false, depth: false, premultipliedAlpha: true }) ||
-                        canvas.getContext("experimental-webgl"));
-  if (!gl) {
-    if (canvas) canvas.style.display = "none";
-    window.Field = { level: 0, burst() {} };
-    return;
-  }
+  let gl = null;
+  const api = {
+    level: 0,
+    burst(strong = 1) { if (gl) addRipple(centre.x, centre.y, strong); }
+  };
+  window.Field = api;
+  if (!canvas) return;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const Perf = window.Perf || { level: 0, onChange() {} };
@@ -121,14 +124,25 @@
     gl.compileShader(s);
     return s;
   }
-  const prog = gl.createProgram();
-  gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
-  gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
-  gl.linkProgram(prog);
-  // The shaders compile in the background where the browser can (KHR_parallel_shader_compile):
-  // asking whether they linked straight away would stop the page until they had. So the field
-  // waits for them a frame at a time and sets itself up once they're done; it fades in anyway.
-  const parallel = gl.getExtension("KHR_parallel_shader_compile");
+  let prog = null, parallel = null;
+  function init() {
+    const attrs = { alpha: true, antialias: false, depth: false, premultipliedAlpha: true, failIfMajorPerformanceCaveat: true };
+    gl = canvas.getContext("webgl", attrs) || canvas.getContext("experimental-webgl", attrs);
+    if (!gl) {
+      canvas.style.display = "none";
+      api.level = 0;
+      return;
+    }
+    prog = gl.createProgram();
+    gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    // The shaders compile in the background where the browser can (KHR_parallel_shader_compile):
+    // asking whether they linked straight away would stop the page until they had. So the field
+    // waits for them a frame at a time and sets itself up once they're done; it fades in anyway.
+    parallel = gl.getExtension("KHR_parallel_shader_compile");
+    whenLinked();
+  }
   const U = {};
   let ready = false;
   function setup() {
@@ -186,11 +200,6 @@
     if (ripples.length > MAX_RIPPLES) ripples.shift();
     start();
   }
-  const api = {
-    level: 0,
-    burst(strong = 1) { addRipple(centre.x, centre.y, strong); }
-  };
-  window.Field = api;
 
   /* ---------- Points: built once per size and quality level ---------- */
   let W = 0, H = 0, DPR = 1, count = 0;
@@ -231,7 +240,10 @@
     gl.uniform1f(U.minDim, Math.min(W, H));
     start();
   }
-  whenLinked();
+  // once the page has loaded, at the first quiet moment
+  const later = () => (window.requestIdleCallback ? requestIdleCallback(init, { timeout: 2000 }) : setTimeout(init, 300));
+  if (document.readyState === "complete") later();
+  else window.addEventListener("load", later, { once: true });
   // the canvas is 100lvh, so the mobile URL bar showing or hiding doesn't rebuild it; a real resize
   // rebuilds it once the size has settled (the field is stretched to fit for that moment), so
   // dragging a window edge doesn't stutter

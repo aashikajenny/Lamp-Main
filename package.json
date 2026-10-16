@@ -1,0 +1,11 @@
+{
+  "name": "aashi-enterprises-site",
+  "private": true,
+  "description": "Build tools for the site (see build.sh). esbuild makes the published CSS and scripts smaller.",
+  "scripts": {
+    "build": "sh build.sh"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
