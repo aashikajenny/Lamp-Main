@@ -71,7 +71,7 @@ async function askShiprocket(env, pin) {
 // why the last look-up couldn't be made, in a word or two (for /api/pincode's answer; no details)
 export let lastProblem = null;
 const problemOf = (e) => /pickup/i.test(String(e && e.message)) ? "pickup"
-  : !(e instanceof ShiprocketError) ? "error" : e.status === 0 ? `shiprocket login ${e.loginStatus || ""}`.trim() : e.status ? `shiprocket ${e.status}` : "shiprocket";
+  : !(e instanceof ShiprocketError) ? "error" : e.status === 0 ? `shiprocket login ${e.loginStatus || ""} ${e.loginSays || ""}`.trim() : e.status ? `shiprocket ${e.status}` : "shiprocket";
 
 // The PIN code's answer, from this instance, the database (3 days) or Shiprocket. null: it couldn't
 // be asked.

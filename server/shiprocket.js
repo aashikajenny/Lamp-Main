@@ -21,7 +21,9 @@ const API = "https://apiv2.shiprocket.in/v1/external";
 const TOKEN_MS = 9 * 86400e3; // Shiprocket's token lasts 10 days
 let cached = null; // { token, email, at }
 
-export const shiprocketReady = (env) => /@/.test(env.SHIPROCKET_EMAIL || "") && (env.SHIPROCKET_PASSWORD || "").length > 0;
+// the password as pasted into Cloudflare, without spaces or line breaks picked up at its ends
+const password = (env) => String(env.SHIPROCKET_PASSWORD || "").trim();
+export const shiprocketReady = (env) => /@/.test(env.SHIPROCKET_EMAIL || "") && password(env).length > 0;
 
 // what Shiprocket said went wrong (status: its HTTP status, when it answered at all)
 export class ShiprocketError extends Error {
@@ -36,7 +38,7 @@ const RETRY_MS = 10 * 60e3;
 function login(env) {
   const email = (env.SHIPROCKET_EMAIL || "").trim();
   if (cached && cached.email === email && Date.now() - cached.at < TOKEN_MS) return Promise.resolve(cached.token);
-  const key = `${email}|${env.SHIPROCKET_PASSWORD || ""}`;
+  const key = `${email}|${password(env)}`;
   if (refusedLogin && refusedLogin.key === key && Date.now() - refusedLogin.at < RETRY_MS) return Promise.reject(refusedLogin.error);
   if (loggingIn && loggingIn.email === email) return loggingIn.promise;
   const promise = logIn(env, email)
@@ -49,12 +51,12 @@ async function logIn(env, email) {
   const res = await fetch(API + "/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password: env.SHIPROCKET_PASSWORD })
+    body: JSON.stringify({ email, password: password(env) })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.token) {
     cached = null;
-    throw Object.assign(new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0), { loginStatus: res.status });
+    throw Object.assign(new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0), { loginStatus: res.status, loginSays: String(data.message || "").slice(0, 80) });
   }
   cached = { token: data.token, email, at: Date.now() };
   return data.token;
