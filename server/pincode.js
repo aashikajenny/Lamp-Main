@@ -68,10 +68,16 @@ async function askShiprocket(env, pin) {
   };
 }
 
+// why the last look-up couldn't be made, in a word or two (for /api/pincode's answer; no details)
+export let lastProblem = null;
+const problemOf = (e) => /pickup/i.test(String(e && e.message)) ? "pickup"
+  : !(e instanceof ShiprocketError) ? "error" : e.status === 0 ? "shiprocket login" : e.status ? `shiprocket ${e.status}` : "shiprocket";
+
 // The PIN code's answer, from this instance, the database (3 days) or Shiprocket. null: it couldn't
 // be asked.
 export async function placeOf(env, db, pin) {
-  if (!PIN.test(pin) || !shiprocketReady(env)) return null;
+  if (!PIN.test(pin)) return null;
+  if (!shiprocketReady(env)) { lastProblem = "not set up"; return null; }
   const kept = near.get(pin);
   if (kept && Date.now() - kept.at < KEEP_MS) return kept.info;
   try {
@@ -91,6 +97,7 @@ export async function placeOf(env, db, pin) {
     return info;
   } catch (e) {
     console.error("PIN code look-up", pin, e);
+    lastProblem = problemOf(e);
     return null;
   }
 }

@@ -3,10 +3,11 @@
 // Answers { pin, found, city, state, places, serviceable, cod, from, to }: its towns and state,
 // whether our couriers reach it and take cash on delivery there, and the delivery window (from and
 // to, yyyy-mm-dd: 1 to 3 working days to leave us, then the courier's days in transit). Or
-// { pin, unavailable: true } when Shiprocket can't be asked (the pages then carry on without it).
+// { pin, unavailable: true, why } when Shiprocket can't be asked (the pages then carry on without it).
 // One visitor may ask 40 times in 10 minutes; each PIN code's answer is kept 3 days (server/pincode.js).
 import { HttpError, json, fail, database, visitorKey } from "../../server/orders.js";
-import { PIN, placeOf, deliveryWindow } from "../../server/pincode.js";
+// lastProblem: why the look-up couldn't be made just now (a live binding, read when answering)
+import { PIN, placeOf, deliveryWindow, lastProblem } from "../../server/pincode.js";
 
 const ASKS = 40, ASK_MS = 10 * 60e3;
 
@@ -28,7 +29,7 @@ export async function onRequestGet({ request, env }) {
       ]);
     }
     const place = await placeOf(env, db, pin);
-    if (!place) return json({ pin, unavailable: true });
+    if (!place) return json({ pin, unavailable: true, why: lastProblem });
     if (!place.found) return json({ pin, found: false });
     const { city, state, places, serviceable, cod } = place;
     return json({ pin, found: true, city, state, places, serviceable, cod, ...(serviceable ? deliveryWindow(place.days) : {}) });

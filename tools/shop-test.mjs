@@ -773,7 +773,7 @@ test("/api/pincode: a PIN code's towns, state, delivery dates and cash on delive
   eq((await askPin(env, "012345")).status, 400, "not a PIN code");
   eq((await askPin(env, "12a456")).status, 400, "letters");
   eq((await askPin(env, "122001", { "sec-fetch-site": "cross-site" })).status, 403, "another site's page");
-  eq((await askPin({ ...env, SHIPROCKET_PASSWORD: "" }, "560001")).body, { pin: "560001", unavailable: true }, "without Shiprocket: unavailable, not an error");
+  eq((await askPin({ ...env, SHIPROCKET_PASSWORD: "" }, "560001")).body, { pin: "560001", unavailable: true, why: "not set up" }, "without Shiprocket: unavailable, not an error");
 });
 
 test("/api/pincode: one visitor can ask 40 times in 10 minutes", async () => {

@@ -28,9 +28,17 @@ export class ShiprocketError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
-async function login(env) {
+// requests made together share one log-in (Shiprocket may refuse several at once)
+let loggingIn = null; // { email, promise }
+function login(env) {
   const email = (env.SHIPROCKET_EMAIL || "").trim();
-  if (cached && cached.email === email && Date.now() - cached.at < TOKEN_MS) return cached.token;
+  if (cached && cached.email === email && Date.now() - cached.at < TOKEN_MS) return Promise.resolve(cached.token);
+  if (loggingIn && loggingIn.email === email) return loggingIn.promise;
+  const promise = logIn(env, email).finally(() => { if (loggingIn && loggingIn.promise === promise) loggingIn = null; });
+  loggingIn = { email, promise };
+  return promise;
+}
+async function logIn(env, email) {
   const res = await fetch(API + "/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
