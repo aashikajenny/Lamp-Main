@@ -79,5 +79,87 @@
 
   SHOP.rupees = (n) => "₹" + Number(n).toLocaleString("en-IN");
 
+  /* ---------- Real addresses ----------
+     The checkout and the server (server/orders.js, server/pincode.js) check a delivery address the
+     same way, with these. A PIN code's towns and state come from Shiprocket (/api/pincode). */
+
+  // Obvious filler in an address line: one character over and over ("aaa", "1111"), two letters
+  // taking turns ("abab"), or a placeholder word ("test", "asdf", "na", "xyz"). A house number
+  // alone ("101") is fine.
+  const FILLER = /^(test(ing)?|asdf\w*|qwert\w*|xyz|abc|abcd|na|n a|none|nil|null|no|address|my address|home|house|xx+|zz+)$/;
+  SHOP.looksFake = function (text) {
+    const t = String(text || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const bare = t.replace(/\s/g, ""), chars = new Set(bare);
+    return chars.size <= 1 || (chars.size === 2 && bare.length >= 4 && /\p{L}/u.test(bare)) || FILLER.test(t);
+  };
+  // A mobile number nobody has: one or two digits over and over (9999999999), or a straight run of
+  // digits (9876543210, 6789012345)
+  SHOP.fakePhone = function (phone) {
+    const d = String(phone || "");
+    if (new Set(d).size <= 2) return true;
+    const up = "01234567890123456789", down = "98765432109876543210";
+    return up.includes(d) || down.includes(d);
+  };
+
+  // Is the town typed one of the PIN code's? place: { places: [its city, district and localities],
+  // state }. A whole name matches, or a word of one (four letters or more, leaving out words like
+  // "new" and "nagar"), or a city's old or new name (Gurgaon and Gurugram). Without a place (the
+  // look-up wasn't available), any town will do.
+  const RENAMED = [
+    ["gurgaon", "gurugram"], ["bombay", "mumbai"], ["bangalore", "bengaluru"], ["calcutta", "kolkata"], ["madras", "chennai"],
+    ["poona", "pune"], ["mysore", "mysuru"], ["baroda", "vadodara"], ["trivandrum", "thiruvananthapuram"], ["cochin", "kochi", "ernakulam"],
+    ["benares", "banaras", "varanasi"], ["allahabad", "prayagraj"], ["simla", "shimla"], ["mangalore", "mangaluru"], ["belgaum", "belagavi"],
+    ["hubli", "hubballi"], ["pondicherry", "puducherry"], ["vizag", "visakhapatnam"], ["calicut", "kozhikode"], ["trichy", "tiruchirappalli"],
+    ["gauhati", "guwahati"], ["faizabad", "ayodhya"], ["aurangabad", "sambhajinagar"], ["osmanabad", "dharashiv"], ["noida", "gautam buddha nagar"],
+    ["kanpur", "cawnpore"], ["jubbulpore", "jabalpur"], ["ootacamund", "ooty", "udhagamandalam"], ["tanjore", "thanjavur"], ["gulbarga", "kalaburagi"]
+  ];
+  const SAME_AS = {};
+  RENAMED.forEach((names) => names.forEach((n) => { SAME_AS[n.replace(/ /g, "")] = names[0].replace(/ /g, ""); }));
+  const COMMON = new Set(["new", "old", "east", "west", "north", "south", "central", "city", "nagar", "district", "dist", "town", "road", "sector", "colony", "village", "extn", "extension", "the", "and", "head", "office", "post", "near"]);
+  const letters = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  const whole = (s) => { const w = letters(s).replace(/ /g, ""); return SAME_AS[w] || w; };
+  const words = (s) => letters(s).split(" ").filter((w) => w.length >= 4 && !COMMON.has(w)).map((w) => SAME_AS[w] || w);
+  SHOP.townMatches = function (town, place) {
+    if (!place || !Array.isArray(place.places) || !place.places.length) return true;
+    const mine = whole(town);
+    if (mine.length < 2) return false;
+    const names = place.places.concat(place.state ? [place.state] : []);
+    if (names.some((n) => whole(n) === mine)) return true;
+    const known = new Set(names.flatMap(words));
+    return words(town).some((w) => known.has(w));
+  };
+
+  // PIN codes that older lists still file under the state they used to be part of
+  const SPLIT = [["Jammu and Kashmir", "Ladakh"], ["Andhra Pradesh", "Telangana"]];
+  SHOP.sameState = (a, b) => a === b || SPLIT.some((s) => s.includes(a) && s.includes(b));
+
+  /* ---------- Delivery to a PIN code (in the browser) ----------
+     SHOP.checkPin("110018") asks /api/pincode once per visit and remembers the PIN for the next
+     page (the checkout fills it in). Answers { found, city, state, places, serviceable, cod, from,
+     to } (from and to: the delivery window, as yyyy-mm-dd), or { unavailable: true }. */
+  const PIN_KEY = "aashi-pin";
+  const asked = {};
+  SHOP.checkPin = function (pin) {
+    pin = String(pin || "").replace(/\D/g, "");
+    if (!/^[1-9]\d{5}$/.test(pin)) return Promise.resolve({ pin, found: false, bad: true });
+    if (!asked[pin]) {
+      asked[pin] = fetch("/api/pincode?pin=" + pin, { headers: { accept: "application/json" } })
+        .then((r) => r.json().then((b) => (r.ok ? b : { pin, unavailable: true, error: b && b.error })))
+        .catch(() => ({ pin, unavailable: true }))
+        .then((b) => {
+          if (b.unavailable) delete asked[pin]; // worth asking again later
+          else if (b.found) { try { localStorage.setItem(PIN_KEY, pin); } catch (e) { /* not kept */ } }
+          return b;
+        });
+    }
+    return asked[pin];
+  };
+  SHOP.rememberedPin = function () {
+    try { return localStorage.getItem(PIN_KEY) || ""; } catch (e) { return ""; }
+  };
+  // "Tue 21 Oct" (a yyyy-mm-dd date), and the window: "between Tue 21 Oct and Fri 24 Oct"
+  SHOP.day = (ymd) => new Date(ymd + "T12:00:00+05:30").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" }).replace(",", "");
+  SHOP.arrives = (info) => (info.from === info.to ? `on ${SHOP.day(info.from)}` : `between ${SHOP.day(info.from)} and ${SHOP.day(info.to)}`);
+
   g.SHOP = SHOP;
 })(typeof globalThis === "object" ? globalThis : this);

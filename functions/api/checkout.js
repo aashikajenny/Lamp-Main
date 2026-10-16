@@ -5,11 +5,14 @@
 //         to open; the order counts as paid only once /api/verify (or the webhook) confirms it.
 //         Cash on delivery: saves the order and answers with its number.
 // Prices and delivery come from shop.js, never from the browser: it sends only which product, which
-// design and how many. See server/orders.js for the settings this needs.
+// design and how many. The address must fit its PIN code (a real PIN code our couriers reach, its
+// state, one of its towns, and cash on delivery only where couriers take it: server/pincode.js).
+// See server/orders.js for the settings this needs.
 import {
   HttpError, json, fail, readJson, cleanCustomer, quoteCart, newOrderId, visitorKey, onlineReady,
   razorpay, database, now, designNames, itemText, notify, orderMessage
 } from "../../server/orders.js";
+import { placeOf, checkAddress } from "../../server/pincode.js";
 
 const SHOP = () => globalThis.SHOP;
 // at most this many orders from one visitor in an hour (someone filling the list with fake orders)
@@ -36,6 +39,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (payment === "online" && !onlineReady(env)) {
       throw new HttpError(503, "Online payment isn't switched on yet. Please choose cash on delivery, or WhatsApp us to order.", "payment");
     }
+    checkAddress(c, await placeOf(env, db, c.pincode), payment);
 
     const visitor = await visitorKey(request, env);
     if (db) {

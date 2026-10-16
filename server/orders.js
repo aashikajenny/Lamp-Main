@@ -66,7 +66,10 @@ export const STATES = [
   "Uttar Pradesh", "Uttarakhand", "West Bengal"
 ];
 // The buyer's details, checked the same way the checkout page checks them, so a message names the
-// field to fix. Mobile numbers are Indian (10 digits from 6 to 9; a +91 or 0 in front is dropped).
+// field to fix. Mobile numbers are Indian (10 digits from 6 to 9; a +91 or 0 in front is dropped),
+// and not one nobody has (9999999999, 9876543210); an address line isn't filler ("asdf", "aaaa").
+// Whether the PIN code, town and state fit together is checked next, with Shiprocket's help
+// (server/pincode.js, checkAddress).
 export function cleanCustomer(c) {
   c = c && typeof c === "object" ? c : {};
   const out = {
@@ -78,11 +81,12 @@ export function cleanCustomer(c) {
   const bad = (field, message) => { throw new HttpError(400, message, field); };
   if (out.name.length < 2 || out.name.length > 60 || !/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u.test(out.name)) bad("name", "Please enter your full name, in letters.");
   if (!/^[6-9]\d{9}$/.test(out.phone)) bad("phone", "Please enter a 10-digit Indian mobile number.");
+  if (SHOP().fakePhone(out.phone)) bad("phone", "Please enter your real mobile number. The courier calls it to deliver.");
   if (out.email && (out.email.length > 100 || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(out.email))) bad("email", "Please check your email address, or leave it empty.");
-  if (out.line1.length < 3 || out.line1.length > 120) bad("line1", "Please enter your house or flat number and building.");
-  if (out.line2.length < 3 || out.line2.length > 120) bad("line2", "Please enter your street, area or locality.");
+  if (out.line1.length < 3 || out.line1.length > 120 || SHOP().looksFake(out.line1)) bad("line1", "Please enter your house or flat number and building.");
+  if (out.line2.length < 3 || out.line2.length > 120 || SHOP().looksFake(out.line2) || !/\p{L}/u.test(out.line2)) bad("line2", "Please enter your street, area or locality.");
   if (out.landmark.length > 80) bad("landmark", "Please keep the landmark short.");
-  if (out.city.length < 2 || out.city.length > 50) bad("city", "Please enter your town or city.");
+  if (out.city.length < 2 || out.city.length > 50 || SHOP().looksFake(out.city)) bad("city", "Please enter your town or city.");
   if (!STATES.includes(out.state)) bad("state", "Please choose your state.");
   if (!/^[1-9]\d{5}$/.test(out.pincode)) bad("pincode", "Please enter your 6-digit PIN code.");
   return out;
@@ -166,7 +170,12 @@ const SCHEMA = [
   "CREATE INDEX IF NOT EXISTS admin_fails_by_visitor ON admin_fails (visitor, at)",
   // order look-ups on /track, to slow down anyone guessing order numbers or mobile numbers
   "CREATE TABLE IF NOT EXISTS lookups (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
-  "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)"
+  "CREATE INDEX IF NOT EXISTS lookups_by_visitor ON lookups (visitor, at)",
+  // PIN codes asked about (server/pincode.js): Shiprocket's answer, kept 3 days; and who asked, to
+  // slow down anyone asking about PIN code after PIN code
+  "CREATE TABLE IF NOT EXISTS pincodes (pin TEXT PRIMARY KEY, info TEXT NOT NULL, at INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS pin_checks (visitor TEXT NOT NULL, at INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS pin_checks_by_visitor ON pin_checks (visitor, at)"
 ];
 // columns added after the first orders were taken: added to an existing table on first use
 // (refund_*: the Razorpay refund of a cancelled paid order; cancelled_by: "buyer" or "shop";

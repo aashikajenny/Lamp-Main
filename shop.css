@@ -150,6 +150,13 @@ html { scroll-snap-type: none; }
 .field-error:empty { display: none; }
 .field:has([aria-invalid="true"]) .field-hint { display: none; }
 .phone-box, .select-box { position: relative; }
+/* what the PIN code tells us: where it is and when the parcel would arrive */
+.pin-result {
+  grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 12px; margin: -4px 0 20px; padding: 13px 18px;
+  border-radius: 16px 4px; background: var(--accent-soft); color: var(--ink); font-size: 15.5px; line-height: 1.45;
+}
+.pin-result[hidden] { display: none; }
+.pin-result .ic { width: 22px; height: 22px; color: var(--accent); }
 .phone-cc { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 17px; pointer-events: none; }
 .phone-box input { padding-left: 56px; letter-spacing: 0.02em; }
 .select-box select { appearance: none; -webkit-appearance: none; padding-right: 44px; cursor: pointer; }

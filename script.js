@@ -1155,6 +1155,48 @@
     location.href = "/checkout?buy=" + encodeURIComponent(`${product}.${design}`);
   });
 
+  /* ---------- Check delivery ----------
+     A PIN code under the buy buttons: when the parcel would arrive and whether cash on delivery is
+     taken there (SHOP.checkPin, /api/pincode). It is asked about at 6 digits (or on Check), and a
+     PIN code checked before is filled in and asked about again once the section comes into view. */
+  const pinForm = $(".pin-check");
+  const pinWords = (p, info) => info.unavailable ? `We couldn't check just now. We deliver across India; call or WhatsApp us on ${SHOP.phone} to ask.`
+    : !info.found ? `We couldn't find PIN code ${p}. Please check it.`
+    : !info.serviceable ? `Sorry, our couriers don't reach ${p} yet. Call or WhatsApp us on ${SHOP.phone} and we'll find a way.`
+    : `Delivers to ${info.city ? info.city + ", " : ""}${info.state || p}. Arrives ${SHOP.arrives(info)}. ${info.cod ? "Cash on delivery available." : "Pay online here (no cash on delivery)."}`;
+  if (pinForm) {
+    const pinIn = pinForm.elements.pin, pinOut = $(".pin-out", pinForm);
+    let shownPin = "";
+    async function checkDelivery() {
+      const p = pinIn.value;
+      if (!/^[1-9]\d{5}$/.test(p)) { shownPin = ""; pinOut.dataset.tone = "bad"; pinOut.textContent = "Please enter a 6-digit PIN code."; return; }
+      if (p === shownPin) return;
+      shownPin = p;
+      pinOut.dataset.tone = "";
+      pinOut.textContent = "Checking…";
+      const info = await SHOP.checkPin(p);
+      if (pinIn.value !== p) return; // changed meanwhile
+      pinOut.dataset.tone = info.found && info.serviceable ? "good" : info.unavailable ? "" : "bad";
+      pinOut.textContent = pinWords(p, info);
+      if (info.unavailable) shownPin = "";
+    }
+    pinIn.addEventListener("input", () => {
+      const d = pinIn.value.replace(/\D/g, "").slice(0, 6);
+      if (d !== pinIn.value) pinIn.value = d;
+      if (d.length === 6) checkDelivery();
+      else if (shownPin) { shownPin = ""; pinOut.textContent = ""; delete pinOut.dataset.tone; }
+    });
+    pinForm.addEventListener("submit", (e) => { e.preventDefault(); checkDelivery(); });
+    const known = SHOP.rememberedPin();
+    if (known && "IntersectionObserver" in window) {
+      pinIn.value = known;
+      const io = new IntersectionObserver((seen) => {
+        if (seen.some((x) => x.isIntersecting)) { io.disconnect(); checkDelivery(); }
+      }, { rootMargin: "200px 0px" });
+      io.observe(pinForm);
+    }
+  }
+
   /* ---------- Tools for AI assistants (WebMCP) ----------
      In a browser that lets AI assistants use websites for their user (WebMCP: document.modelContext),
      the assistant can read what the shop sells and put products in the visitor's cart. It never
@@ -1208,6 +1250,21 @@
         const q = SHOP.quote(Cart.items());
         return `Added: ${PAGES[kind].name}, ${Art.DESIGNS[id].name} (${line.qty} of this design in the cart). The cart now comes to ₹${q.total}` +
           `${q.delivery ? ` including ₹${q.delivery} delivery` : ", delivery free"}. To order, the visitor opens ${site}/cart and checks out.`;
+      }
+    });
+    tool({
+      name: "check_delivery",
+      description: "Whether Aashi Enterprises delivers to an Indian PIN code, the town and state it is in, the expected delivery dates, and whether cash on delivery is available there.",
+      inputSchema: {
+        type: "object",
+        properties: { pincode: { type: "string", pattern: "^[1-9][0-9]{5}$", description: "The 6-digit PIN code, for example 110018" } },
+        required: ["pincode"]
+      },
+      annotations: { readOnlyHint: true },
+      async execute({ pincode } = {}) {
+        const p = String(pincode || "").replace(/\D/g, "");
+        if (!/^[1-9]\d{5}$/.test(p)) return "A PIN code has 6 digits and doesn't start with 0.";
+        return pinWords(p, await SHOP.checkPin(p));
       }
     });
   }

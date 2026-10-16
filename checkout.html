@@ -86,7 +86,10 @@
             </div>
             <div class="field f-third">
               <label for="f-city">Town or city</label>
-              <input id="f-city" name="city" toolparamdescription="Town or city" autocomplete="address-level2" maxlength="50" required />
+              <input id="f-city" name="city" toolparamdescription="Town or city (one of the PIN code's towns; filled in from the PIN code)" autocomplete="address-level2" maxlength="50" list="towns" required aria-describedby="h-city" />
+              <!-- the PIN code's towns, from /api/pincode (shop-pages.js) -->
+              <datalist id="towns"></datalist>
+              <p class="field-hint" id="h-city" hidden>Filled in from the PIN code. Yours is different? Pick it from the list.</p>
               <p class="field-error" id="e-city"></p>
             </div>
             <div class="field f-third">
@@ -99,6 +102,11 @@
               </div>
               <p class="field-error" id="e-state"></p>
             </div>
+            <!-- what the PIN code tells us: where it is, and when the parcel would arrive -->
+            <p class="pin-result" id="pin-result" role="status" aria-live="polite" hidden>
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 6.5h10.6v9.2H2.8z"/><path d="M13.4 9.5h4.3l3.3 3.4v2.8h-7.6"/><circle cx="7" cy="17.6" r="1.9"/><circle cx="17.2" cy="17.6" r="1.9"/></svg>
+              <span data-pin-text></span>
+            </p>
             <!-- left empty by people; robots that fill in every field give themselves away -->
             <div class="trap" aria-hidden="true">
               <label for="f-website">Website</label>

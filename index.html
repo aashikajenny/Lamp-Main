@@ -388,6 +388,16 @@
             <span class="sr-only" role="status" aria-live="polite" data-buy-status></span>
           </div>
           <p class="buy-note" role="status" aria-live="polite"></p>
+          <!-- delivery to a PIN code: when it would arrive, and whether cash on delivery is taken there
+               (script.js, /api/pincode); the checkout fills the PIN code in from here -->
+          <form class="pin-check reveal" novalidate>
+            <label for="pin-check">Check delivery</label>
+            <div class="pin-row">
+              <input id="pin-check" name="pin" inputmode="numeric" autocomplete="postal-code" maxlength="6" placeholder="Your PIN code" />
+              <button type="submit" class="pin-go">Check</button>
+            </div>
+            <p class="pin-out" role="status" aria-live="polite"></p>
+          </form>
         </div>
       </div>
     </section>

@@ -7,6 +7,8 @@ import * as track from "../functions/api/track.js";
 import * as cancel from "../functions/api/cancel.js";
 import * as adminShip from "../functions/api/admin/shiprocket.js";
 import * as courierUpdates from "../functions/api/courier-updates.js";
+import * as pincode from "../functions/api/pincode.js";
+import { deliveryWindow } from "../server/pincode.js";
 import { onRequest as middleware } from "../functions/_middleware.js";
 import { isAdminPath, adminGate } from "../server/admin.js";
 import { hmacHex, cleanCustomer } from "../server/orders.js";
@@ -83,7 +85,15 @@ function resetShiprocket() {
   sr = {
     calls: [], orders: {}, n: 100, logins: 0, track: {},
     pickups: [{ pickup_location: "work", address: "RZ-40, Narsingh Garden", city: "New Delhi", state: "Delhi", pin_code: "110018", phone_verified: 1 }],
-    failAwb: false, totalOffset: 0, cancelFails: false, expireNext: false
+    failAwb: false, totalOffset: 0, cancelFails: false, expireNext: false,
+    // PIN codes it knows: towns and state (its look-up), days by courier and whether COD is taken
+    pins: {
+      "122001": { city: "Gurgaon", state: "Haryana", locality: ["Gurgaon", "Sohna Road", "Sector 14"], days: 3, cod: true },
+      "110018": { city: "West Delhi", state: "Delhi", locality: ["Khyala", "Tilak Nagar"], days: 1, cod: true },
+      "744101": { city: "South Andaman", state: "Andaman & Nicobar Islands", locality: ["Port Blair"], days: 7, cod: false },
+      "194101": { city: "Leh", state: "Jammu & Kashmir", locality: ["Leh"], days: 6, cod: true },
+      "403001": { city: "North Goa", state: "Goa", locality: ["Panaji"], days: null, cod: false }
+    }
   };
 }
 const rzpFetch = window.fetch;
@@ -103,6 +113,21 @@ window.fetch = async (url, init = {}) => {
   if (sr.expireNext) { sr.expireNext = false; return no(401, "Token has expired"); }
   let m;
   if (path === "/settings/company/pickup") return ok({ data: { shipping_address: sr.pickups } });
+  if (path.startsWith("/open/postcode/details?")) {
+    const pin = new URLSearchParams(path.split("?")[1]).get("postcode"), k = sr.pins[pin];
+    if (!k) return no(403, `Mapped City-State details not found for ${pin}`);
+    return ok({ success: true, postcode_details: { postcode: pin, city: k.city, locality: k.locality, state: k.state } });
+  }
+  if (path.startsWith("/courier/serviceability/?")) {
+    const q = new URLSearchParams(path.split("?")[1]), k = sr.pins[q.get("delivery_postcode")];
+    if (q.get("pickup_postcode") !== "110018" || q.get("weight") !== "0.5") return no(422, "Oops! Invalid Data.");
+    if (!k || k.days == null || (q.get("cod") === "1" && !k.cod)) return ok({ status: 404, message: "No courier serviceable" });
+    const etd = new Date(Date.now() + k.days * 86400e3).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return ok({ status: 200, data: { recommended_courier_company_id: 10, available_courier_companies: [
+      { courier_company_id: 33, courier_name: "Xpressbees", etd: "Jan 1, 2099", etd_hours: 9999, cod: 1 },
+      { courier_company_id: 10, courier_name: "Delhivery Surface", etd, etd_hours: k.days * 24, cod: k.cod ? 1 : 0 }
+    ] } });
+  }
   if (path === "/account/details/wallet-balance") return ok({ data: { balance_amount: "1000" } });
   if (path === "/orders/create/adhoc" && method === "POST") {
     if (Object.values(sr.orders).some((o) => o.body.order_id === body.order_id)) return no(422, "Order Id already exists");
@@ -178,7 +203,7 @@ const waits = [];
 const ctx = (request, env, extra = {}) => ({ request, env, waitUntil: (p) => waits.push(p), next: async () => new Response("page", { headers: { "content-type": "text/html" } }), ...extra });
 const read = async (res) => ({ status: res.status, body: await res.json().catch(() => null), res });
 
-const CUSTOMER = { name: "Priya Sharma", phone: "+91 98765 43210", email: "Priya@Example.com", line1: "Flat 4B, Shanti Apartments", line2: "MG Road, Sector 14", landmark: "Near the temple", city: "Gurugram", state: "Haryana", pincode: "122001" };
+const CUSTOMER = { name: "Priya Sharma", phone: "+91 98123 45670", email: "Priya@Example.com", line1: "Flat 4B, Shanti Apartments", line2: "MG Road, Sector 14", landmark: "Near the temple", city: "Gurugram", state: "Haryana", pincode: "122001" };
 const order = (items, payment = "cod", customer = CUSTOMER, extra = {}) => ({ items, customer, payment, website: "", ...extra });
 const MANTRA = { product: "mantra", design: "khatu-shyam-ji", qty: 1 };
 const LAMP = { product: "lamp", design: "meditating-shiv-ji", qty: 1 };
@@ -218,7 +243,7 @@ test("COD order: priced on the server, saved, owner notified", async () => {
   ok(/^AE-[A-Z2-9]{6}$/.test(r.body.order), "order number " + r.body.order);
   eq([r.body.subtotal, r.body.delivery, r.body.total], [897, 0, 897], "totals");
   const row = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(r.body.order).first();
-  eq([row.status, row.payment, row.total, row.phone, row.email, row.pincode], ["cod", "cod", 897, "9876543210", "priya@example.com", "122001"], "row");
+  eq([row.status, row.payment, row.total, row.phone, row.email, row.pincode], ["cod", "cod", 897, "9812345670", "priya@example.com", "122001"], "row");
   eq(row.address, "Flat 4B, Shanti Apartments, MG Road, Sector 14, near Near the temple", "address");
   eq(JSON.parse(row.items), [{ product: "mantra", design: "khatu-shyam-ji", qty: 2, price: 349 }, { product: "lamp", design: "meditating-shiv-ji", qty: 1, price: 199 }], "items");
   await Promise.all(waits);
@@ -240,8 +265,8 @@ test("checks the buyer's details and names the field", async () => {
     eq([r.status, r.body.field], [400, field], `${field}=${value}`);
   }
   // Hindi names and a 0-prefixed number are fine
-  const c = cleanCustomer({ ...CUSTOMER, name: "प्रिया शर्मा", phone: "09876543210" });
-  eq([c.name, c.phone], ["प्रिया शर्मा", "9876543210"]);
+  const c = cleanCustomer({ ...CUSTOMER, name: "प्रिया शर्मा", phone: "09812345670" });
+  eq([c.name, c.phone], ["प्रिया शर्मा", "9812345670"]);
   // markup in an address is neutralised
   eq(cleanCustomer({ ...CUSTOMER, line2: "<script>x</script> Road" }).line2, "script x /script Road");
 });
@@ -270,7 +295,7 @@ test("online order: Razorpay order for the server's total, with the details in i
   const call = rzp.calls.find((c) => c[0] === "POST" && c[1] === "/orders");
   eq([call[2].amount, call[2].currency, call[2].receipt], [24800, "INR", r.body.order], "Razorpay order");
   eq(call[3], "Basic " + btoa("rzp_test_ABCDEFGH12:" + SECRET), "auth");
-  ok(call[2].notes.items.includes("Night Lamp, Meditating Shiv Ji x 1") && call[2].notes.phone === "9876543210", "notes " + JSON.stringify(call[2].notes));
+  ok(call[2].notes.items.includes("Night Lamp, Meditating Shiv Ji x 1") && call[2].notes.phone === "9812345670", "notes " + JSON.stringify(call[2].notes));
   ok(Object.keys(call[2].notes).length <= 15 && Object.values(call[2].notes).every((v) => v.length <= 256), "notes within Razorpay's limits");
   eq(r.body.razorpay, { key: "rzp_test_ABCDEFGH12", order_id: call[2] && rzp.orders[Object.keys(rzp.orders)[0]].id, amount: 24800, currency: "INR" }, "what checkout opens with");
   ok(!JSON.stringify(r.body).includes(SECRET), "the secret never leaves the server");
@@ -395,38 +420,38 @@ test("track: order number + mobile number finds it; anything else gets the same 
   const env = envWith();
   const a = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([{ ...MANTRA, qty: 2 }], "cod") }), env)))).body;
   const look = (body, ip = "192.0.2.50") => track.onRequestPost(ctx(req("/api/track", { body, headers: { "cf-connecting-ip": ip } }), env)).then(read);
-  const ok1 = await look({ order: a.order, phone: "98765 43210" });
+  const ok1 = await look({ order: a.order, phone: "98123 45670" });
   eq(ok1.status, 200, "found");
   eq([ok1.body.order, ok1.body.status, ok1.body.total, ok1.body.place, ok1.body.tracking], [a.order, "cod", 698, "Gurugram, Haryana 122001", null], "what it shows");
   eq(ok1.body.items[0].designName, "Khatu Shyam Ji", "design name");
-  ok(!JSON.stringify(ok1.body).includes("Shanti Apartments") && !JSON.stringify(ok1.body).includes("Priya") && !JSON.stringify(ok1.body).includes("9876543210"), "no address, name or phone in the answer");
+  ok(!JSON.stringify(ok1.body).includes("Shanti Apartments") && !JSON.stringify(ok1.body).includes("Priya") && !JSON.stringify(ok1.body).includes("9812345670"), "no address, name or phone in the answer");
   // typed loosely: lower case, no dash, without AE
-  eq((await look({ order: a.order.toLowerCase().replace("-", ""), phone: "+919876543210" })).status, 200, "loose typing");
-  eq((await look({ order: a.order.slice(3), phone: "09876543210" })).status, 200, "without AE");
+  eq((await look({ order: a.order.toLowerCase().replace("-", ""), phone: "+919812345670" })).status, 200, "loose typing");
+  eq((await look({ order: a.order.slice(3), phone: "09812345670" })).status, 200, "without AE");
   const wrongPhone = await look({ order: a.order, phone: "9876543211" });
-  const noOrder = await look({ order: "AE-ZZZZZZ", phone: "9876543210" });
+  const noOrder = await look({ order: "AE-ZZZZZZ", phone: "9812345670" });
   eq([wrongPhone.status, noOrder.status, wrongPhone.body.error === noOrder.body.error], [404, 404, true], "wrong phone and unknown order look the same");
-  eq((await look({ order: "XYZ", phone: "9876543210" })).body.field, "order", "bad order number");
+  eq((await look({ order: "XYZ", phone: "9812345670" })).body.field, "order", "bad order number");
   eq((await look({ order: a.order, phone: "123" })).body.field, "phone", "bad phone");
-  eq((await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9876543210" }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites");
+  eq((await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9812345670" }, headers: { origin: "https://evil.example" } }), env))).status, 403, "other sites");
   // shipped with a link: the link comes back; a tracking number comes back as a number; a javascript: link never as a link
   const upd = (body) => adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body }), env));
   await upd({ id: a.order, status: "shipped", tracking: "https://track.example/AWB123" });
-  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { url: "https://track.example/AWB123" }, "link");
+  eq((await look({ order: a.order, phone: "9812345670" })).body.tracking, { url: "https://track.example/AWB123" }, "link");
   await upd({ id: a.order, status: "shipped", tracking: "AWB 123456789" });
-  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { number: "AWB 123456789" }, "number");
+  eq((await look({ order: a.order, phone: "9812345670" })).body.tracking, { number: "AWB 123456789" }, "number");
   await upd({ id: a.order, status: "shipped", tracking: "javascript:alert(1)" });
-  eq((await look({ order: a.order, phone: "9876543210" })).body.tracking, { number: "javascript:alert(1)" }, "never a script link");
+  eq((await look({ order: a.order, phone: "9812345670" })).body.tracking, { number: "javascript:alert(1)" }, "never a script link");
   // guessing is slowed down: 15 look-ups per 10 minutes per visitor (8 counted so far: the refused-as-unreadable ones never reach the database)
-  for (let i = 0; i < 7; i++) await look({ order: "AE-ZZZZZZ", phone: "9876543210" });
-  eq((await look({ order: a.order, phone: "9876543210" })).status, 429, "16th look-up refused");
-  eq((await look({ order: a.order, phone: "9876543210" }, "192.0.2.99")).status, 200, "another visitor still fine");
+  for (let i = 0; i < 7; i++) await look({ order: "AE-ZZZZZZ", phone: "9812345670" });
+  eq((await look({ order: a.order, phone: "9812345670" })).status, 429, "16th look-up refused");
+  eq((await look({ order: a.order, phone: "9812345670" }, "192.0.2.99")).status, 200, "another visitor still fine");
 });
 
 test("track: a paid order the page never heard about shows as paid", async () => {
   const env = envWith();
   const b = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "online") }), env)))).body;
-  const look = () => track.onRequestPost(ctx(req("/api/track", { body: { order: b.order, phone: "9876543210" } }), env)).then(read);
+  const look = () => track.onRequestPost(ctx(req("/api/track", { body: { order: b.order, phone: "9812345670" } }), env)).then(read);
   eq((await look()).body.status, "awaiting_payment", "not paid yet");
   pay(b.razorpay.order_id);
   eq((await look()).body.status, "paid", "caught up with Razorpay");
@@ -439,7 +464,7 @@ test("buyer cancels: cash on delivery just cancels; a paid order is refunded in 
   const paid = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([MANTRA, LAMP], "online"), headers: { "cf-connecting-ip": "198.51.100.3" } }), env)))).body;
   const pid = pay(paid.razorpay.order_id);
   await verify.onRequestPost(ctx(req("/api/verify", { body: { order: paid.order, razorpay_order_id: paid.razorpay.order_id, razorpay_payment_id: pid, razorpay_signature: await hmacHex(SECRET, `${paid.razorpay.order_id}|${pid}`) } }), env));
-  const can = (o, phone = "9876543210", ip = "192.0.2.60") => cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: o, phone }, headers: { "cf-connecting-ip": ip } }), env)).then(read);
+  const can = (o, phone = "9812345670", ip = "192.0.2.60") => cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: o, phone }, headers: { "cf-connecting-ip": ip } }), env)).then(read);
 
   eq((await can(cod.order, "9876543211")).status, 404, "wrong phone can't cancel");
   eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(cod.order).first()).status, "cod", "still open");
@@ -451,7 +476,7 @@ test("buyer cancels: cash on delivery just cancels; a paid order is refunded in 
   eq([c2.status, c2.body.status, c2.body.refund], [200, "cancelled", { status: "processed", amount: 548 }], "paid cancelled and refunded");
   const call = rzp.calls.find((c) => c[0] === "POST" && c[1] === `/payments/${pid}/refund`);
   eq(call[2].amount, 54800, "the whole amount, in paise");
-  ok(!JSON.stringify(c2.body).includes("Shanti") && !JSON.stringify(c2.body).includes("9876543210"), "no address or phone in the answer");
+  ok(!JSON.stringify(c2.body).includes("Shanti") && !JSON.stringify(c2.body).includes("9812345670"), "no address or phone in the answer");
   // again: no second refund, just the cancelled order
   const c3 = await can(paid.order);
   eq([c3.status, rzp.calls.filter((c) => /refund$/.test(c[1] || "")).length], [200, 1], "cancelling twice refunds once");
@@ -461,10 +486,10 @@ test("buyer can't cancel once shipped; the shop shipping and the buyer cancellin
   const env = envWith();
   const a = (await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod") }), env)))).body;
   await adminOrders.onRequestPost(ctx(req("/api/admin/orders", { body: { id: a.order, status: "shipped", tracking: "AWB1" } }), env));
-  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: a.order, phone: "9876543210" } }), env)));
+  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: a.order, phone: "9812345670" } }), env)));
   eq([r.status, /already left us/.test(r.body.error)], [409, true], "refused after shipping");
   eq((await env.DB.prepare("SELECT status FROM orders WHERE id = ?").bind(a.order).first()).status, "shipped", "still shipped");
-  const t = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9876543210" } }), env)));
+  const t = await read(await track.onRequestPost(ctx(req("/api/track", { body: { order: a.order, phone: "9812345670" } }), env)));
   eq(t.body.cancellable, false, "track says it can't be cancelled");
 });
 
@@ -497,15 +522,15 @@ test("an order table from before cancelling existed gets its new columns", async
   env.DB.raw.run(`CREATE TABLE orders (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, status TEXT NOT NULL, payment TEXT NOT NULL,
     subtotal INTEGER NOT NULL, delivery INTEGER NOT NULL, total INTEGER NOT NULL, items TEXT NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT,
     address TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL, pincode TEXT NOT NULL, rzp_order_id TEXT, rzp_payment_id TEXT, tracking TEXT, note TEXT, visitor TEXT)`);
-  env.DB.raw.run("INSERT INTO orders VALUES ('AE-OLD222','2026-10-13','2026-10-13','cod','cod',199,49,248,'[{\"product\":\"lamp\",\"design\":\"om\",\"qty\":1,\"price\":199}]','Old Buyer','9876543210',NULL,'1 Road','Delhi','Delhi','110001',NULL,NULL,NULL,NULL,NULL)");
-  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: "AE-OLD222", phone: "9876543210" } }), env)));
+  env.DB.raw.run("INSERT INTO orders VALUES ('AE-OLD222','2026-10-13','2026-10-13','cod','cod',199,49,248,'[{\"product\":\"lamp\",\"design\":\"om\",\"qty\":1,\"price\":199}]','Old Buyer','9812345670',NULL,'1 Road','Delhi','Delhi','110001',NULL,NULL,NULL,NULL,NULL)");
+  const r = await read(await cancel.onRequestPost(ctx(req("/api/cancel", { body: { order: "AE-OLD222", phone: "9812345670" } }), env)));
   eq([r.status, r.body.status, r.body.cancelled.by], [200, "cancelled", "buyer"], "the old order cancels");
   const cols = env.DB.raw.exec("PRAGMA table_info(orders)")[0].values.map((v) => v[1]);
   ok(["refund_id", "refund_status", "refund_amount", "cancelled_by", "cancelled_at", "sr_order_id", "sr_shipment_id", "sr_tries", "awb", "courier", "sr_status", "sr_label", "sr_lock", "parcel"].every((c) => cols.includes(c)), "columns added: " + cols.join(","));
 });
 
 /* ---------- Shiprocket ---------- */
-const PHONE = "9876543210";
+const PHONE = "9812345670";
 const place = (env, o, payment = "cod") => checkout.onRequestPost(ctx(req("/api/checkout", { body: order(o, payment) }), env)).then(read).then((r) => r.body);
 const ship = (env, id, parcel, extra = {}) => adminShip.onRequestPost(ctx(req("/api/admin/shiprocket", { body: { id, action: "ship", parcel, ...extra } }), env)).then(read);
 const listed = async (env, view, id) => (await read(await adminOrders.onRequestGet(ctx(req(`/api/admin/orders?view=${view}`, { method: "GET" }), env)))).body.orders.find((o) => o.id === id);
@@ -721,6 +746,104 @@ test("Shiprocket: the connection check; a token that ran out is renewed once; pi
   eq((await ship({ ...env, SHIPROCKET_PICKUP: "garage" }, a.order, LAMP_BOX)).status, 502, "a name Shiprocket doesn't have");
   eq((await ship({ ...env, SHIPROCKET_PICKUP: "Work" }, a.order, LAMP_BOX)).status, 200, "named: shipped");
   eq(srCalls("/orders/create/adhoc")[0][2].pickup_location, "work", "Shiprocket's own spelling");
+});
+
+/* ---------- Real addresses: PIN codes, towns, states, made-up details ---------- */
+const askPin = (env, pin, headers = {}) => pincode.onRequestGet(ctx(req(`/api/pincode?pin=${pin}`, { method: "GET", headers: { origin: null, "sec-fetch-site": "same-origin", ...headers } }), env)).then(read);
+const ymd = /^\d{4}-\d{2}-\d{2}$/;
+
+test("/api/pincode: a PIN code's towns, state, delivery dates and cash on delivery, asked of Shiprocket once", async () => {
+  const env = envWith();
+  const a = await askPin(env, "122001");
+  eq([a.status, a.body.found, a.body.city, a.body.state, a.body.serviceable, a.body.cod], [200, true, "Gurgaon", "Haryana", true, true], "Gurgaon");
+  eq(a.body.places, ["Gurgaon", "Sohna Road", "Sector 14"], "its towns");
+  ok(ymd.test(a.body.from) && ymd.test(a.body.to) && a.body.from <= a.body.to, `dates ${a.body.from}..${a.body.to}`);
+  const shiprocketAsks = () => sr.calls.filter((c) => /^\/(courier\/serviceability|open\/postcode)/.test(c[1])).length;
+  const asked = shiprocketAsks();
+  await askPin(env, "122001");
+  eq(shiprocketAsks(), asked, "the second time, from memory");
+  // kept in the database too: another server instance's memory would be empty, the database not
+  await askPin(env, "110018");
+  eq(!!(await env.DB.prepare("SELECT info FROM pincodes WHERE pin = '110018'").first()), true, "kept in the database");
+  const andaman = (await askPin(env, "744101")).body;
+  eq([andaman.state, andaman.serviceable, andaman.cod], ["Andaman and Nicobar Islands", true, false], "no COD there; & spelled out");
+  const goa = (await askPin(env, "403001")).body;
+  eq([goa.found, goa.serviceable, goa.from], [true, false, undefined], "real, but no courier");
+  eq((await askPin(env, "999999")).body, { pin: "999999", found: false }, "no such PIN code");
+  eq((await askPin(env, "012345")).status, 400, "not a PIN code");
+  eq((await askPin(env, "12a456")).status, 400, "letters");
+  eq((await askPin(env, "122001", { "sec-fetch-site": "cross-site" })).status, 403, "another site's page");
+  eq((await askPin({ ...env, SHIPROCKET_PASSWORD: "" }, "560001")).body, { pin: "560001", unavailable: true }, "without Shiprocket: unavailable, not an error");
+});
+
+test("/api/pincode: one visitor can ask 40 times in 10 minutes", async () => {
+  const env = envWith();
+  for (let i = 0; i < 40; i++) eq((await askPin(env, "122001")).status, 200, "ask " + i);
+  eq((await askPin(env, "122001")).status, 429, "41st");
+  eq((await askPin(env, "122001", { "cf-connecting-ip": "198.51.100.9" })).status, 200, "someone else");
+});
+
+test("checkout: the address must fit its PIN code (real, reachable, its state and one of its towns; COD where taken)", async () => {
+  const env = envWith();
+  const place = (customer, payment = "cod") => checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], payment, { ...CUSTOMER, ...customer }) }), env)).then(read);
+  const refused = async (customer, field, re, payment) => {
+    const r = await place(customer, payment);
+    eq([r.status, r.body.field], [400, field], JSON.stringify(customer));
+    ok(re.test(r.body.error), r.body.error);
+  };
+  await refused({ pincode: "999999" }, "pincode", /couldn't find PIN code 999999/);
+  await refused({ pincode: "403001", city: "Panaji", state: "Goa" }, "pincode", /don't deliver to PIN code 403001/);
+  await refused({ state: "Punjab" }, "state", /122001 is in Haryana/);
+  await refused({ city: "Mumbai" }, "city", /isn't in PIN code 122001.*Gurgaon, Sohna Road, Sector 14/);
+  await refused({ city: "Shimla" }, "city", /isn't in PIN code/);
+  await refused({ pincode: "744101", city: "Port Blair", state: "Andaman and Nicobar Islands" }, "payment", /Cash on delivery isn't available for PIN code 744101/);
+  // these fit
+  eq((await place({ city: "Gurugram" })).status, 200, "Gurugram is Gurgaon's new name");
+  eq((await place({ city: "Sohna" })).status, 200, "a word of one of its towns");
+  eq((await place({ city: "gurgaon " })).status, 200, "any case and spacing");
+  eq((await place({ pincode: "744101", city: "Port Blair", state: "Andaman and Nicobar Islands" }, "online")).status, 200, "paid online there");
+  eq((await place({ pincode: "194101", city: "Leh", state: "Ladakh" })).status, 200, "Ladakh, filed under Jammu and Kashmir by older lists");
+  // Shiprocket not set up or not answering: the form's own checks only, no buyer is stopped
+  const env2 = envWith({ SHIPROCKET_PASSWORD: "" });
+  eq((await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod", { ...CUSTOMER, pincode: "560099", city: "Bengaluru", state: "Karnataka" }) }), env2)))).status, 200, "without the look-up");
+});
+
+test("made-up details are refused: filler address lines and mobile numbers nobody has", async () => {
+  const cases = [
+    ["line1", "asdf"], ["line1", "aaaa"], ["line1", "test"], ["line1", "N/A"], ["line1", "xxx"],
+    ["line2", "1234"], ["line2", "abab abab"], ["line2", "qwerty"], ["city", "xyz"], ["city", "aa"],
+    ["phone", "9999999999"], ["phone", "9876543210"], ["phone", "9898989898"], ["phone", "6789012345"]
+  ];
+  for (const [field, value] of cases) {
+    const r = await read(await checkout.onRequestPost(ctx(req("/api/checkout", { body: order([LAMP], "cod", { ...CUSTOMER, [field]: value }) }), envWith())));
+    eq([r.status, r.body.field], [400, field], `${field}=${value}`);
+  }
+  // real ones pass
+  for (const [field, value] of [["line1", "101"], ["line1", "B-12, Shanti Kunj"], ["line2", "Sector 14"], ["phone", "7011223344"]]) {
+    eq(cleanCustomer({ ...CUSTOMER, [field]: value })[field], value, `${field}=${value}`);
+  }
+});
+
+test("towns: whole names, words of them, old and new names; states as Shiprocket spells them", () => {
+  const delhi = { places: ["South West Delhi", "Palam", "Bagdola"], state: "Delhi" };
+  eq(SHOP.townMatches("New Delhi", delhi), true, "New Delhi");
+  eq(SHOP.townMatches("Palam", delhi), true, "a post office");
+  eq(SHOP.townMatches("Mumbai", delhi), false, "another city");
+  eq(SHOP.townMatches("", delhi), false, "nothing");
+  eq(SHOP.townMatches("Una", { places: ["Una"], state: "Himachal Pradesh" }), true, "a three-letter town");
+  eq(SHOP.townMatches("Noida", { places: ["Gautam Buddha Nagar"], state: "Uttar Pradesh" }), true, "Noida");
+  eq(SHOP.townMatches("Bangalore", { places: ["Bengaluru"], state: "Karnataka" }), true, "Bangalore");
+  eq(SHOP.townMatches("Nagar", { places: ["Shastri Nagar"], state: "Delhi" }), false, "a common word alone");
+  eq(SHOP.townMatches("Anything", null), true, "no look-up: anything");
+  eq([SHOP.sameState("Ladakh", "Jammu and Kashmir"), SHOP.sameState("Telangana", "Andhra Pradesh"), SHOP.sameState("Goa", "Kerala")], [true, true, false], "split states");
+});
+
+test("delivery dates: 1 to 3 working days to leave us, then the courier's days; no Sundays; India's time", () => {
+  const at = (iso) => Date.parse(iso);
+  eq(deliveryWindow(3, at("2026-10-15T10:00:00+05:30")), { from: "2026-10-19", to: "2026-10-22" }, "Thursday, 3 days");
+  eq(deliveryWindow(2, at("2026-10-15T10:00:00+05:30")), { from: "2026-10-19", to: "2026-10-21" }, "landing on Sunday moves to Monday");
+  eq(deliveryWindow(1, at("2026-10-17T10:00:00+05:30")), { from: "2026-10-20", to: "2026-10-22" }, "ordered on Saturday");
+  eq(deliveryWindow(3, at("2026-10-15T20:00:00Z")), { from: "2026-10-20", to: "2026-10-23" }, "after midnight in India it is already Friday");
 });
 
 /* ---------- run ---------- */

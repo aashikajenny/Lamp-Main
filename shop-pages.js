@@ -236,13 +236,13 @@
   const phoneOf = (v) => v.replace(/[\s()-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, "");
   const CHECKS = {
     name: (v) => (v.length >= 2 && v.length <= 60 && /^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u.test(v)) || "Please enter your full name, in letters.",
-    phone: (v) => /^[6-9]\d{9}$/.test(phoneOf(v)) || "Please enter a 10-digit mobile number.",
+    phone: (v) => (/^[6-9]\d{9}$/.test(phoneOf(v)) || "Please enter a 10-digit mobile number.") && (!SHOP.fakePhone(phoneOf(v)) || "Please enter your real mobile number. The courier calls it to deliver."),
     email: (v) => !v || (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v) && v.length <= 100) || "Please check your email address, or leave it empty.",
-    line1: (v) => (v.length >= 3 && v.length <= 120) || "Please enter your house or flat number and building.",
-    line2: (v) => (v.length >= 3 && v.length <= 120) || "Please enter your street, area or locality.",
+    line1: (v) => (v.length >= 3 && v.length <= 120 && !SHOP.looksFake(v)) || "Please enter your house or flat number and building.",
+    line2: (v) => (v.length >= 3 && v.length <= 120 && !SHOP.looksFake(v) && /\p{L}/u.test(v)) || "Please enter your street, area or locality.",
     landmark: (v) => v.length <= 80 || "Please keep the landmark short.",
     pincode: (v) => /^[1-9]\d{5}$/.test(v.replace(/\s/g, "")) || "Please enter your 6-digit PIN code.",
-    city: (v) => (v.length >= 2 && v.length <= 50) || "Please enter your town or city.",
+    city: (v) => (v.length >= 2 && v.length <= 50 && !SHOP.looksFake(v)) || "Please enter your town or city.",
     state: (v) => STATES.includes(v) || "Please choose your state."
   };
 
@@ -301,10 +301,12 @@
     $$("input[name=payment]", form).forEach((r) => r.addEventListener("change", () => { label(); showError("payment", ""); }));
 
     // which ways to pay are switched on (a way that isn't stays visible, greyed, with a note)
+    let serverCod = true; // cash on delivery switched on (a PIN code without it switches it off: setCod)
     fetch("/api/checkout", { headers: { accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((on) => {
         if (!on) return;
+        serverCod = !!on.cod;
         const radios = { online: $("input[value=online]", form), cod: $("input[value=cod]", form) };
         Object.entries(radios).forEach(([k, r]) => {
           if (on[k]) return;
@@ -338,7 +340,8 @@
       }
     }
     function check(name) {
-      const ok = CHECKS[name](value(name));
+      let ok = CHECKS[name](value(name));
+      if (ok === true) ok = fitsPin(name);
       showError(name, ok === true ? "" : ok);
       return ok === true;
     }
@@ -350,6 +353,77 @@
     // the PIN code: digits only
     const pin = form.elements.pincode;
     pin.addEventListener("input", () => { const d = pin.value.replace(/\D/g, "").slice(0, 6); if (d !== pin.value) pin.value = d; });
+
+    /* The PIN code, asked about as soon as it has 6 digits (/api/pincode): a PIN code that doesn't
+       exist or that couriers don't reach is refused there and then; the state and town are filled
+       in from it (the town can be changed to another of its towns, from the list); the delivery
+       dates show; and cash on delivery is switched off where couriers don't take it. The server
+       checks all of it again. If the look-up isn't available, the form works as it did without it. */
+    const pinOut = $("#pin-result"), pinText = $("[data-pin-text]", pinOut), towns = $("#towns"), cityHint = $("#h-city");
+    const codRadio = $("input[value=cod]", form), codText = $(".pay-text", codRadio.closest(".pay-way")), codWords = codText.textContent;
+    let place = null, placePin = "", asking = null;
+    const pinNow = () => value("pincode").replace(/\s/g, "");
+    // the PIN code's own answer to a field, once it is known
+    function fitsPin(name) {
+      if (!place || placePin !== pinNow()) return true;
+      const p = placePin;
+      if (name === "pincode") {
+        if (!place.found) return `We couldn't find PIN code ${p}. Please check it.`;
+        if (!place.serviceable) return `Sorry, our couriers don't deliver to PIN code ${p} yet. Please WhatsApp us on ${SHOP.phone} and we'll find a way.`;
+      }
+      if (name === "state" && place.state && value("state") && !SHOP.sameState(value("state"), place.state)) return `PIN code ${p} is in ${place.state}. Please check the PIN code or the state.`;
+      if (name === "city" && place.found && value("city") && !SHOP.townMatches(value("city"), place)) return `That town isn't in PIN code ${p}. Pick yours from the list.`;
+      return true;
+    }
+    function setCod() {
+      if (!serverCod) return; // switched off for everyone: the server's note stays
+      const off = !!(place && place.found && place.serviceable && !place.cod);
+      codRadio.disabled = off;
+      codText.textContent = off ? `Not available for PIN code ${placePin}. Please pay online.` : codWords;
+      if (off && codRadio.checked) {
+        codRadio.checked = false;
+        const online = $("input[value=online]:not(:disabled)", form);
+        if (online) online.checked = true;
+        label();
+      }
+    }
+    function showPlace() {
+      const good = !!(place && place.found && place.serviceable);
+      pinOut.hidden = !good;
+      cityHint.hidden = !(good && place.places.length);
+      towns.replaceChildren(...(good ? place.places.map((t) => new Option(t)) : []));
+      if (good) {
+        pinText.textContent = `Delivers to ${place.city ? place.city + ", " : ""}${place.state || "PIN code " + placePin}. Arrives ${SHOP.arrives(place)}.`
+          + (place.cod ? "" : " Cash on delivery isn't available here, so please pay online.");
+        // the state and town, filled in from the PIN code (a town of its own that fits is kept)
+        if (place.state && STATES.includes(place.state) && !SHOP.sameState(value("state"), place.state)) select.value = place.state;
+        if (!value("city") || !SHOP.townMatches(value("city"), place)) form.elements.city.value = place.city || place.places[0] || "";
+        ["state", "city"].forEach((n) => { if (form.elements[n].value) check(n); });
+      }
+      setCod();
+      if (pinNow().length === 6) check("pincode");
+    }
+    function lookPin() {
+      const p = pinNow();
+      if (!/^[1-9]\d{5}$/.test(p)) {
+        if (placePin) { place = null; placePin = ""; showPlace(); }
+        return Promise.resolve();
+      }
+      if (p === placePin) return asking || Promise.resolve();
+      placePin = p;
+      place = null;
+      asking = SHOP.checkPin(p).then((info) => {
+        if (pinNow() !== p) return; // changed meanwhile
+        place = info.unavailable ? null : info;
+        showPlace();
+      });
+      return asking;
+    }
+    pin.addEventListener("input", lookPin);
+    pin.addEventListener("change", lookPin);
+    // a PIN code checked under the buy buttons comes along
+    if (!pin.value && SHOP.rememberedPin()) pin.value = SHOP.rememberedPin();
+    if (pin.value) lookPin();
 
     function showAlert(msg) {
       alertBox.textContent = msg || "";
@@ -431,6 +505,7 @@
       e.preventDefault();
       if (go.disabled) return;
       showAlert("");
+      await lookPin(); // the PIN code's answer first, so the checks below can use it
       const bad = Object.keys(CHECKS).filter((n) => !check(n));
       if (!way()) { showError("payment", "Please choose how you'd like to pay."); bad.push("payment"); }
       if (bad.length) {

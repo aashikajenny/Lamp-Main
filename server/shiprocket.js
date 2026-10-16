@@ -23,7 +23,10 @@ let cached = null; // { token, email, at }
 
 export const shiprocketReady = (env) => /@/.test(env.SHIPROCKET_EMAIL || "") && (env.SHIPROCKET_PASSWORD || "").length > 0;
 
-export class ShiprocketError extends Error {}
+// what Shiprocket said went wrong (status: its HTTP status, when it answered at all)
+export class ShiprocketError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
 
 async function login(env) {
   const email = (env.SHIPROCKET_EMAIL || "").trim();
@@ -36,7 +39,7 @@ async function login(env) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.token) {
     cached = null;
-    throw new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`);
+    throw new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0);
   }
   cached = { token: data.token, email, at: Date.now() };
   return data.token;
@@ -58,7 +61,7 @@ export async function shiprocket(env, method, path, body) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401 && attempt === 0) { cached = null; continue; } // the token ran out: log in again
-    if (!res.ok) throw new ShiprocketError(`Shiprocket said: ${problem(data) || "error " + res.status}`);
+    if (!res.ok) throw new ShiprocketError(`Shiprocket said: ${problem(data) || "error " + res.status}`, res.status);
     return data;
   }
 }
@@ -99,18 +102,30 @@ export function cleanParcel(p) {
 // SHIPROCKET_PICKUP if set, otherwise the only pickup address (or the primary one, if Shiprocket
 // marks one). With several and no name set, it asks rather than guessing.
 export async function pickupName(env) {
+  return (await choosePickup(env)).pickup_location;
+}
+// the pickup address for delivery times (they are counted from its PIN code), kept for an hour
+let pickupKept = null; // { key, at, place }
+export async function pickupPlace(env) {
+  const key = `${(env.SHIPROCKET_EMAIL || "").trim()}|${(env.SHIPROCKET_PICKUP || "").trim()}`;
+  if (pickupKept && pickupKept.key === key && Date.now() - pickupKept.at < 3600e3) return pickupKept.place;
+  const place = await choosePickup(env);
+  pickupKept = { key, at: Date.now(), place };
+  return place;
+}
+async function choosePickup(env) {
   const r = await shiprocket(env, "GET", "/settings/company/pickup");
   const all = ((r.data || {}).shipping_address || []).filter((p) => p && p.pickup_location);
   const want = (env.SHIPROCKET_PICKUP || "").trim();
   if (want) {
     const p = all.find((x) => x.pickup_location.toLowerCase() === want.toLowerCase());
     if (!p) throw new ShiprocketError(`Shiprocket has no pickup address named "${want}" (SHIPROCKET_PICKUP). It has: ${all.map((x) => x.pickup_location).join(", ") || "none"}.`);
-    return p.pickup_location;
+    return p;
   }
   if (!all.length) throw new ShiprocketError("Shiprocket has no pickup address yet. Add one in Shiprocket > Settings > Pickup Addresses.");
   const primary = all.filter((x) => Number(x.is_primary_location) === 1);
-  if (all.length === 1) return all[0].pickup_location;
-  if (primary.length === 1) return primary[0].pickup_location;
+  if (all.length === 1) return all[0];
+  if (primary.length === 1) return primary[0];
   throw new ShiprocketError(`Shiprocket has ${all.length} pickup addresses (${all.map((x) => x.pickup_location).join(", ")}). In Cloudflare, set SHIPROCKET_PICKUP to the one to use.`);
 }
 

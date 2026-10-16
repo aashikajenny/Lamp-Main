@@ -97,7 +97,7 @@ Each product's page lists its designs under "Choose your design". Designs by pro
 
 ${kinds.map((k) => `- ${PAGES[k].name}: ${designs(k).join(", ")}`).join("\n")}
 
-In a browser with WebMCP, the site offers the tools \`list_products\` (products, prices, designs, delivery) and \`add_to_cart\` (product: mantra, mini or lamp; design: its id or name; quantity 1 to ${SHOP.maxQty}).
+In a browser with WebMCP, the site offers the tools \`list_products\` (products, prices, designs, delivery), \`add_to_cart\` (product: mantra, mini or lamp; design: its id or name; quantity 1 to ${SHOP.maxQty}) and \`check_delivery\` (pincode: whether it is delivered there, when, and whether cash on delivery is taken).
 
 ## Ordering
 
@@ -131,7 +131,7 @@ const catalog = {
     url: `${SITE}/.well-known/agent-skills/aashi-shop/SKILL.md`,
     description: "How to shop at Aashi Enterprises for someone in India: the Divine Mantra Box, the Mini Chanting Box and Night Lamps in a chosen sacred design, the cart and checkout, and tracking or cancelling an order.",
     tags: ["shopping", "devotional", "mantra chanting box", "night lamp", "India"],
-    capabilities: ["list_products", "add_to_cart", "fill_delivery_details", "track_order"],
+    capabilities: ["list_products", "add_to_cart", "check_delivery", "fill_delivery_details", "track_order"],
     representativeQueries: [
       "buy a 35 in 1 mantra chanting box online in India",
       "Khatu Shyam Ji night lamp for the puja room",
