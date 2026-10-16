@@ -47,7 +47,7 @@ async function logIn(env, email) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.token) {
     cached = null;
-    throw new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0);
+    throw Object.assign(new ShiprocketError(`Shiprocket didn't accept the email or password (${res.status}${data.message ? ": " + data.message : ""}).`, 0), { loginStatus: res.status });
   }
   cached = { token: data.token, email, at: Date.now() };
   return data.token;
